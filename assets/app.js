@@ -849,6 +849,12 @@ window.addEventListener("DOMContentLoaded", () => {
     const authorPhonePrintable = authorPhoneSafe ? authorPhoneSafe : naIfBlank(authorPhone);
     const authorPhoneWrapped = authorPhonePrintable ? `(${authorPhonePrintable})` : "(N/A)";
 
+    // =========================================================
+    // UPDATED: Swap visual placement in the Word header block
+    // - TOPIC now appears in the small/top position
+    // - TITLE now appears in the larger/bottom position
+    // (No removals elsewhere, just this table updated)
+    // =========================================================
     const infoTable = new docx.Table({
       width: { size: 100, type: docx.WidthType.PERCENTAGE },
       borders: {
@@ -860,10 +866,19 @@ window.addEventListener("DOMContentLoaded", () => {
         insideVertical: { style: docx.BorderStyle.NONE }
       },
       rows: [
+        // Row 1: TOPIC (small) on the left, author on the right
         new docx.TableRow({
           children: [
             new docx.TableCell({
-              children: [new docx.Paragraph({ text: title, bold: true, size: 28, spacing: { after: 100 } })],
+              children: [
+                new docx.Paragraph({
+                  children: [
+                    new docx.TextRun({ text: "TOPIC: ", bold: true, size: 20 }),
+                    new docx.TextRun({ text: topic, bold: true, size: 20 })
+                  ],
+                  spacing: { after: 100 }
+                })
+              ],
               width: { size: 60, type: docx.WidthType.PERCENTAGE },
               verticalAlign: docx.VerticalAlign.TOP
             }),
@@ -884,15 +899,16 @@ window.addEventListener("DOMContentLoaded", () => {
             })
           ]
         }),
+
+        // Row 2: TITLE (bigger) on the left, co-authors on the right
         new docx.TableRow({
           children: [
             new docx.TableCell({
               children: [
                 new docx.Paragraph({
-                  children: [
-                    new docx.TextRun({ text: "TOPIC: ", bold: true, size: 28 }),
-                    new docx.TextRun({ text: topic, bold: true, size: 28 })
-                  ],
+                  text: title,
+                  bold: true,
+                  size: 40, // intentionally larger than the TOPIC row
                   spacing: { after: 200 }
                 })
               ],
