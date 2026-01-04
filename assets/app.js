@@ -863,7 +863,19 @@ window.addEventListener("DOMContentLoaded", () => {
         new docx.TableRow({
           children: [
             new docx.TableCell({
-              children: [new docx.Paragraph({ text: title, bold: true, size: 28, spacing: { after: 100 } })],
+              // ================================
+              // ✅ UPDATE: TOPIC now sits where title was (small, not bold)
+              // Size 20 = 10pt in docx
+              // ================================
+              children: [
+                new docx.Paragraph({
+                  children: [
+                    new docx.TextRun({ text: "TOPIC: ", bold: false, size: 20 }),
+                    new docx.TextRun({ text: topic, bold: false, size: 20 })
+                  ],
+                  spacing: { after: 100 }
+                })
+              ],
               width: { size: 60, type: docx.WidthType.PERCENTAGE },
               verticalAlign: docx.VerticalAlign.TOP
             }),
@@ -887,12 +899,15 @@ window.addEventListener("DOMContentLoaded", () => {
         new docx.TableRow({
           children: [
             new docx.TableCell({
+              // ================================
+              // ✅ UPDATE: TITLE now sits where topic row was (bold, 14pt)
+              // Size 28 = 14pt in docx
+              // ================================
               children: [
                 new docx.Paragraph({
-                  children: [
-                    new docx.TextRun({ text: "TOPIC: ", bold: true, size: 28 }),
-                    new docx.TextRun({ text: topic, bold: true, size: 28 })
-                  ],
+                  text: title,
+                  bold: true,
+                  size: 28,
                   spacing: { after: 200 }
                 })
               ],
