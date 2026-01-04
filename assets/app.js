@@ -896,20 +896,16 @@ window.addEventListener("DOMContentLoaded", () => {
             })
           ]
         }),
-        new docx.TableRow({
-          children: [
-            new docx.TableCell({
-              // ================================
-              // ✅ UPDATE: TITLE now sits where topic row was (bold, 14pt)
-              // Size 28 = 14pt in docx
-              // ================================
-              children: [
-                new docx.Paragraph({
-                  text: title,
-                  bold: true,
-                  size: 28,
-                  spacing: { after: 200 }
-                })
+    new docx.Paragraph({
+  children: [
+    new docx.TextRun({
+      text: title,
+      bold: true,
+      size: 28   // ✅ 14pt
+    })
+  ],
+  spacing: { after: 200 }
+})
               ],
               width: { size: 60, type: docx.WidthType.PERCENTAGE },
               verticalAlign: docx.VerticalAlign.TOP
