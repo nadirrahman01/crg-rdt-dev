@@ -845,12 +845,12 @@ async function createDocument(data) {
 
   const imageParagraphs = await addImages(imageFiles);
 
-  // NEW: ensure author phone prints as "(N/A)" (single bracket pair)
+  // ensure author phone prints as "(N/A)"
   const authorPhonePrintable = authorPhoneSafe ? authorPhoneSafe : naIfBlank(authorPhone);
   const authorPhoneWrapped = authorPhonePrintable ? `(${authorPhonePrintable})` : "(N/A)";
 
   // =========================================================
-  // UPDATED: Match requested header layout + typography
+  // Header layout + typography
   // - TOPIC on top (NOT bold)
   // - TITLE below (BOLD, size 14pt => docx size 28)
   // =========================================================
@@ -865,7 +865,7 @@ async function createDocument(data) {
       insideVertical: { style: docx.BorderStyle.NONE }
     },
     rows: [
-      // Row 1: TOPIC (not bold) on the left, author on the right
+      // Row 1: TOPIC (left) + author (right)
       new docx.TableRow({
         children: [
           new docx.TableCell({
@@ -873,7 +873,7 @@ async function createDocument(data) {
               new docx.Paragraph({
                 children: [
                   new docx.TextRun({ text: "TOPIC: ", bold: false, size: 20 }),
-                  new docx.TextRun({ text: topic, bold: false, size: 20 })
+                  new docx.TextRun({ text: topic || "", bold: false, size: 20 })
                 ],
                 spacing: { after: 120 }
               })
@@ -884,11 +884,13 @@ async function createDocument(data) {
           new docx.TableCell({
             children: [
               new docx.Paragraph({
-                children: [new docx.TextRun({
-                  text: `${authorLastName.toUpperCase()}, ${authorFirstName.toUpperCase()} ${authorPhoneWrapped}`,
-                  bold: true,
-                  size: 28
-                })],
+                children: [
+                  new docx.TextRun({
+                    text: `${(authorLastName || "").toUpperCase()}, ${(authorFirstName || "").toUpperCase()} ${authorPhoneWrapped}`,
+                    bold: true,
+                    size: 28
+                  })
+                ],
                 alignment: docx.AlignmentType.RIGHT,
                 spacing: { after: 120 }
               })
@@ -899,7 +901,7 @@ async function createDocument(data) {
         ]
       }),
 
-      // Row 2: TITLE (bold, size 14pt) on the left, co-authors on the right
+      // Row 2: TITLE (left) + co-authors (right)
       new docx.TableRow({
         children: [
           new docx.TableCell({
@@ -907,7 +909,7 @@ async function createDocument(data) {
               new docx.Paragraph({
                 children: [
                   new docx.TextRun({
-                    text: title,
+                    text: title || "",
                     bold: true,
                     size: 28 // 14pt
                   })
@@ -919,14 +921,16 @@ async function createDocument(data) {
             verticalAlign: docx.VerticalAlign.TOP
           }),
           new docx.TableCell({
-            children: coAuthors.length > 0
+            children: (coAuthors && coAuthors.length > 0)
               ? coAuthors.map(coAuthor =>
                 new docx.Paragraph({
-                  children: [new docx.TextRun({
-                    text: coAuthorLine(coAuthor),
-                    bold: true,
-                    size: 28
-                  })],
+                  children: [
+                    new docx.TextRun({
+                      text: coAuthorLine(coAuthor),
+                      bold: true,
+                      size: 28
+                    })
+                  ],
                   alignment: docx.AlignmentType.RIGHT,
                   spacing: { after: 100 }
                 })
@@ -947,6 +951,9 @@ async function createDocument(data) {
       spacing: { after: 300 }
     })
   ];
+
+  // (rest of your function remains unchanged)
+  // IMPORTANT: keep everything below exactly as you had it (Equity section, takeaways, analysis, headers/footers)
 
   if (noteType === "Equity Research") {
     const attachedModelNames = (modelFiles && modelFiles.length) ? Array.from(modelFiles).map(f => f.name) : [];
@@ -1215,4 +1222,110 @@ async function createDocument(data) {
   });
 
   return doc;
+}
+
+// ================================
+// Main Form Submission (FIXED: guard form existence)
+// ================================
+const form = document.getElementById("researchForm");
+if (form) {
+  form.noValidate = true;
+
+  form.addEventListener("submit", async function (e) {
+    e.preventDefault();
+
+    const button = form.querySelector('button[type="submit"]');
+    const messageDiv = document.getElementById("message");
+
+    if (button) {
+      button.disabled = true;
+      button.classList.add("loading");
+      button.textContent = "Generating Document...";
+    }
+    if (messageDiv) {
+      messageDiv.className = "message";
+      messageDiv.textContent = "";
+    }
+
+    try {
+      if (typeof docx === "undefined") throw new Error("docx library not loaded. Please refresh the page.");
+      if (typeof saveAs === "undefined") throw new Error("FileSaver library not loaded. Please refresh the page.");
+
+      const noteType = document.getElementById("noteType").value;
+      const title = document.getElementById("title").value;
+      const topic = document.getElementById("topic").value;
+      const authorLastName = document.getElementById("authorLastName").value;
+      const authorFirstName = document.getElementById("authorFirstName").value;
+
+      const authorPhone = document.getElementById("authorPhone").value;
+      const authorPhoneSafe = naIfBlank(authorPhone);
+
+      const analysis = document.getElementById("analysis").value;
+      const keyTakeaways = document.getElementById("keyTakeaways").value;
+      const content = document.getElementById("content").value;
+      const cordobaView = document.getElementById("cordobaView").value;
+      const imageFiles = document.getElementById("imageUpload").files;
+
+      const ticker = document.getElementById("ticker") ? document.getElementById("ticker").value : "";
+      const valuationSummary = document.getElementById("valuationSummary") ? document.getElementById("valuationSummary").value : "";
+      const keyAssumptions = document.getElementById("keyAssumptions") ? document.getElementById("keyAssumptions").value : "";
+      const scenarioNotes = document.getElementById("scenarioNotes") ? document.getElementById("scenarioNotes").value : "";
+      const modelFiles = document.getElementById("modelFiles") ? document.getElementById("modelFiles").files : null;
+      const modelLink = document.getElementById("modelLink") ? document.getElementById("modelLink").value : "";
+
+      const targetPrice = document.getElementById("targetPrice") ? document.getElementById("targetPrice").value : "";
+      const crgRating = document.getElementById("crgRating") ? document.getElementById("crgRating").value : "";
+
+      const now = new Date();
+      const dateTimeString = formatDateTime(now);
+
+      const coAuthors = [];
+      document.querySelectorAll(".coauthor-entry").forEach(entry => {
+        const lastName = entry.querySelector(".coauthor-lastname").value;
+        const firstName = entry.querySelector(".coauthor-firstname").value;
+        const phone = entry.querySelector(".coauthor-phone").value;
+        if (lastName && firstName) coAuthors.push({ lastName, firstName, phone: naIfBlank(phone) });
+      });
+
+      const doc = await createDocument({
+        noteType, title, topic,
+        authorLastName, authorFirstName, authorPhone,
+        authorPhoneSafe,
+        coAuthors,
+        analysis, keyTakeaways, content, cordobaView,
+        imageFiles, dateTimeString,
+        ticker, valuationSummary, keyAssumptions, scenarioNotes, modelFiles, modelLink,
+        priceChartImageBytes,
+        targetPrice,
+        equityStats,
+        crgRating
+      });
+
+      const blob = await docx.Packer.toBlob(doc);
+
+      const fileName =
+        `${title.replace(/[^a-z0-9]/gi, "_").toLowerCase()}_${noteType.replace(/\s+/g, "_").toLowerCase()}.docx`;
+
+      saveAs(blob, fileName);
+
+      if (messageDiv) {
+        messageDiv.className = "message success";
+        messageDiv.textContent = `✓ Document "${fileName}" generated successfully!`;
+      }
+    } catch (error) {
+      console.error("Error generating document:", error);
+      if (messageDiv) {
+        messageDiv.className = "message error";
+        messageDiv.textContent = `✗ Error: ${error.message}`;
+      }
+    } finally {
+      if (button) {
+        button.disabled = false;
+        button.classList.remove("loading");
+        button.textContent = "Generate Word Document";
+      }
+    }
+  });
+} else {
+  console.warn("Form #researchForm not found — submit handler not attached.");
 }
