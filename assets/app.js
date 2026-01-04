@@ -1189,7 +1189,7 @@ window.addEventListener("DOMContentLoaded", () => {
                 children: [
                   new docx.TextRun({ text: "\t" }),
                   new docx.TextRun({
-                    text: "Cordoba Research Group Internal Information",
+                    text: "Cordoba Research Group Public Information",
                     size: 16,
                     font: "Book Antiqua",
                     italics: true
