@@ -1,38 +1,62 @@
-/* assets/app.js
-   CRG — Research Documentation Tool (Institutional / BlueMatrix-style workflow)
-
-   Adds:
-   - Versioning: auto v1.0 -> v1.1 increments (major/minor), change note; included in Word header + email subject
-   - Workflow: Status (Draft/Reviewed/Cleared), Reviewed by, export gating
-   - Watermarking system: Draft + Internal-only preset watermarked; Client-safe requires Cleared
-   - Executive Summary: auto-generate toggle + editable textarea
-   - Data source tracking (chart/stats) + chart annotation printed in Word
-   - Distribution presets: Internal only / Public pack / Client-safe controlling watermark + export sections + email routing tags
-   - Scenario table generator (Bear/Base/Bull) rendered in Word
-   - Saved templates (Macro update / Equity initiation / Event note) that prefill and adjust required fields
-*/
-
+// assets/app.js
 console.log("app.js loaded successfully");
 
 window.addEventListener("DOMContentLoaded", () => {
+  // ============================================================
+  // CRG RDT — BlueMatrix-style workflow + versioning + templates
+  // ============================================================
 
-  // ================================
+  // ----------------
   // Utilities
-  // ================================
+  // ----------------
   const $ = (id) => document.getElementById(id);
 
-  function digitsOnly(v){ return (v || "").toString().replace(/\D/g, ""); }
+  function digitsOnly(v){ return (v||"").toString().replace(/\D/g,""); }
+  function safeTrim(v){ return (v ?? "").toString().trim(); }
+  function naIfBlank(v){ const s = safeTrim(v); return s ? s : "N/A"; }
 
+  function formatDateTime(date){
+    const months = ["January","February","March","April","May","June","July","August","September","October","November","December"];
+    const month = months[date.getMonth()];
+    const day = date.getDate();
+    const year = date.getFullYear();
+    let hours = date.getHours();
+    const minutes = date.getMinutes().toString().padStart(2,"0");
+    const ampm = hours >= 12 ? "PM" : "AM";
+    hours = hours % 12 || 12;
+    return `${month} ${day}, ${year} ${hours}:${minutes} ${ampm}`;
+  }
+  function formatDateShort(date){
+    const y = date.getFullYear();
+    const m = String(date.getMonth()+1).padStart(2,"0");
+    const d = String(date.getDate()).padStart(2,"0");
+    return `${y}-${m}-${d}`;
+  }
+
+  // ----------------
+  // Mailto builder (avoid '+' spaces)
+  // ----------------
+  function buildMailto(to, cc, subject, body){
+    const crlfBody = (body || "").replace(/\n/g, "\r\n");
+    const parts = [];
+    if (cc) parts.push(`cc=${encodeURIComponent(cc)}`);
+    parts.push(`subject=${encodeURIComponent(subject || "")}`);
+    parts.push(`body=${encodeURIComponent(crlfBody)}`);
+    return `mailto:${encodeURIComponent(to)}?${parts.join("&")}`;
+  }
+
+  // ----------------
+  // Phone formatting (primary + coauthors)
+  // ----------------
   function formatNationalLoose(rawDigits){
     const d = digitsOnly(rawDigits);
     if (!d) return "";
-    const p1 = d.slice(0, 4);
-    const p2 = d.slice(4, 7);
-    const p3 = d.slice(7, 10);
+    const p1 = d.slice(0,4);
+    const p2 = d.slice(4,7);
+    const p3 = d.slice(7,10);
     const rest = d.slice(10);
-    return [p1, p2, p3, rest].filter(Boolean).join(" ");
+    return [p1,p2,p3,rest].filter(Boolean).join(" ");
   }
-
   function buildInternationalHyphen(ccDigits, nationalDigits){
     const cc = digitsOnly(ccDigits);
     const nn = digitsOnly(nationalDigits);
@@ -42,615 +66,72 @@ window.addEventListener("DOMContentLoaded", () => {
     return `${cc}-${nn}`;
   }
 
-  function naIfBlank(v){
-    const s = (v ?? "").toString().trim();
-    return s ? s : "N/A";
-  }
-
-  function escapeText(s){
-    return (s || "").toString()
-      .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-  }
-
-  // ================================
-  // Date/time + session timer
-  // ================================
-  function formatDateTime(date){
-    const months = [
-      "January","February","March","April","May","June",
-      "July","August","September","October","November","December"
-    ];
-    const month = months[date.getMonth()];
-    const day = date.getDate();
-    const year = date.getFullYear();
-
-    let hours = date.getHours();
-    const minutes = String(date.getMinutes()).padStart(2, "0");
-    const ampm = hours >= 12 ? "PM" : "AM";
-    hours = hours % 12 || 12;
-
-    return `${month} ${day}, ${year} ${hours}:${minutes} ${ampm}`;
-  }
-
-  function formatDateShort(date){
-    const y = date.getFullYear();
-    const m = String(date.getMonth() + 1).padStart(2, "0");
-    const d = String(date.getDate()).padStart(2, "0");
-    return `${y}-${m}-${d}`;
-  }
-
-  // ================================
-  // Autosave (localStorage)
-  // ================================
-  const STORAGE_KEY = "crg_rdt_institutional_v1_draft";
-
-  function getFormSnapshot(){
-    const coAuthors = [];
-    document.querySelectorAll(".coauthor-entry").forEach(entry => {
-      const lastName = entry.querySelector(".coauthor-lastname")?.value || "";
-      const firstName = entry.querySelector(".coauthor-firstname")?.value || "";
-      const phone = entry.querySelector(".coauthor-phone")?.value || "";
-      const cc = entry.querySelector(".coauthor-country")?.value || "";
-      const local = entry.querySelector(".coauthor-phone-local")?.value || "";
-      if (lastName || firstName || phone || local) {
-        coAuthors.push({ lastName, firstName, phone, cc, local });
-      }
-    });
-
-    const scenario = {
-      bearPrice: $("bearPrice")?.value || "",
-      bearKey: $("bearKey")?.value || "",
-      basePrice: $("basePrice")?.value || "",
-      baseKey: $("baseKey")?.value || "",
-      bullPrice: $("bullPrice")?.value || "",
-      bullKey: $("bullKey")?.value || ""
-    };
-
-    return {
-      template: $("noteTemplate")?.value || "",
-      noteType: $("noteType")?.value || "",
-      status: $("workflowStatus")?.value || "Draft",
-      reviewedBy: $("reviewedBy")?.value || "",
-      reviewedByOther: $("reviewedByOther")?.value || "",
-      distributionPreset: $("distributionPreset")?.value || "internal",
-      versionMajor: $("versionMajor")?.value || "1",
-      versionMinor: $("versionMinor")?.value || "0",
-      changeNote: $("changeNote")?.value || "",
-      majorBumpNext: $("majorBumpNext")?.checked || false,
-
-      title: $("title")?.value || "",
-      topic: $("topic")?.value || "",
-      thesis: $("thesis")?.value || "",
-
-      authorLastName: $("authorLastName")?.value || "",
-      authorFirstName: $("authorFirstName")?.value || "",
-      authorPhoneCountry: $("authorPhoneCountry")?.value || "",
-      authorPhoneNational: $("authorPhoneNational")?.value || "",
-      authorPhone: $("authorPhone")?.value || "",
-
-      execAuto: $("execAuto")?.checked || false,
-      executiveSummary: $("executiveSummary")?.value || "",
-
-      ticker: $("ticker")?.value || "",
-      crgRating: $("crgRating")?.value || "",
-      targetPrice: $("targetPrice")?.value || "",
-      chartRange: $("chartRange")?.value || "6mo",
-      chartDataSource: $("chartDataSource")?.value || "Stooq",
-      chartDataSourceOther: $("chartDataSourceOther")?.value || "",
-      chartAnnotation: $("chartAnnotation")?.value || "",
-
-      valuationSummary: $("valuationSummary")?.value || "",
-      keyAssumptions: $("keyAssumptions")?.value || "",
-      scenarioNotes: $("scenarioNotes")?.value || "",
-      modelLink: $("modelLink")?.value || "",
-
-      keyTakeaways: $("keyTakeaways")?.value || "",
-      analysis: $("analysis")?.value || "",
-      content: $("content")?.value || "",
-      cordobaView: $("cordobaView")?.value || "",
-
-      confirmDraft: $("confirmDraft")?.checked || false,
-
-      coAuthors,
-      scenario
-    };
-  }
-
-  function applyFormSnapshot(s){
-    if (!s) return;
-
-    if ($("noteTemplate")) $("noteTemplate").value = s.template ?? "";
-    if ($("noteType")) $("noteType").value = s.noteType ?? "";
-    if ($("workflowStatus")) $("workflowStatus").value = s.status ?? "Draft";
-    if ($("reviewedBy")) $("reviewedBy").value = s.reviewedBy ?? "";
-    if ($("reviewedByOther")) $("reviewedByOther").value = s.reviewedByOther ?? "";
-    if ($("distributionPreset")) $("distributionPreset").value = s.distributionPreset ?? "internal";
-
-    if ($("versionMajor")) $("versionMajor").value = s.versionMajor ?? "1";
-    if ($("versionMinor")) $("versionMinor").value = s.versionMinor ?? "0";
-    if ($("changeNote")) $("changeNote").value = s.changeNote ?? "";
-    if ($("majorBumpNext")) $("majorBumpNext").checked = !!s.majorBumpNext;
-
-    if ($("title")) $("title").value = s.title ?? "";
-    if ($("topic")) $("topic").value = s.topic ?? "";
-    if ($("thesis")) $("thesis").value = s.thesis ?? "";
-
-    if ($("authorLastName")) $("authorLastName").value = s.authorLastName ?? "";
-    if ($("authorFirstName")) $("authorFirstName").value = s.authorFirstName ?? "";
-    if ($("authorPhoneCountry")) $("authorPhoneCountry").value = s.authorPhoneCountry ?? "44";
-    if ($("authorPhoneNational")) $("authorPhoneNational").value = s.authorPhoneNational ?? "";
-    if ($("authorPhone")) $("authorPhone").value = s.authorPhone ?? "";
-
-    if ($("execAuto")) $("execAuto").checked = !!s.execAuto;
-    if ($("executiveSummary")) $("executiveSummary").value = s.executiveSummary ?? "";
-
-    if ($("ticker")) $("ticker").value = s.ticker ?? "";
-    if ($("crgRating")) $("crgRating").value = s.crgRating ?? "";
-    if ($("targetPrice")) $("targetPrice").value = s.targetPrice ?? "";
-    if ($("chartRange")) $("chartRange").value = s.chartRange ?? "6mo";
-    if ($("chartDataSource")) $("chartDataSource").value = s.chartDataSource ?? "Stooq";
-    if ($("chartDataSourceOther")) $("chartDataSourceOther").value = s.chartDataSourceOther ?? "";
-    if ($("chartAnnotation")) $("chartAnnotation").value = s.chartAnnotation ?? "";
-
-    if ($("valuationSummary")) $("valuationSummary").value = s.valuationSummary ?? "";
-    if ($("keyAssumptions")) $("keyAssumptions").value = s.keyAssumptions ?? "";
-    if ($("scenarioNotes")) $("scenarioNotes").value = s.scenarioNotes ?? "";
-    if ($("modelLink")) $("modelLink").value = s.modelLink ?? "";
-
-    if ($("keyTakeaways")) $("keyTakeaways").value = s.keyTakeaways ?? "";
-    if ($("analysis")) $("analysis").value = s.analysis ?? "";
-    if ($("content")) $("content").value = s.content ?? "";
-    if ($("cordobaView")) $("cordobaView").value = s.cordobaView ?? "";
-
-    if ($("confirmDraft")) $("confirmDraft").checked = !!s.confirmDraft;
-
-    // Scenario
-    if ($("bearPrice")) $("bearPrice").value = s.scenario?.bearPrice ?? "";
-    if ($("bearKey")) $("bearKey").value = s.scenario?.bearKey ?? "";
-    if ($("basePrice")) $("basePrice").value = s.scenario?.basePrice ?? "";
-    if ($("baseKey")) $("baseKey").value = s.scenario?.baseKey ?? "";
-    if ($("bullPrice")) $("bullPrice").value = s.scenario?.bullPrice ?? "";
-    if ($("bullKey")) $("bullKey").value = s.scenario?.bullKey ?? "";
-
-    // Coauthors (rebuild list)
-    if (Array.isArray(s.coAuthors) && $("coAuthorsList")) {
-      $("coAuthorsList").innerHTML = "";
-      s.coAuthors.forEach((c) => addCoAuthorRow(c));
-    }
-  }
-
-  let autosaveTimer = null;
-  function autosaveNow(){
-    try{
-      const snap = getFormSnapshot();
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(snap));
-      setAutosaveStatus("Saved");
-    } catch(e){
-      console.warn("Autosave failed:", e);
-      setAutosaveStatus("Autosave error");
-    }
-  }
-
-  function scheduleAutosave(){
-    setAutosaveStatus("Typing…");
-    if (autosaveTimer) clearTimeout(autosaveTimer);
-    autosaveTimer = setTimeout(() => autosaveNow(), 450);
-  }
-
-  function clearAutosave(){
-    localStorage.removeItem(STORAGE_KEY);
-    setAutosaveStatus("Cleared");
-  }
-
-  function setAutosaveStatus(text){
-    const el = $("autosaveStatus");
-    if (el) el.textContent = text;
-  }
-
-  // ================================
-  // Versioning
-  // ================================
-  function getVersion(){
-    const major = parseInt($("versionMajor")?.value || "1", 10);
-    const minor = parseInt($("versionMinor")?.value || "0", 10);
-    return { major: Number.isFinite(major) ? major : 1, minor: Number.isFinite(minor) ? minor : 0 };
-  }
-
-  function formatVersion(v){
-    // minor is integer "tenths": 0 => .0, 1 => .1, ... 9 => .9
-    const m = Math.max(0, v.major);
-    const mi = Math.max(0, v.minor);
-    return `v${m}.${mi}`;
-  }
-
-  function setVersion(v){
-    if ($("versionMajor")) $("versionMajor").value = String(v.major);
-    if ($("versionMinor")) $("versionMinor").value = String(v.minor);
-    paintVersionPill();
-    scheduleAutosave();
-  }
-
-  function bumpVersion({ majorBump }){
-    const v = getVersion();
-    if (majorBump){
-      setVersion({ major: v.major + 1, minor: 0 });
-    } else {
-      const nextMinor = v.minor + 1;
-      if (nextMinor >= 10){
-        setVersion({ major: v.major + 1, minor: 0 });
-      } else {
-        setVersion({ major: v.major, minor: nextMinor });
-      }
-    }
-  }
-
-  function paintVersionPill(){
-    const v = getVersion();
-    const el = $("versionPill");
-    if (el) el.textContent = formatVersion(v);
-  }
-
-  // ================================
-  // Workflow: status + reviewer + preset rules
-  // ================================
-  function getStatus(){ return ($("workflowStatus")?.value || "Draft").trim(); }
-
-  function getReviewedBy(){
-    const base = ($("reviewedBy")?.value || "").trim();
-    if (base === "__other__") return ($("reviewedByOther")?.value || "").trim();
-    return base;
-  }
-
-  function getPreset(){ return ($("distributionPreset")?.value || "internal").trim(); }
-
-  function presetLabel(p){
-    if (p === "internal") return "Internal only";
-    if (p === "public") return "Public pack";
-    if (p === "client") return "Client-safe";
-    return p;
-  }
-
-  function isEquity(){ return ($("noteType")?.value || "") === "Equity Research"; }
-
-  function toggleEquitySection(){
-    const show = isEquity();
-    const sec = $("equitySection");
-    if (sec) sec.style.display = show ? "block" : "none";
-    const railLink = $("equityRailLink");
-    if (railLink) railLink.style.display = show ? "list-item" : "none";
-  }
-
-  function toggleReviewedByOther(){
-    const sel = $("reviewedBy");
-    const other = $("reviewedByOther");
-    if (!sel || !other) return;
-    const on = sel.value === "__other__";
-    other.style.display = on ? "block" : "none";
-  }
-
-  function computeWatermarkMode(){
-    // Compliance watermarking system:
-    // - Draft => watermarked always
-    // - Internal preset => watermarked always (even if reviewed)
-    // - Public / Client-safe => no watermark, but client-safe requires Cleared status
-    const status = getStatus();
-    const preset = getPreset();
-
-    if (status === "Draft") return "DRAFT";
-    if (preset === "internal") return "INTERNAL";
-    return "NONE";
-  }
-
-  function canExport(){
-    // Gating:
-    // - Must confirm draft checkbox
-    // - If status Reviewed/Cleared => reviewedBy required
-    // - If preset client-safe => status must be Cleared
-    if (!$("confirmDraft")?.checked) return { ok:false, reason:"Tick the confirmation before exporting." };
-
-    const status = getStatus();
-    const reviewer = getReviewedBy();
-    if ((status === "Reviewed" || status === "Cleared") && !reviewer) {
-      return { ok:false, reason:"Status is Reviewed/Cleared — please select ‘Reviewed by’." };
-    }
-
-    const preset = getPreset();
-    if (preset === "client" && status !== "Cleared"){
-      return { ok:false, reason:"Client-safe export requires Status = Cleared." };
-    }
-
-    return { ok:true, reason:"" };
-  }
-
-  // ================================
-  // Templates (saved templates)
-  // ================================
-  const TEMPLATES = {
-    "": { name:"—", noteType:"", defaults:{} },
-    "macro_update": {
-      name:"Macro update",
-      noteType:"Macro Research",
-      defaults:{
-        title:"Macro Update — ",
-        thesis:"",
-        keyTakeaways:"- \n- \n- ",
-        analysis:"",
-        cordobaView:""
-      }
-    },
-    "equity_initiation": {
-      name:"Equity initiation",
-      noteType:"Equity Research",
-      defaults:{
-        title:"Initiation — ",
-        thesis:"",
-        crgRating:"",
-        valuationSummary:"",
-        keyAssumptions:"",
-        scenarioNotes:""
-      }
-    },
-    "event_note": {
-      name:"Event note",
-      noteType:"General Note",
-      defaults:{
-        title:"Event Note — ",
-        thesis:"",
-        keyTakeaways:"- What happened\n- Why it matters\n- What we do next",
-        analysis:"",
-        cordobaView:""
-      }
-    }
-  };
-
-  function applyTemplate(key){
-    const t = TEMPLATES[key] || TEMPLATES[""];
-    if (t.noteType && $("noteType")) $("noteType").value = t.noteType;
-
-    // apply defaults only if field is blank (avoid overwriting analyst work)
-    Object.entries(t.defaults || {}).forEach(([k,v]) => {
-      const el = $(k);
-      if (!el) return;
-      const cur = (el.value || "").trim();
-      if (!cur) el.value = v;
-    });
-
-    toggleEquitySection();
-    updateCompletionMeter();
-    maybeGenerateExecutiveSummary();
-    scheduleAutosave();
-  }
-
-  // ================================
-  // Completion meter + validation panel
-  // ================================
-  function isFilled(el){
-    if (!el) return false;
-    if (el.type === "file") return el.files && el.files.length > 0;
-    if (el.type === "checkbox") return !!el.checked;
-    const v = (el.value ?? "").toString().trim();
-    return v.length > 0;
-  }
-
-  function requiredCoreIds(){
-    // Core fields for institutional output (adjusted)
-    const base = [
-      "noteType",
-      "workflowStatus",
-      "title",
-      "topic",
-      "authorLastName",
-      "authorFirstName",
-      "thesis",
-      "keyTakeaways",
-      "analysis"
-    ];
-
-    // ReviewedBy required when status reviewed/cleared
-    const status = getStatus();
-    if (status === "Reviewed" || status === "Cleared") base.push("reviewedBy");
-
-    // Equity core extras
-    if (isEquity()) {
-      base.push("crgRating");
-      base.push("targetPrice");
-    }
-
-    // Compliance tick is mandatory (export gate)
-    base.push("confirmDraft");
-
-    return base;
-  }
-
-  function firstMissingId(){
-    const ids = requiredCoreIds();
-    for (const id of ids){
-      const el = $(id);
-      if (id === "reviewedBy") {
-        if ((getStatus() === "Reviewed" || getStatus() === "Cleared") && !getReviewedBy()) return "reviewedBy";
-        continue;
-      }
-      if (!isFilled(el)) return id;
-    }
-    return null;
-  }
-
-  function updateCompletionMeter(){
-    const ids = requiredCoreIds();
-    let done = 0;
-
-    ids.forEach((id) => {
-      if (id === "reviewedBy") {
-        if ((getStatus() === "Reviewed" || getStatus() === "Cleared") && getReviewedBy()) done++;
-        return;
-      }
-      const el = $(id);
-      if (isFilled(el)) done++;
-    });
-
-    const total = ids.length;
-    const pct = total ? Math.round((done / total) * 100) : 0;
-
-    if ($("completionText")) $("completionText").textContent = `${done} / ${total} core fields`;
-    if ($("completionBar")) $("completionBar").style.width = `${pct}%`;
-
-    const railPct = $("railPct");
-    if (railPct) railPct.textContent = `${pct}%`;
-
-    const railBar = $("railBarFill");
-    if (railBar) railBar.style.width = `${pct}%`;
-
-    // Validation summary
-    renderValidationSummary();
-
-    // Export button enable/disable
-    const exportBtn = $("generateDocBtn");
-    const gate = canExport();
-    if (exportBtn){
-      exportBtn.disabled = !gate.ok;
-      exportBtn.title = gate.ok ? "" : gate.reason;
-    }
-  }
-
-  function renderValidationSummary(){
-    const el = $("validationSummary");
-    if (!el) return;
-
-    const missing = [];
-    const missId = firstMissingId();
-    if (missId) missing.push(missId);
-
-    const gate = canExport();
-    const items = [];
-
-    // show key items
-    items.push({ label:"Status", ok: !!getStatus(), note:getStatus() });
-    items.push({ label:"Version", ok: true, note: formatVersion(getVersion()) });
-    items.push({ label:"Preset", ok: true, note: presetLabel(getPreset()) });
-
-    if (getStatus() === "Reviewed" || getStatus() === "Cleared"){
-      items.push({ label:"Reviewed by", ok: !!getReviewedBy(), note: getReviewedBy() || "Missing" });
-    }
-
-    if (getPreset() === "client"){
-      items.push({ label:"Client-safe requires Cleared", ok: getStatus() === "Cleared", note: getStatus() });
-    }
-
-    items.push({ label:"Confirmation ticked", ok: !!$("confirmDraft")?.checked, note: $("confirmDraft")?.checked ? "Yes" : "No" });
-
-    el.innerHTML = items.map(i => {
-      const mark = i.ok ? "✓" : "✗";
-      const cls = i.ok ? "val-ok" : "val-bad";
-      return `<div class="val-row ${cls}"><span class="val-mark">${mark}</span><span class="val-label">${escapeText(i.label)}:</span> <span class="val-note">${escapeText(i.note || "")}</span></div>`;
-    }).join("");
-
-    const warn = $("exportWarning");
-    if (warn) warn.textContent = gate.ok ? "" : gate.reason;
-  }
-
-  function markInvalid(id, on){
-    const el = $(id);
-    if (!el) return;
-    if (on) el.classList.add("is-invalid");
-    else el.classList.remove("is-invalid");
-  }
-
-  function jumpToFirstMissing(){
-    const miss = firstMissingId();
-    if (!miss) return;
-    markInvalid(miss, true);
-
-    const el = $(miss);
-    if (!el) return;
-
-    // Ensure section visible
-    if (miss === "crgRating" || miss === "targetPrice") toggleEquitySection();
-
-    el.scrollIntoView({ behavior: "smooth", block: "center" });
-    try { el.focus({ preventScroll: true }); } catch(_) {}
-    setTimeout(() => markInvalid(miss, false), 1600);
-  }
-
-  // ================================
-  // Word counts
-  // ================================
-  function countWords(text){
-    const t = (text || "").trim();
-    if (!t) return 0;
-    return t.split(/\s+/).filter(Boolean).length;
-  }
-
-  function paintWordCounts(){
-    const map = [
-      ["thesis","thesisWC"],
-      ["keyTakeaways","takeawaysWC"],
-      ["analysis","analysisWC"],
-      ["executiveSummary","execWC"]
-    ];
-    map.forEach(([id,out]) => {
-      const el = $(id);
-      const outEl = $(out);
-      if (!el || !outEl) return;
-      outEl.textContent = `${countWords(el.value)} words`;
-    });
-  }
-
-  // ================================
-  // Phone syncing
-  // ================================
-  const authorPhoneCountryEl = $("authorPhoneCountry");
+  const authorPhoneCountryEl  = $("authorPhoneCountry");
   const authorPhoneNationalEl = $("authorPhoneNational");
-  const authorPhoneHiddenEl = $("authorPhone");
+  const authorPhoneHiddenEl   = $("authorPhone"); // hidden source-of-truth
 
   function syncPrimaryPhone(){
     if (!authorPhoneHiddenEl) return;
     const cc = authorPhoneCountryEl ? authorPhoneCountryEl.value : "";
-    const nationalDigits = digitsOnly(authorPhoneNationalEl ? authorPhoneNationalEl.value : "");
-    authorPhoneHiddenEl.value = buildInternationalHyphen(cc, nationalDigits);
+    const nn = digitsOnly(authorPhoneNationalEl ? authorPhoneNationalEl.value : "");
+    authorPhoneHiddenEl.value = buildInternationalHyphen(cc, nn);
   }
-
   function formatPrimaryVisible(){
     if (!authorPhoneNationalEl) return;
     const caret = authorPhoneNationalEl.selectionStart || 0;
     const beforeLen = authorPhoneNationalEl.value.length;
+
     authorPhoneNationalEl.value = formatNationalLoose(authorPhoneNationalEl.value);
+
     const afterLen = authorPhoneNationalEl.value.length;
     const delta = afterLen - beforeLen;
     const next = Math.max(0, caret + delta);
-    try{ authorPhoneNationalEl.setSelectionRange(next, next); } catch(_) {}
+    try { authorPhoneNationalEl.setSelectionRange(next,next); } catch(_){}
+
     syncPrimaryPhone();
   }
 
   if (authorPhoneNationalEl){
-    authorPhoneNationalEl.addEventListener("input", () => { formatPrimaryVisible(); scheduleAutosave(); updateCompletionMeter(); });
-    authorPhoneNationalEl.addEventListener("blur", () => { syncPrimaryPhone(); scheduleAutosave(); });
+    authorPhoneNationalEl.addEventListener("input", formatPrimaryVisible);
+    authorPhoneNationalEl.addEventListener("blur", syncPrimaryPhone);
   }
   if (authorPhoneCountryEl){
-    authorPhoneCountryEl.addEventListener("change", () => { syncPrimaryPhone(); scheduleAutosave(); });
+    authorPhoneCountryEl.addEventListener("change", syncPrimaryPhone);
   }
+  syncPrimaryPhone();
 
-  // ================================
-  // Coauthor management + phone wiring
-  // ================================
+  // ----------------
+  // Co-author management
+  // ----------------
   let coAuthorCount = 0;
+  const addCoAuthorBtn = $("addCoAuthor");
+  const coAuthorsList  = $("coAuthorsList");
 
   const countryOptionsHtml = `
-    <option value="44">+44</option>
+    <option value="44" selected>+44</option>
     <option value="1">+1</option>
     <option value="353">+353</option>
     <option value="33">+33</option>
     <option value="49">+49</option>
     <option value="31">+31</option>
+    <option value="34">+34</option>
+    <option value="39">+39</option>
     <option value="971">+971</option>
     <option value="966">+966</option>
     <option value="92">+92</option>
+    <option value="880">+880</option>
+    <option value="91">+91</option>
+    <option value="234">+234</option>
+    <option value="254">+254</option>
+    <option value="27">+27</option>
+    <option value="995">+995</option>
     <option value="">Other</option>
   `;
 
   function wireCoauthorPhone(coAuthorDiv){
-    const ccEl = coAuthorDiv.querySelector(".coauthor-country");
-    const nationalEl = coAuthorDiv.querySelector(".coauthor-phone-local");
-    const hiddenEl = coAuthorDiv.querySelector(".coauthor-phone");
+    const ccEl      = coAuthorDiv.querySelector(".coauthor-country");
+    const nationalEl= coAuthorDiv.querySelector(".coauthor-phone-local");
+    const hiddenEl  = coAuthorDiv.querySelector(".coauthor-phone");
     if (!hiddenEl) return;
 
     function syncHidden(){
@@ -658,167 +139,792 @@ window.addEventListener("DOMContentLoaded", () => {
       const nn = digitsOnly(nationalEl ? nationalEl.value : "");
       hiddenEl.value = buildInternationalHyphen(cc, nn);
     }
-
     function formatVisible(){
       if (!nationalEl) return;
       const caret = nationalEl.selectionStart || 0;
       const beforeLen = nationalEl.value.length;
+
       nationalEl.value = formatNationalLoose(nationalEl.value);
+
       const afterLen = nationalEl.value.length;
       const delta = afterLen - beforeLen;
       const next = Math.max(0, caret + delta);
-      try{ nationalEl.setSelectionRange(next, next); } catch(_) {}
+      try { nationalEl.setSelectionRange(next,next); } catch(_){}
+
       syncHidden();
     }
 
     if (nationalEl){
-      nationalEl.addEventListener("input", () => { formatVisible(); scheduleAutosave(); });
-      nationalEl.addEventListener("blur", () => { syncHidden(); scheduleAutosave(); });
+      nationalEl.addEventListener("input", formatVisible);
+      nationalEl.addEventListener("blur", syncHidden);
     }
-    if (ccEl) ccEl.addEventListener("change", () => { syncHidden(); scheduleAutosave(); });
+    if (ccEl) ccEl.addEventListener("change", syncHidden);
 
     syncHidden();
   }
 
-  function addCoAuthorRow(preset){
-    coAuthorCount++;
-    const wrap = document.createElement("div");
-    wrap.className = "coauthor-entry coauthor-row";
-    wrap.id = `coauthor-${coAuthorCount}`;
-    wrap.innerHTML = `
-      <div class="coauthor-grid">
-        <div>
-          <label>Last Name</label>
-          <input type="text" class="coauthor-lastname" placeholder="e.g., Rahman" value="${escapeText(preset?.lastName || "")}">
-        </div>
-        <div>
-          <label>First Name</label>
-          <input type="text" class="coauthor-firstname" placeholder="e.g., Nadir" value="${escapeText(preset?.firstName || "")}">
-        </div>
-        <div>
-          <label>Phone (optional)</label>
-          <div class="phone-row phone-row--compact">
-            <select class="coauthor-country">
-              ${countryOptionsHtml}
-            </select>
-            <input type="text" class="coauthor-phone-local" placeholder="e.g., 7323 324 120" value="${escapeText(preset?.local || "")}">
+  if (addCoAuthorBtn){
+    addCoAuthorBtn.addEventListener("click", () => {
+      coAuthorCount++;
+
+      const coAuthorDiv = document.createElement("div");
+      coAuthorDiv.className = "coauthor-row";
+      coAuthorDiv.id = `coauthor-${coAuthorCount}`;
+
+      coAuthorDiv.innerHTML = `
+        <div class="coauthor-grid">
+          <div>
+            <label>Last Name</label>
+            <input type="text" class="coauthor-lastname" placeholder="e.g., Rahman">
           </div>
-          <input type="text" class="coauthor-phone" style="display:none;" value="${escapeText(preset?.phone || "")}">
+          <div>
+            <label>First Name</label>
+            <input type="text" class="coauthor-firstname" placeholder="e.g., Nadir">
+          </div>
+          <div>
+            <label>Phone (Optional)</label>
+            <div class="phone-row phone-row--compact">
+              <select class="phone-country coauthor-country" aria-label="Country code">${countryOptionsHtml}</select>
+              <input type="text" class="phone-number coauthor-phone-local" inputmode="numeric" placeholder="e.g., 7323 324 120">
+            </div>
+            <input type="text" class="coauthor-phone" style="display:none;">
+          </div>
+          <div style="display:flex; align-items:flex-end;">
+            <button type="button" class="btn btn-danger remove-coauthor" data-remove-id="${coAuthorCount}">Remove</button>
+          </div>
         </div>
-        <div style="display:flex; align-items:flex-end;">
-          <button type="button" class="btn btn-danger remove-coauthor" data-remove-id="${coAuthorCount}">Remove</button>
-        </div>
-      </div>
-    `;
+      `;
 
-    $("coAuthorsList")?.appendChild(wrap);
-
-    // set cc default from preset
-    const ccEl = wrap.querySelector(".coauthor-country");
-    if (ccEl) ccEl.value = preset?.cc ?? "44";
-
-    wireCoauthorPhone(wrap);
-
-    wrap.querySelectorAll("input,select").forEach(el => {
-      el.addEventListener("input", () => { scheduleAutosave(); updateCompletionMeter(); paintWordCounts(); });
-      el.addEventListener("change", () => { scheduleAutosave(); updateCompletionMeter(); paintWordCounts(); });
+      coAuthorsList.appendChild(coAuthorDiv);
+      wireCoauthorPhone(coAuthorDiv);
+      updateCompletionMeter();
+      refreshValidationSummary();
     });
 
-    updateCompletionMeter();
+    document.addEventListener("click", (e) => {
+      const btn = e.target.closest(".remove-coauthor");
+      if (!btn) return;
+      const id = btn.getAttribute("data-remove-id");
+      const row = document.getElementById(`coauthor-${id}`);
+      if (row) row.remove();
+      updateCompletionMeter();
+      refreshValidationSummary();
+    });
   }
 
-  $("addCoAuthor")?.addEventListener("click", () => addCoAuthorRow());
-
-  document.addEventListener("click", (e) => {
-    const btn = e.target.closest(".remove-coauthor");
-    if (!btn) return;
-    const id = btn.getAttribute("data-remove-id");
-    const row = document.getElementById(`coauthor-${id}`);
-    if (row) row.remove();
-    scheduleAutosave();
-    updateCompletionMeter();
-  });
-
-  // ================================
-  // Executive summary (auto-generate)
-  // ================================
-  function firstTakeawayLine(){
-    const t = ($("keyTakeaways")?.value || "").split("\n")
-      .map(x => x.replace(/^[-*•]\s*/, "").trim())
-      .filter(Boolean);
-    return t.length ? t[0] : "";
+  function coAuthorLine(coAuthor){
+    const ln = (coAuthor.lastName || "").toUpperCase();
+    const fn = (coAuthor.firstName || "").toUpperCase();
+    const ph = naIfBlank(coAuthor.phone);
+    return `${ln}, ${fn} (${ph})`;
   }
 
-  function buildExecSummary(){
-    const thesis = ($("thesis")?.value || "").trim();
-    const firstBullet = firstTakeawayLine();
-    const rating = ($("crgRating")?.value || "").trim();
-    const tp = ($("targetPrice")?.value || "").trim();
-    const ticker = ($("ticker")?.value || "").trim();
+  // ----------------
+  // Equity section toggle
+  // ----------------
+  const noteTypeEl = $("noteType");
+  const equitySectionEl = $("equitySection");
+  const equityRailLink = $("equityRailLink"); // optional in left rail
 
-    const lines = [];
-    if (thesis) lines.push(thesis);
-    if (firstBullet) lines.push(firstBullet);
+  function toggleEquitySection(){
+    if (!noteTypeEl || !equitySectionEl) return;
+    const isEquity = noteTypeEl.value === "Equity Research";
+    equitySectionEl.style.display = isEquity ? "block" : "none";
+    if (equityRailLink) equityRailLink.style.display = isEquity ? "list-item" : "none";
+  }
+  if (noteTypeEl && equitySectionEl){
+    noteTypeEl.addEventListener("change", () => {
+      toggleEquitySection();
+      setTimeout(() => {
+        updateCompletionMeter();
+        refreshValidationSummary();
+      }, 0);
+    });
+    toggleEquitySection();
+  }
 
-    if (isEquity()){
-      const bits = [];
-      if (ticker) bits.push(ticker.toUpperCase());
-      if (rating) bits.push(rating);
-      if (tp) bits.push(`Target: ${tp}`);
-      if (bits.length) lines.push(bits.join(" · "));
+  // ============================================================
+  // (NEW) BlueMatrix-style workflow: Status + Reviewer + Presets
+  // ============================================================
+  const statusEl     = $("workflowStatus");     // Draft / Reviewed / Cleared
+  const reviewedByEl = $("reviewedBy");         // dropdown
+  const presetEl     = $("distributionPreset"); // Internal only / Public pack / Client-safe
+
+  // Routing + redaction rules by preset
+  const PRESET = {
+    INTERNAL: "Internal only",
+    PUBLIC:   "Public pack",
+    CLIENT:   "Client-safe"
+  };
+
+  function getPreset(){
+    return safeTrim(presetEl?.value) || PRESET.INTERNAL;
+  }
+  function getStatus(){
+    return safeTrim(statusEl?.value) || "Draft";
+  }
+
+  // ============================================================
+  // (NEW) Versioning + Change Note (BlueMatrix “knows what changed”)
+  // ============================================================
+  const versionTextEl = $("versionText"); // UI display like v1.0
+  const changeNoteEl  = $("changeNote");  // optional text area
+
+  function noteKey(){
+    // stable key by note type + title (trimmed, lower)
+    const t = safeTrim($("title")?.value).toLowerCase();
+    const nt = safeTrim(noteTypeEl?.value).toLowerCase();
+    // if empty title, still keep a key so version doesn't crash
+    return `crg_rdt_version__${nt}__${t || "untitled"}`;
+  }
+
+  function readVersionState(){
+    const raw = localStorage.getItem(noteKey());
+    if (!raw) return { major: 1, minor: 0, lastStatus: "Draft" };
+    try {
+      const obj = JSON.parse(raw);
+      const major = Number.isFinite(+obj.major) ? +obj.major : 1;
+      const minor = Number.isFinite(+obj.minor) ? +obj.minor : 0;
+      return { major, minor, lastStatus: obj.lastStatus || "Draft" };
+    } catch(_) {
+      return { major: 1, minor: 0, lastStatus: "Draft" };
+    }
+  }
+
+  function writeVersionState(state){
+    localStorage.setItem(noteKey(), JSON.stringify(state));
+  }
+
+  function versionString(state){
+    return `v${state.major}.${state.minor}`;
+  }
+
+  function paintVersion(){
+    const st = readVersionState();
+    if (versionTextEl) versionTextEl.textContent = versionString(st);
+  }
+
+  // Rule set:
+  // - Every export increments minor by 1 by default.
+  // - If status transitions into Cleared (from non-cleared), bump major and reset minor=0.
+  // - If title or noteType changes, the noteKey changes, so version resets to v1.0 automatically.
+  function bumpVersionOnExport(){
+    const cur = readVersionState();
+    const status = getStatus();
+
+    let major = cur.major;
+    let minor = cur.minor;
+    const lastStatus = cur.lastStatus || "Draft";
+
+    if (status === "Cleared" && lastStatus !== "Cleared"){
+      major = major + 1;
+      minor = 0;
+    } else {
+      minor = minor + 1;
     }
 
-    return lines.join("\n");
+    const next = { major, minor, lastStatus: status };
+    writeVersionState(next);
+    paintVersion();
+    return versionString(next);
   }
 
-  function maybeGenerateExecutiveSummary(){
-    if (!$("execAuto")?.checked) return;
-    const out = $("executiveSummary");
-    if (!out) return;
-    out.value = buildExecSummary();
-    paintWordCounts();
-  }
+  if ($("title")) $("title").addEventListener("input", paintVersion);
+  if (noteTypeEl) noteTypeEl.addEventListener("change", paintVersion);
+  if (statusEl) statusEl.addEventListener("change", paintVersion);
+  paintVersion();
 
-  $("execAuto")?.addEventListener("change", () => {
-    maybeGenerateExecutiveSummary();
-    scheduleAutosave();
-    updateCompletionMeter();
-  });
+  // ============================================================
+  // (NEW) Templates (Saved templates)
+  // ============================================================
+  const templateEl = $("noteTemplate"); // Macro update / Equity initiation / Event note
+  const thesisEl   = $("thesis");       // thesis field
+  const execToggleEl = $("autoExecSummary"); // checkbox toggle
+  const execSummaryEl= $("execSummary");     // editable textarea
 
-  $("regenExecBtn")?.addEventListener("click", () => {
-    $("executiveSummary").value = buildExecSummary();
-    paintWordCounts();
-    scheduleAutosave();
-  });
-
-  // ================================
-  // Distribution preset buttons
-  // ================================
-  function setPreset(p){
-    if ($("distributionPreset")) $("distributionPreset").value = p;
-    // preset effects: watermark + gating + small UI note
-    paintPresetPill();
-    updateCompletionMeter();
-    scheduleAutosave();
-  }
-
-  function paintPresetPill(){
-    const el = $("presetPill");
+  function setVal(id, value){
+    const el = $(id);
     if (!el) return;
-    el.textContent = presetLabel(getPreset());
+    el.value = value;
   }
 
-  $("presetInternalBtn")?.addEventListener("click", () => setPreset("internal"));
-  $("presetPublicBtn")?.addEventListener("click", () => setPreset("public"));
-  $("presetClientBtn")?.addEventListener("click", () => setPreset("client"));
+  const TEMPLATES = {
+    "Macro update": {
+      noteType: "Macro Research",
+      topicPH: "e.g., UK inflation dynamics, EM FX, global liquidity...",
+      titlePH: "Aim for a clear investor-led statement (not a blog headline).",
+      thesis: "In one line: what’s changed, what’s priced, what’s mispriced.",
+      keyTakeaways:
+        "- What changed and why it matters\n- What markets are pricing\n- What we think is mispriced\n- Key risks / what would change our view",
+      analysis:
+        "Write thesis → evidence → transmission → risks → positioning.\n\nInclude key data points, comparables, and cross-asset implications.",
+      cordobaView:
+        "Our stance, conditions for change, and what we would position for."
+    },
+    "Equity initiation": {
+      noteType: "Equity Research",
+      topicPH: "e.g., Company / sector / key driver (pricing power, margins, capex cycle...)",
+      titlePH: "Initiation: concise view + angle (e.g., 'Underpriced optionality in ...').",
+      thesis: "We initiate with a clear view driven by X; market is mispricing Y.",
+      keyTakeaways:
+        "- Rating + target + time horizon\n- Core driver(s) of upside/downside\n- What the market is missing\n- Key risks / disconfirmers",
+      analysis:
+        "Business quality → unit economics → catalysts → valuation → risks.\n\nBe explicit on what needs to happen for the view to work.",
+      cordobaView:
+        "Positioning, catalysts, and what would change the view."
+    },
+    "Event note": {
+      noteType: "General Note",
+      topicPH: "e.g., Earnings, CPI print, policy decision, regulatory change...",
+      titlePH: "Event-driven: what happened + so-what.",
+      thesis: "What happened and what it changes (and what it doesn’t).",
+      keyTakeaways:
+        "- Event summary in one line\n- Immediate market reaction\n- Second-order implications\n- Risks / next catalysts",
+      analysis:
+        "What happened → why → who is affected → pricing response → second-order effects.\n\nClose with a clear so-what.",
+      cordobaView:
+        "Our stance, next steps, and positioning bias."
+    }
+  };
 
-  // ================================
-  // Equity: chart + stats + sources + annotations
-  // ================================
+  function applyTemplate(name){
+    const t = TEMPLATES[name];
+    if (!t) return;
+
+    // note type
+    if (noteTypeEl && t.noteType){
+      noteTypeEl.value = t.noteType;
+      toggleEquitySection();
+    }
+
+    // placeholders (keep your existing placeholders if you prefer)
+    const topic = $("topic");
+    const title = $("title");
+    if (topic && t.topicPH) topic.placeholder = t.topicPH;
+    if (title && t.titlePH) title.placeholder = t.titlePH;
+
+    // prefill (only if empty, to avoid clobbering work)
+    if (thesisEl && !safeTrim(thesisEl.value)) thesisEl.value = t.thesis || "";
+    if ($("keyTakeaways") && !safeTrim($("keyTakeaways").value)) $("keyTakeaways").value = t.keyTakeaways || "";
+    if ($("analysis") && !safeTrim($("analysis").value)) $("analysis").value = t.analysis || "";
+    if ($("cordobaView") && !safeTrim($("cordobaView").value)) $("cordobaView").value = t.cordobaView || "";
+
+    updateCompletionMeter();
+    refreshValidationSummary();
+  }
+
+  if (templateEl){
+    templateEl.addEventListener("change", () => {
+      applyTemplate(templateEl.value);
+    });
+  }
+
+  // ============================================================
+  // Completion meter + validation summary (updated core logic)
+  // ============================================================
+  const completionTextEl = $("completionText");
+  const completionBarEl  = $("completionBar");
+  const validationSummaryEl = $("validationSummary"); // optional
+
+  function isFilled(el){
+    if (!el) return false;
+    if (el.type === "file") return el.files && el.files.length > 0;
+    const v = (el.value ?? "").toString().trim();
+    return v.length > 0;
+  }
+
+  // Required core fields (institutional baseline)
+  const baseCoreIds = [
+    "noteType",
+    "topic",
+    "title",
+    "authorLastName",
+    "authorFirstName",
+    "thesis",
+    "keyTakeaways",
+    "analysis",
+    "cordobaView"
+  ];
+
+  // Equity module required fields *when noteType is Equity Research*
+  // (keeps this strict + practical)
+  const equityCoreIds = [
+    "crgRating",
+    "targetPrice",
+    "modelFiles"
+  ];
+
+  // Workflow requirements: reviewer for Reviewed/Cleared, plus compliance ack always.
+  function workflowRequirementsMet(){
+    const status = getStatus();
+    const ack = $("complianceAck");
+    const ackOk = !!ack?.checked;
+
+    if (!ackOk) return false;
+    if ((status === "Reviewed" || status === "Cleared") && !isFilled(reviewedByEl)) return false;
+
+    // Client-safe preset must be Cleared
+    const preset = getPreset();
+    if (preset === PRESET.CLIENT && status !== "Cleared") return false;
+
+    return true;
+  }
+
+  function updateCompletionMeter(){
+    const isEquity = (noteTypeEl && noteTypeEl.value === "Equity Research" && equitySectionEl && equitySectionEl.style.display !== "none");
+    const ids = isEquity ? baseCoreIds.concat(equityCoreIds) : baseCoreIds;
+
+    let done = 0;
+    ids.forEach((id) => {
+      const el = $(id);
+      if (isFilled(el)) done++;
+    });
+
+    // compliance ack + routing adds “institutional” completion
+    const ack = $("complianceAck");
+    const reviewerNeeded = (getStatus() === "Reviewed" || getStatus() === "Cleared");
+    const ackDone = !!ack?.checked;
+    const reviewerDone = reviewerNeeded ? isFilled(reviewedByEl) : true;
+
+    const extraTotal = 1 + (reviewerNeeded ? 1 : 0);
+    const extraDone  = (ackDone ? 1 : 0) + (reviewerDone ? 1 : 0);
+
+    const total = ids.length + extraTotal;
+    const doneAll = done + extraDone;
+
+    const pct = total ? Math.round((doneAll / total) * 100) : 0;
+
+    if (completionTextEl) completionTextEl.textContent = `${doneAll} / ${total} required`;
+    if (completionBarEl) completionBarEl.style.width = `${pct}%`;
+    const bar = completionBarEl?.parentElement;
+    if (bar) bar.setAttribute("aria-valuenow", String(pct));
+  }
+
+  function listMissing(){
+    const isEquity = (noteTypeEl && noteTypeEl.value === "Equity Research" && equitySectionEl && equitySectionEl.style.display !== "none");
+    const ids = isEquity ? baseCoreIds.concat(equityCoreIds) : baseCoreIds;
+
+    const missing = [];
+    ids.forEach((id) => {
+      const el = $(id);
+      if (!isFilled(el)) missing.push(id);
+    });
+
+    const ack = $("complianceAck");
+    if (!ack?.checked) missing.push("complianceAck");
+
+    const status = getStatus();
+    if ((status === "Reviewed" || status === "Cleared") && !isFilled(reviewedByEl)){
+      missing.push("reviewedBy");
+    }
+
+    const preset = getPreset();
+    if (preset === PRESET.CLIENT && status !== "Cleared"){
+      // not a field, but show as actionable
+      missing.push("workflowStatus");
+    }
+
+    return missing;
+  }
+
+  function humanLabel(id){
+    const map = {
+      noteType: "Type of note",
+      topic: "Topic",
+      title: "Title",
+      authorLastName: "Primary author — last name",
+      authorFirstName: "Primary author — first name",
+      thesis: "Thesis",
+      keyTakeaways: "Key takeaways",
+      analysis: "Analysis and commentary",
+      cordobaView: "The Cordoba view",
+      crgRating: "CRG rating",
+      targetPrice: "Target price",
+      modelFiles: "Model files",
+      complianceAck: "Compliance acknowledgement",
+      reviewedBy: "Reviewed by",
+      workflowStatus: "Status (must be Cleared for Client-safe)"
+    };
+    return map[id] || id;
+  }
+
+  function refreshValidationSummary(){
+    if (!validationSummaryEl) return;
+    const missing = listMissing();
+    if (!missing.length){
+      validationSummaryEl.textContent = "Ready: all required fields and workflow checks complete.";
+      return;
+    }
+    validationSummaryEl.textContent =
+      "Missing: " + missing.map(humanLabel).join(" • ");
+  }
+
+  // Jump to first missing button
+  const jumpMissingBtn = $("jumpMissingBtn");
+  if (jumpMissingBtn){
+    jumpMissingBtn.addEventListener("click", () => {
+      const missing = listMissing();
+      if (!missing.length) return;
+
+      const first = missing[0];
+      const el = $(first);
+      if (el && typeof el.scrollIntoView === "function"){
+        el.scrollIntoView({ behavior: "smooth", block: "center" });
+        try { el.focus(); } catch(_){}
+      }
+    });
+  }
+
+  // global listeners
+  ["input","change","keyup"].forEach(evt => {
+    document.addEventListener(evt, (e) => {
+      const t = e.target;
+      if (!t) return;
+      if (t.closest && t.closest("#researchForm")){
+        updateCompletionMeter();
+        refreshValidationSummary();
+      }
+    }, { passive: true });
+  });
+
+  // Workflow listeners
+  if (statusEl) statusEl.addEventListener("change", () => { updateCompletionMeter(); refreshValidationSummary(); paintVersion(); });
+  if (reviewedByEl) reviewedByEl.addEventListener("change", () => { updateCompletionMeter(); refreshValidationSummary(); });
+  if (presetEl) presetEl.addEventListener("change", () => { updateCompletionMeter(); refreshValidationSummary(); });
+
+  // ============================================================
+  // (NEW) Auto Exec Summary (editable)
+  // Pull: first takeaway bullet + thesis + target/rating (if equity)
+  // ============================================================
+  function firstTakeawayLine(){
+    const raw = safeTrim($("keyTakeaways")?.value);
+    if (!raw) return "";
+    const lines = raw.split("\n").map(l => l.replace(/^[-*•]\s*/, "").trim()).filter(Boolean);
+    return lines[0] || "";
+  }
+
+  function buildExecSummaryAuto(){
+    const thesis = safeTrim(thesisEl?.value);
+    const firstBullet = firstTakeawayLine();
+    const noteType = safeTrim(noteTypeEl?.value);
+
+    const parts = [];
+    if (firstBullet) parts.push(firstBullet);
+    if (thesis) parts.push(thesis);
+
+    if (noteType === "Equity Research"){
+      const rating = safeTrim($("crgRating")?.value);
+      const tp = safeTrim($("targetPrice")?.value);
+      const ticker = safeTrim($("ticker")?.value);
+
+      const line = [
+        ticker ? `Ticker: ${ticker}` : null,
+        rating ? `Rating: ${rating}` : null,
+        tp ? `Target: ${tp}` : null
+      ].filter(Boolean).join(" • ");
+
+      if (line) parts.push(line);
+    }
+
+    // keep it “one-page”: short paragraphs
+    return parts.filter(Boolean).join("\n\n");
+  }
+
+  function syncExecSummary(){
+    if (!execToggleEl || !execSummaryEl) return;
+    if (execToggleEl.checked){
+      execSummaryEl.value = buildExecSummaryAuto();
+    }
+  }
+
+  if (execToggleEl){
+    execToggleEl.addEventListener("change", () => {
+      // if toggled on, populate immediately
+      if (execToggleEl.checked) syncExecSummary();
+      updateCompletionMeter();
+      refreshValidationSummary();
+    });
+  }
+
+  // Rebuild auto-summary when key fields change (only if toggle on)
+  ["thesis","keyTakeaways","crgRating","targetPrice","ticker","noteType"].forEach((id) => {
+    const el = $(id);
+    if (!el) return;
+    el.addEventListener("input", () => {
+      if (execToggleEl?.checked) syncExecSummary();
+    });
+    el.addEventListener("change", () => {
+      if (execToggleEl?.checked) syncExecSummary();
+    });
+  });
+
+  // ============================================================
+  // (NEW) Inline data citation + chart annotation
+  // ============================================================
+  const dataSourceEl = $("priceDataSource");     // dropdown
+  const chartNoteEl  = $("chartAnnotation");     // textarea
+
+  function selectedDataSource(){
+    const v = safeTrim(dataSourceEl?.value);
+    return v || "Stooq (via proxy)";
+  }
+
+  // ============================================================
+  // (NEW) Scenario table generator (Bear/Base/Bull)
+  // ============================================================
+  const scBearPriceEl = $("scenarioBearPrice");
+  const scBearKeyEl   = $("scenarioBearKey");
+  const scBasePriceEl = $("scenarioBasePrice");
+  const scBaseKeyEl   = $("scenarioBaseKey");
+  const scBullPriceEl = $("scenarioBullPrice");
+  const scBullKeyEl   = $("scenarioBullKey");
+
+  function scenarioRows(){
+    const rows = [
+      { name: "Bear", price: safeTrim(scBearPriceEl?.value), key: safeTrim(scBearKeyEl?.value) },
+      { name: "Base", price: safeTrim(scBasePriceEl?.value), key: safeTrim(scBaseKeyEl?.value) },
+      { name: "Bull", price: safeTrim(scBullPriceEl?.value), key: safeTrim(scBullKeyEl?.value) }
+    ];
+    // include rows if at least one field provided
+    const any = rows.some(r => r.price || r.key);
+    return any ? rows : [];
+  }
+
+  // ============================================================
+  // Attachment summary (modelFiles)
+  // ============================================================
+  const modelFilesEl2 = $("modelFiles");
+  const attachSummaryHeadEl = $("attachmentSummaryHead");
+  const attachSummaryListEl = $("attachmentSummaryList");
+
+  function updateAttachmentSummary(){
+    if (!modelFilesEl2 || !attachSummaryHeadEl || !attachSummaryListEl) return;
+
+    const files = Array.from(modelFilesEl2.files || []);
+    if (!files.length){
+      attachSummaryHeadEl.textContent = "No files selected";
+      attachSummaryListEl.style.display = "none";
+      attachSummaryListEl.innerHTML = "";
+      return;
+    }
+    attachSummaryHeadEl.textContent = `${files.length} file${files.length===1?"":"s"} selected`;
+    attachSummaryListEl.style.display = "block";
+    attachSummaryListEl.innerHTML = files.map(f => `<div class="attach-file">${f.name}</div>`).join("");
+  }
+  if (modelFilesEl2){
+    modelFilesEl2.addEventListener("change", () => {
+      updateAttachmentSummary();
+      updateCompletionMeter();
+      refreshValidationSummary();
+    });
+  }
+
+  // ============================================================
+  // Reset + clear autosave
+  // ============================================================
+  const resetBtn = $("resetFormBtn");
+  const clearAutosaveBtn = $("clearAutosaveBtn");
+  const formEl = $("researchForm");
+
+  function clearChartUI(){
+    const setText = (id, text) => { const el = $(id); if (el) el.textContent = text; };
+    setText("currentPrice","—");
+    setText("realisedVol","—");
+    setText("rangeReturn","—");
+    setText("upsideToTarget","—");
+    const chartStatus = $("chartStatus");
+    if (chartStatus) chartStatus.textContent = "";
+    if (typeof priceChart !== "undefined" && priceChart){
+      try { priceChart.destroy(); } catch(_){}
+      priceChart = null;
+    }
+    if (typeof priceChartImageBytes !== "undefined") priceChartImageBytes = null;
+    if (typeof equityStats !== "undefined"){
+      equityStats = { currentPrice:null, realisedVolAnn:null, rangeReturn:null };
+    }
+  }
+
+  function wipeAutosave(){
+    // wipe all autosave keys (prefix)
+    Object.keys(localStorage).forEach(k => {
+      if (k.startsWith("crg_rdt_autosave__")) localStorage.removeItem(k);
+    });
+  }
+
+  if (clearAutosaveBtn){
+    clearAutosaveBtn.addEventListener("click", () => {
+      const ok = confirm("Clear autosave? This removes locally saved drafts from this browser.");
+      if (!ok) return;
+      wipeAutosave();
+      alert("Autosave cleared.");
+    });
+  }
+
+  if (resetBtn && formEl){
+    resetBtn.addEventListener("click", () => {
+      const ok = confirm("Reset the form? This clears all fields on this page.");
+      if (!ok) return;
+
+      formEl.reset();
+      if (coAuthorsList) coAuthorsList.innerHTML = "";
+      if (modelFilesEl2) modelFilesEl2.value = "";
+      updateAttachmentSummary();
+
+      const messageDiv = $("message");
+      if (messageDiv){
+        messageDiv.className = "message";
+        messageDiv.textContent = "";
+        messageDiv.style.display = "none";
+      }
+
+      clearChartUI();
+      syncPrimaryPhone();
+      toggleEquitySection();
+
+      // do NOT wipe version history; that’s per noteKey (title/type)
+      // but repaint the displayed version
+      paintVersion();
+
+      setTimeout(() => {
+        updateCompletionMeter();
+        refreshValidationSummary();
+      }, 0);
+    });
+  }
+
+  // ============================================================
+  // Autosave (simple, local-only)
+  // ============================================================
+  const AUTOSAVE_PREFIX = "crg_rdt_autosave__";
+  const AUTOSAVE_FIELDS = [
+    "noteTemplate","noteType","distributionPreset","workflowStatus","reviewedBy",
+    "topic","title",
+    "authorLastName","authorFirstName","authorPhone",
+    "thesis","autoExecSummary","execSummary",
+    "keyTakeaways","analysis","content","cordobaView",
+    "ticker","crgRating","targetPrice","modelLink",
+    "valuationSummary","keyAssumptions","scenarioNotes",
+    "priceDataSource","chartAnnotation",
+    "scenarioBearPrice","scenarioBearKey","scenarioBasePrice","scenarioBaseKey","scenarioBullPrice","scenarioBullKey",
+    "changeNote"
+  ];
+
+  function autosaveKey(){ return `${AUTOSAVE_PREFIX}draft`; }
+
+  function autosaveNow(){
+    const obj = {};
+    AUTOSAVE_FIELDS.forEach(id => {
+      const el = $(id);
+      if (!el) return;
+      if (el.type === "checkbox") obj[id] = !!el.checked;
+      else obj[id] = el.value;
+    });
+    // coauthors too
+    const co = [];
+    document.querySelectorAll(".coauthor-row").forEach(entry => {
+      const ln = safeTrim(entry.querySelector(".coauthor-lastname")?.value);
+      const fn = safeTrim(entry.querySelector(".coauthor-firstname")?.value);
+      const ph = safeTrim(entry.querySelector(".coauthor-phone")?.value);
+      if (ln || fn || ph) co.push({ ln, fn, ph });
+    });
+    obj.__coauthors = co;
+
+    localStorage.setItem(autosaveKey(), JSON.stringify(obj));
+  }
+
+  function restoreAutosave(){
+    const raw = localStorage.getItem(autosaveKey());
+    if (!raw) return;
+    try {
+      const obj = JSON.parse(raw);
+
+      AUTOSAVE_FIELDS.forEach(id => {
+        const el = $(id);
+        if (!el) return;
+        if (el.type === "checkbox") el.checked = !!obj[id];
+        else if (obj[id] != null) el.value = obj[id];
+      });
+
+      // restore coauthors
+      const co = Array.isArray(obj.__coauthors) ? obj.__coauthors : [];
+      if (coAuthorsList) coAuthorsList.innerHTML = "";
+      co.forEach(item => {
+        coAuthorCount++;
+        const div = document.createElement("div");
+        div.className = "coauthor-row";
+        div.id = `coauthor-${coAuthorCount}`;
+        div.innerHTML = `
+          <div class="coauthor-grid">
+            <div>
+              <label>Last Name</label>
+              <input type="text" class="coauthor-lastname" placeholder="e.g., Rahman" value="${(item.ln||"").replace(/"/g,"&quot;")}">
+            </div>
+            <div>
+              <label>First Name</label>
+              <input type="text" class="coauthor-firstname" placeholder="e.g., Nadir" value="${(item.fn||"").replace(/"/g,"&quot;")}">
+            </div>
+            <div>
+              <label>Phone (Optional)</label>
+              <div class="phone-row phone-row--compact">
+                <select class="phone-country coauthor-country" aria-label="Country code">${countryOptionsHtml}</select>
+                <input type="text" class="phone-number coauthor-phone-local" inputmode="numeric" placeholder="e.g., 7323 324 120">
+              </div>
+              <input type="text" class="coauthor-phone" style="display:none;">
+            </div>
+            <div style="display:flex; align-items:flex-end;">
+              <button type="button" class="btn btn-danger remove-coauthor" data-remove-id="${coAuthorCount}">Remove</button>
+            </div>
+          </div>
+        `;
+        coAuthorsList.appendChild(div);
+
+        // set phone hidden directly if saved; set visible formatted if possible
+        const hidden = div.querySelector(".coauthor-phone");
+        const local  = div.querySelector(".coauthor-phone-local");
+        if (hidden) hidden.value = item.ph || "";
+        if (local) local.value = formatNationalLoose((item.ph||"").split("-")[1] || "");
+        wireCoauthorPhone(div);
+      });
+
+      // sync phone hidden
+      syncPrimaryPhone();
+
+      // toggle sections
+      toggleEquitySection();
+
+      // exec summary sync if toggle on
+      if (execToggleEl?.checked) syncExecSummary();
+
+      updateAttachmentSummary();
+      paintVersion();
+      updateCompletionMeter();
+      refreshValidationSummary();
+    } catch(_) {}
+  }
+
+  // autosave throttle
+  let autosaveT = null;
+  function autosaveSoon(){
+    clearTimeout(autosaveT);
+    autosaveT = setTimeout(autosaveNow, 350);
+  }
+  document.addEventListener("input", (e) => {
+    if (e.target && e.target.closest && e.target.closest("#researchForm")) autosaveSoon();
+  });
+  document.addEventListener("change", (e) => {
+    if (e.target && e.target.closest && e.target.closest("#researchForm")) autosaveSoon();
+  });
+
+  restoreAutosave();
+
+  // ============================================================
+  // Price chart (Stooq -> proxy -> Chart.js -> Word image)
+  // + stats + source + annotation
+  // ============================================================
   let priceChart = null;
   let priceChartImageBytes = null;
 
-  let equityStats = { currentPrice:null, realisedVolAnn:null, rangeReturn:null };
+  let equityStats = { currentPrice: null, realisedVolAnn: null, rangeReturn: null };
 
   const chartStatus = $("chartStatus");
   const fetchChartBtn = $("fetchPriceChart");
@@ -827,7 +933,7 @@ window.addEventListener("DOMContentLoaded", () => {
   const targetPriceEl = $("targetPrice");
 
   function stooqSymbolFromTicker(ticker){
-    const t = (ticker || "").trim();
+    const t = safeTrim(ticker);
     if (!t) return null;
     if (t.includes(".")) return t.toLowerCase();
     return `${t.toLowerCase()}.us`;
@@ -845,18 +951,16 @@ window.addEventListener("DOMContentLoaded", () => {
   }
 
   function extractStooqCSV(text){
-    const lines = (text || "").split("\n").map(l => l.trim()).filter(Boolean);
+    const lines = (text||"").split("\n").map(l => l.trim()).filter(Boolean);
     const headerIdx = lines.findIndex(l => l.toLowerCase().startsWith("date,open,high,low,close,volume"));
     if (headerIdx === -1) return null;
     return lines.slice(headerIdx).join("\n");
   }
 
   async function fetchStooqDaily(symbol){
-    // Stooq has no CORS; use r.jina.ai proxy
     const stooqUrl = `http://stooq.com/q/d/l/?s=${encodeURIComponent(symbol)}&i=d`;
     const proxyUrl = `https://r.jina.ai/${stooqUrl}`;
-
-    const res = await fetch(proxyUrl, { cache:"no-store" });
+    const res = await fetch(proxyUrl, { cache: "no-store" });
     if (!res.ok) throw new Error("Could not fetch price data (proxy blocked or down).");
 
     const rawText = await res.text();
@@ -866,9 +970,8 @@ window.addEventListener("DOMContentLoaded", () => {
     if (lines.length < 5) throw new Error("Not enough data returned. Check ticker.");
 
     const rows = lines.slice(1).map(line => line.split(","));
-    const out = rows.map(r => ({ date:r[0], close:Number(r[4]) }))
+    const out = rows.map(r => ({ date: r[0], close: Number(r[4]) }))
       .filter(x => x.date && Number.isFinite(x.close));
-
     if (!out.length) throw new Error("No usable price data.");
     return out;
   }
@@ -896,10 +999,7 @@ window.addEventListener("DOMContentLoaded", () => {
       options: {
         responsive: true,
         maintainAspectRatio: false,
-        plugins: {
-          legend: { display:false },
-          tooltip: { intersect:false, mode:"index" }
-        },
+        plugins: { legend: { display:false }, tooltip: { intersect:false, mode:"index" } },
         scales: {
           x: { ticks: { maxTicksLimit: 6 } },
           y: { ticks: { maxTicksLimit: 6 } }
@@ -914,38 +1014,32 @@ window.addEventListener("DOMContentLoaded", () => {
     return Uint8Array.from(atob(b64), c => c.charCodeAt(0));
   }
 
-  function pct(x){ return `${(x * 100).toFixed(1)}%`; }
-
-  function safeNum(v){
-    const n = Number(v);
-    return Number.isFinite(n) ? n : null;
-  }
+  // stats helpers
+  function pct(x){ return `${(x*100).toFixed(1)}%`; }
+  function safeNum(v){ const n = Number(v); return Number.isFinite(n) ? n : null; }
 
   function computeDailyReturns(closes){
     const rets = [];
     for (let i=1;i<closes.length;i++){
       const prev = closes[i-1];
-      const cur = closes[i];
-      if (prev > 0 && Number.isFinite(prev) && Number.isFinite(cur)) rets.push((cur/prev)-1);
+      const cur  = closes[i];
+      if (prev > 0 && Number.isFinite(prev) && Number.isFinite(cur)){
+        rets.push((cur/prev)-1);
+      }
     }
     return rets;
   }
-
   function stddev(arr){
     if (!arr.length) return null;
     const mean = arr.reduce((a,b)=>a+b,0)/arr.length;
-    const v = arr.reduce((a,b)=>a+(b-mean)**2,0)/(arr.length-1||1);
+    const v = arr.reduce((a,b)=>a+(b-mean)**2,0)/(arr.length-1 || 1);
     return Math.sqrt(v);
   }
-
-  function setText(id, text){
-    const el = $(id);
-    if (el) el.textContent = text;
-  }
+  function setText(id, text){ const el = $(id); if (el) el.textContent = text; }
 
   function computeUpsideToTarget(currentPrice, targetPrice){
     if (!currentPrice || !targetPrice) return null;
-    return (targetPrice / currentPrice) - 1;
+    return (targetPrice/currentPrice) - 1;
   }
 
   function updateUpsideDisplay(){
@@ -955,22 +1049,17 @@ window.addEventListener("DOMContentLoaded", () => {
     setText("upsideToTarget", up === null ? "—" : pct(up));
   }
 
-  targetPriceEl?.addEventListener("input", () => {
-    updateUpsideDisplay();
-    scheduleAutosave();
-    updateCompletionMeter();
-  });
-
-  $("chartDataSource")?.addEventListener("change", () => {
-    const other = $("chartDataSourceOther");
-    if (!other) return;
-    other.style.display = ($("chartDataSource").value === "__other__") ? "block" : "none";
-    scheduleAutosave();
-  });
+  if (targetPriceEl){
+    targetPriceEl.addEventListener("input", () => {
+      updateUpsideDisplay();
+      updateCompletionMeter();
+      refreshValidationSummary();
+    });
+  }
 
   async function buildPriceChart(){
     try{
-      const tickerVal = ($("ticker")?.value || "").trim();
+      const tickerVal = safeTrim($("ticker")?.value);
       if (!tickerVal) throw new Error("Enter a ticker first.");
 
       const range = chartRangeEl ? chartRangeEl.value : "6mo";
@@ -980,7 +1069,6 @@ window.addEventListener("DOMContentLoaded", () => {
       if (chartStatus) chartStatus.textContent = "Fetching price data…";
 
       const data = await fetchStooqDaily(symbol);
-
       const start = computeStartDate(range);
       const filtered = data.filter(x => new Date(x.date) >= start);
       if (filtered.length < 10) throw new Error("Not enough data for selected range.");
@@ -998,6 +1086,7 @@ window.addEventListener("DOMContentLoaded", () => {
       const startPrice = closes[0];
 
       const rangeReturn = (startPrice && currentPrice) ? (currentPrice / startPrice) - 1 : null;
+
       const dailyRets = computeDailyReturns(closes);
       const volDaily = stddev(dailyRets);
       const realisedVolAnn = (volDaily !== null) ? volDaily * Math.sqrt(252) : null;
@@ -1009,10 +1098,9 @@ window.addEventListener("DOMContentLoaded", () => {
       setText("currentPrice", currentPrice ? currentPrice.toFixed(2) : "—");
       setText("rangeReturn", rangeReturn === null ? "—" : pct(rangeReturn));
       setText("realisedVol", realisedVolAnn === null ? "—" : pct(realisedVolAnn));
-
       updateUpsideDisplay();
-      if (chartStatus) chartStatus.textContent = `✓ Chart ready (${range.toUpperCase()})`;
 
+      if (chartStatus) chartStatus.textContent = `✓ Chart ready (${range.toUpperCase()})`;
     } catch(e){
       priceChartImageBytes = null;
       equityStats = { currentPrice:null, realisedVolAnn:null, rangeReturn:null };
@@ -1022,45 +1110,16 @@ window.addEventListener("DOMContentLoaded", () => {
       setText("upsideToTarget","—");
       if (chartStatus) chartStatus.textContent = `✗ ${e.message}`;
     } finally {
-      scheduleAutosave();
       updateCompletionMeter();
-      maybeGenerateExecutiveSummary();
+      refreshValidationSummary();
     }
   }
 
-  fetchChartBtn?.addEventListener("click", buildPriceChart);
+  if (fetchChartBtn) fetchChartBtn.addEventListener("click", buildPriceChart);
 
-  // ================================
-  // Attachment summary (model files)
-  // ================================
-  function updateAttachmentSummary(){
-    const modelFilesEl = $("modelFiles");
-    const head = $("attachmentSummaryHead");
-    const list = $("attachmentSummaryList");
-    if (!modelFilesEl || !head || !list) return;
-
-    const files = Array.from(modelFilesEl.files || []);
-    if (!files.length){
-      head.textContent = "No model files selected";
-      list.style.display = "none";
-      list.innerHTML = "";
-      return;
-    }
-
-    head.textContent = `${files.length} file${files.length===1?"":"s"} selected`;
-    list.style.display = "block";
-    list.innerHTML = files.map(f => `<div class="attach-file">${escapeText(f.name)}</div>`).join("");
-  }
-
-  $("modelFiles")?.addEventListener("change", () => {
-    updateAttachmentSummary();
-    scheduleAutosave();
-    updateCompletionMeter();
-  });
-
-  // ================================
-  // Images to Word
-  // ================================
+  // ============================================================
+  // Images -> Word
+  // ============================================================
   async function addImages(files){
     const imageParagraphs = [];
     for (let i=0;i<files.length;i++){
@@ -1068,16 +1127,15 @@ window.addEventListener("DOMContentLoaded", () => {
       try{
         const arrayBuffer = await file.arrayBuffer();
         const fileNameWithoutExt = file.name.replace(/\.[^/.]+$/, "");
-
         imageParagraphs.push(
           new docx.Paragraph({
             children: [
               new docx.ImageRun({
                 data: arrayBuffer,
-                transformation: { width: 560, height: 360 }
+                transformation: { width: 600, height: 420 }
               })
             ],
-            spacing: { before: 180, after: 80 },
+            spacing: { before: 180, after: 60 },
             alignment: docx.AlignmentType.CENTER
           }),
           new docx.Paragraph({
@@ -1086,10 +1144,10 @@ window.addEventListener("DOMContentLoaded", () => {
                 text: `Figure ${i+1}: ${fileNameWithoutExt}`,
                 italics: true,
                 size: 18,
-                font: "Calibri"
+                font: "Arial"
               })
             ],
-            spacing: { after: 220 },
+            spacing: { after: 260 },
             alignment: docx.AlignmentType.CENTER
           })
         );
@@ -1100,33 +1158,30 @@ window.addEventListener("DOMContentLoaded", () => {
     return imageParagraphs;
   }
 
-  function linesToParagraphs(text, spacingAfter=140){
+  function linesToParagraphs(text, spacingAfter = 120){
     const lines = (text || "").split("\n");
-    return lines.map(line => {
-      if (line.trim() === "") return new docx.Paragraph({ text:"", spacing:{ after: spacingAfter } });
-      return new docx.Paragraph({ text: line, spacing:{ after: spacingAfter } });
+    return lines.map((line) => {
+      if (line.trim() === "") return new docx.Paragraph({ text: "", spacing: { after: spacingAfter } });
+      return new docx.Paragraph({ text: line, spacing: { after: spacingAfter } });
     });
   }
 
-  function bulletsFromLines(text){
-    const lines = (text || "").split("\n");
-    return lines.map(line => {
-      if (line.trim() === "") return new docx.Paragraph({ text:"", spacing:{ after: 80 } });
-      const clean = line.replace(/^[-*•]\s*/, "").trim();
-      return new docx.Paragraph({ text: clean, bullet:{ level:0 }, spacing:{ after: 80 } });
-    });
+  function bulletLines(text){
+    const lines = (text || "").split("\n").map(l => l.trim());
+    return lines
+      .map(line => line.replace(/^[-*•]\s*/, "").trim())
+      .filter(Boolean);
   }
 
   function hyperlinkParagraph(label, url){
-    const safeUrl = (url || "").trim();
+    const safeUrl = safeTrim(url);
     if (!safeUrl) return null;
-
     return new docx.Paragraph({
       children: [
-        new docx.TextRun({ text: label, bold:true }),
+        new docx.TextRun({ text: label, bold: true }),
         new docx.TextRun({ text: " " }),
         new docx.ExternalHyperlink({
-          children: [new docx.TextRun({ text: safeUrl, style:"Hyperlink" })],
+          children: [new docx.TextRun({ text: safeUrl, style: "Hyperlink" })],
           link: safeUrl
         })
       ],
@@ -1134,308 +1189,286 @@ window.addEventListener("DOMContentLoaded", () => {
     });
   }
 
-  // ================================
-  // Scenario table (Bear/Base/Bull)
-  // ================================
-  function buildScenarioRows(){
-    const rows = [];
-
-    const bearPrice = ($("bearPrice")?.value || "").trim();
-    const bearKey = ($("bearKey")?.value || "").trim();
-    const basePrice = ($("basePrice")?.value || "").trim();
-    const baseKey = ($("baseKey")?.value || "").trim();
-    const bullPrice = ($("bullPrice")?.value || "").trim();
-    const bullKey = ($("bullKey")?.value || "").trim();
-
-    if (bearPrice || bearKey) rows.push({ name:"Bear", price:bearPrice, key:bearKey });
-    if (basePrice || baseKey) rows.push({ name:"Base", price:basePrice, key:baseKey });
-    if (bullPrice || bullKey) rows.push({ name:"Bull", price:bullPrice, key:bullKey });
-
-    return rows;
+  // ============================================================
+  // (NEW) Compliance watermarking system
+  // - Draft: watermark banner + header label
+  // - Reviewed: no watermark
+  // - Cleared: no watermark + “Cleared” in header
+  // Presets can force watermarking:
+  // - Internal only: watermark if Draft
+  // - Public pack: watermark if Draft
+  // - Client-safe: never watermark, but requires Cleared
+  // ============================================================
+  function shouldWatermark({ status, preset }){
+    if (preset === PRESET.CLIENT) return false; // requires Cleared
+    if (status === "Draft") return true;
+    return false;
   }
 
-  function scenarioTableDoc(rows){
-    if (!rows || !rows.length) return null;
-
-    const headerRow = new docx.TableRow({
+  function watermarkBlock(text){
+    // sell-side style: prominent banner at top of first page
+    return new docx.Paragraph({
       children: [
-        new docx.TableCell({ children:[ new docx.Paragraph({ children:[ new docx.TextRun({ text:"Scenario", bold:true }) ] }) ] }),
-        new docx.TableCell({ children:[ new docx.Paragraph({ children:[ new docx.TextRun({ text:"Price", bold:true }) ] }) ] }),
-        new docx.TableCell({ children:[ new docx.Paragraph({ children:[ new docx.TextRun({ text:"Key assumption / driver", bold:true }) ] }) ] })
-      ]
-    });
-
-    const bodyRows = rows.map(r => new docx.TableRow({
-      children: [
-        new docx.TableCell({ children:[ new docx.Paragraph(r.name) ] }),
-        new docx.TableCell({ children:[ new docx.Paragraph(r.price || "—") ] }),
-        new docx.TableCell({ children:[ new docx.Paragraph(r.key || "—") ] })
-      ]
-    }));
-
-    return new docx.Table({
-      width: { size: 100, type: docx.WidthType.PERCENTAGE },
-      rows: [headerRow, ...bodyRows]
+        new docx.TextRun({
+          text,
+          bold: true,
+          size: 22,
+          font: "Arial",
+          color: "8A1F1F"
+        })
+      ],
+      spacing: { after: 220 },
+      border: {
+        top:    { color: "8A1F1F", style: docx.BorderStyle.SINGLE, size: 6, space: 4 },
+        bottom: { color: "8A1F1F", style: docx.BorderStyle.SINGLE, size: 6, space: 4 }
+      }
     });
   }
 
-  // ================================
-  // Data source + chart annotation helpers
-  // ================================
-  function getChartSource(){
-    const v = ($("chartDataSource")?.value || "Stooq").trim();
-    if (v === "__other__") return ($("chartDataSourceOther")?.value || "").trim() || "Other";
-    return v;
-  }
-
-  // ================================
-  // Word document — BlueMatrix-like layout
-  // ================================
+  // ============================================================
+  // Create Word Document (BlueMatrix-style)
+  // - Version included in header + email subject
+  // - Status + reviewer in header
+  // - Exec summary at top (optional auto + editable)
+  // - Data source + chart annotation under chart
+  // - Scenario table
+  // - Presets: internal/public/client control redactions + routing
+  // ============================================================
   async function createDocument(data){
     const {
-      template,
-      noteType, status, reviewedBy, distributionPreset,
-      versionString, changeNote,
-      title, topic, thesis,
-      authorLastName, authorFirstName, authorPhonePrintable,
+      noteType, title, topic,
+      authorLastName, authorFirstName, authorPhoneSafe,
       coAuthors,
+      thesis,
       execSummary,
       analysis, keyTakeaways, content, cordobaView,
-      ticker, crgRating, targetPrice,
-      equityStats,
+      imageFiles, dateTimeString,
+
+      ticker, valuationSummary, keyAssumptions, scenarioNotes, modelFiles, modelLink,
       priceChartImageBytes,
-      chartSource,
+      targetPrice,
+      equityStats,
+      crgRating,
+
+      workflowStatus,
+      reviewedBy,
+      preset,
+      version,
+      changeNote,
+      priceDataSource,
       chartAnnotation,
-      scenarioRows,
-      valuationSummary, keyAssumptions, scenarioNotes,
-      modelFiles, modelLink,
-      imageFiles,
-      dateTimeString
+      scenarios
     } = data;
 
-    const watermarkMode = computeWatermarkMode();
-
-    const isClientSafe = distributionPreset === "client";
-    const isPublicPack = distributionPreset === "public";
-    const isInternal = distributionPreset === "internal";
-
-    // export inclusion rules by preset
-    const includeCordobaView = isInternal;                 // hide in public/client
-    const includePhones = isInternal;                      // hide in public/client
-    const includeModelLink = isInternal;                   // hide in public/client
-    const includeAttachedModelList = isInternal;           // hide in public/client
-    const includeChangeNote = isInternal;                  // change note is internal audit trail
-    const includeExecSummary = true;                       // all presets keep this (it’s the front page)
-
-    const titleRun = new docx.TextRun({ text: title || "", bold:true, size: 32, font: "Times New Roman" });
-    const topicRun = new docx.TextRun({ text: `Topic: ${topic || "—"}`, size: 20, font: "Calibri", color: "444444" });
-
-    const authorsLine = (() => {
-      const main = `${(authorLastName||"").toUpperCase()}, ${(authorFirstName||"").toUpperCase()}`;
-      const phone = includePhones ? ` (${authorPhonePrintable})` : "";
-      return `${main}${phone}`;
-    })();
-
-    const coLines = (coAuthors || []).map(c => {
-      const ln = (c.lastName || "").toUpperCase();
-      const fn = (c.firstName || "").toUpperCase();
-      const ph = includePhones ? ` (${naIfBlank(c.phone)})` : "";
-      return `${ln}, ${fn}${ph}`;
-    });
-
-    const headerLeft = "Cordoba Research Group";
-    const headerRight = `${noteType} · ${versionString} · ${status} · ${formatDateShort(new Date())}`;
-
-    const distTag = presetLabel(distributionPreset).toUpperCase();
-    const watermarkHeaderLine =
-      (watermarkMode === "DRAFT")
-        ? "DRAFT — INTERNAL — NOT FOR DISTRIBUTION"
-        : (watermarkMode === "INTERNAL" ? "INTERNAL USE ONLY" : "");
-
-    // header: (optional large watermark line) + normal line
-    const headerChildren = [];
-
-    if (watermarkMode === "DRAFT" || watermarkMode === "INTERNAL"){
-      // Simulated watermark in header (centered, light)
-      headerChildren.push(
-        new docx.Paragraph({
-          children: [
-            new docx.TextRun({
-              text: (watermarkMode === "DRAFT") ? "DRAFT" : "INTERNAL",
-              size: 72,
-              color: "D9D9D9",
-              bold: true,
-              font: "Calibri"
-            })
-          ],
-          alignment: docx.AlignmentType.CENTER,
-          spacing: { after: 0 }
-        })
-      );
-    }
-
-    headerChildren.push(
-      new docx.Paragraph({
-        children: [
-          new docx.TextRun({ text: headerLeft, bold:true, size: 18, font:"Calibri" }),
-          new docx.TextRun({ text: "\t" }),
-          new docx.TextRun({ text: headerRight, size: 18, font:"Calibri" })
-        ],
-        tabStops: [
-          { type: docx.TabStopType.RIGHT, position: 9360 }
-        ],
-        spacing: { after: 60 },
-        border: { bottom: { color: "000000", space: 1, style: docx.BorderStyle.SINGLE, size: 6 } }
-      })
+    // ---------- Build blocks ----------
+    const takeawayBullets = bulletLines(keyTakeaways).map(line =>
+      new docx.Paragraph({ text: line, bullet: { level: 0 }, spacing: { after: 80 } })
     );
 
-    if (watermarkHeaderLine){
-      headerChildren.push(
-        new docx.Paragraph({
-          children: [
-            new docx.TextRun({ text: watermarkHeaderLine, bold:true, size: 18, font:"Calibri", color:"555555" }),
-            new docx.TextRun({ text: `  |  ${distTag}`, size: 18, font:"Calibri", color:"555555" })
-          ],
-          alignment: docx.AlignmentType.LEFT,
-          spacing: { after: 80 }
-        })
-      );
-    } else {
-      headerChildren.push(
-        new docx.Paragraph({
-          children: [ new docx.TextRun({ text: distTag, size: 18, font:"Calibri", color:"555555" }) ],
-          spacing: { after: 80 }
-        })
-      );
-    }
+    const thesisParas   = linesToParagraphs(thesis, 90);
+    const execParas     = linesToParagraphs(execSummary, 90);
+    const analysisParas = linesToParagraphs(analysis, 120);
+    const contentParas  = linesToParagraphs(content, 120);
+    const cordobaParas  = linesToParagraphs(cordobaView, 120);
+    const imageParagraphs = await addImages(imageFiles);
 
-    const footer = new docx.Footer({
-      children: [
-        new docx.Paragraph({
-          border: { top: { color: "000000", space: 1, style: docx.BorderStyle.SINGLE, size: 6 } },
-          spacing: { after: 0 }
-        }),
-        new docx.Paragraph({
-          children: [
-            new docx.TextRun({ text: "Confidential — for intended recipients only. Verify all figures and sources.", size: 16, font:"Calibri", italics:true }),
-            new docx.TextRun({ text: "\t" }),
-            new docx.TextRun({ children: ["Page ", docx.PageNumber.CURRENT, " of ", docx.PageNumber.TOTAL_PAGES], size: 16, font:"Calibri", italics:true })
-          ],
-          tabStops: [
-            { type: docx.TabStopType.RIGHT, position: 9360 }
-          ],
-          spacing: { before: 80, after: 0 }
-        })
-      ]
-    });
+    const authorLine = `${authorLastName.toUpperCase()}, ${authorFirstName.toUpperCase()} (${authorPhoneSafe})`;
 
-    const children = [];
-
-    // Cover / top block (BlueMatrix-ish)
-    children.push(
-      new docx.Paragraph({ children:[titleRun], spacing:{ after: 80 } }),
-      new docx.Paragraph({ children:[topicRun], spacing:{ after: 120 } }),
+    // Top info table (sell-side feel)
+    const leftTop = [
       new docx.Paragraph({
         children: [
-          new docx.TextRun({ text: "Author: ", bold:true, font:"Calibri" }),
-          new docx.TextRun({ text: authorsLine, font:"Calibri" })
+          new docx.TextRun({ text: (topic || "").toUpperCase(), size: 18, font: "Arial", color: "555555" })
+        ],
+        spacing: { after: 90 }
+      }),
+      new docx.Paragraph({
+        children: [
+          new docx.TextRun({ text: title || "", bold: true, size: 30, font: "Times New Roman", color: "111111" })
+        ],
+        spacing: { after: 120 }
+      }),
+      new docx.Paragraph({
+        children: [
+          new docx.TextRun({ text: `${noteType} • ${preset}`, size: 18, font: "Arial", color: "555555" })
         ],
         spacing: { after: 60 }
       })
-    );
+    ];
 
-    if (coLines.length){
-      children.push(
-        new docx.Paragraph({
-          children: [
-            new docx.TextRun({ text: "Co-authors: ", bold:true, font:"Calibri" }),
-            new docx.TextRun({ text: coLines.join(" | "), font:"Calibri" })
-          ],
-          spacing: { after: 80 }
-        })
-      );
-    } else {
-      children.push(new docx.Paragraph({ spacing:{ after: 60 } }));
-    }
-
-    // Internal audit metadata block
-    const metaLines = [];
-    metaLines.push(`Template: ${template || "—"}`);
-    metaLines.push(`Version: ${versionString}`);
-    metaLines.push(`Status: ${status}`);
-    if (reviewedBy) metaLines.push(`Reviewed by: ${reviewedBy}`);
-    metaLines.push(`Generated: ${dateTimeString}`);
-    if (includeChangeNote && (changeNote || "").trim()) metaLines.push(`Change note: ${changeNote.trim()}`);
-
-    children.push(
+    const rightTop = [
       new docx.Paragraph({
-        children: [ new docx.TextRun({ text: metaLines.join("  |  "), size: 18, font:"Calibri", color:"555555" }) ],
-        spacing: { after: 160 }
-      })
-    );
+        children: [new docx.TextRun({ text: authorLine, bold: true, size: 20, font: "Arial" })],
+        alignment: docx.AlignmentType.RIGHT,
+        spacing: { after: 70 }
+      }),
+      ...(coAuthors.length
+        ? coAuthors.map(ca => new docx.Paragraph({
+            children: [new docx.TextRun({ text: coAuthorLine(ca), size: 18, bold: true, font: "Arial" })],
+            alignment: docx.AlignmentType.RIGHT,
+            spacing: { after: 50 }
+          }))
+        : [new docx.Paragraph({ text: "", spacing: { after: 40 } })]
+      ),
+      new docx.Paragraph({
+        children: [
+          new docx.TextRun({ text: `Version: ${version}`, bold: true, size: 18, font: "Arial" })
+        ],
+        alignment: docx.AlignmentType.RIGHT,
+        spacing: { after: 50 }
+      }),
+      new docx.Paragraph({
+        children: [
+          new docx.TextRun({ text: `Status: ${workflowStatus}`, bold: true, size: 18, font: "Arial" })
+        ],
+        alignment: docx.AlignmentType.RIGHT,
+        spacing: { after: 50 }
+      }),
+      ...(reviewedBy && reviewedBy !== "N/A"
+        ? [new docx.Paragraph({
+            children: [new docx.TextRun({ text: `Reviewed by: ${reviewedBy}`, size: 18, font: "Arial" })],
+            alignment: docx.AlignmentType.RIGHT,
+            spacing: { after: 30 }
+          })]
+        : []
+      )
+    ];
 
-    // Executive summary
-    if (includeExecSummary){
-      children.push(
-        new docx.Paragraph({
-          children: [ new docx.TextRun({ text: "Executive Summary", bold:true, size: 24, font:"Calibri" }) ],
-          spacing: { after: 120 }
+    const infoTable = new docx.Table({
+      width: { size: 100, type: docx.WidthType.PERCENTAGE },
+      borders: {
+        top: { style: docx.BorderStyle.NONE },
+        bottom: { style: docx.BorderStyle.NONE },
+        left: { style: docx.BorderStyle.NONE },
+        right: { style: docx.BorderStyle.NONE },
+        insideHorizontal: { style: docx.BorderStyle.NONE },
+        insideVertical: { style: docx.BorderStyle.NONE }
+      },
+      rows: [
+        new docx.TableRow({
+          children: [
+            new docx.TableCell({ children: leftTop,  width: { size: 65, type: docx.WidthType.PERCENTAGE }, verticalAlign: docx.VerticalAlign.TOP }),
+            new docx.TableCell({ children: rightTop, width: { size: 35, type: docx.WidthType.PERCENTAGE }, verticalAlign: docx.VerticalAlign.TOP })
+          ]
         })
-      );
-      const execText = (execSummary || "").trim() || buildExecSummary();
-      children.push(...linesToParagraphs(execText, 120));
-      children.push(new docx.Paragraph({ spacing: { after: 160 } }));
+      ]
+    });
+
+    const divider = new docx.Paragraph({
+      border: { bottom: { color: "111111", space: 1, style: docx.BorderStyle.SINGLE, size: 6 } },
+      spacing: { after: 240 }
+    });
+
+    // Exec Summary “one-page” block
+    const execSummaryBlock = [
+      new docx.Paragraph({
+        children: [new docx.TextRun({ text: "EXECUTIVE SUMMARY", bold: true, size: 22, font: "Arial" })],
+        spacing: { after: 90 }
+      }),
+      ...execParas,
+      new docx.Paragraph({ spacing: { after: 180 } })
+    ];
+
+    // Change note block (optional, but BlueMatrix-style)
+    const changeNoteBlock = (changeNote && changeNote !== "N/A")
+      ? [
+          new docx.Paragraph({
+            children: [new docx.TextRun({ text: "CHANGE NOTE", bold: true, size: 20, font: "Arial" })],
+            spacing: { before: 40, after: 60 }
+          }),
+          ...linesToParagraphs(changeNote, 90),
+          new docx.Paragraph({ spacing: { after: 160 } })
+        ]
+      : [];
+
+    const docChildren = [];
+
+    // Watermark banner if Draft + not client-safe
+    const watermarkOn = shouldWatermark({ status: workflowStatus, preset });
+    if (watermarkOn){
+      docChildren.push(watermarkBlock("DRAFT — INTERNAL — NOT FOR DISTRIBUTION"));
     }
 
-    // Equity module
+    docChildren.push(infoTable, divider);
+
+    // Thesis + Exec Summary at top
+    docChildren.push(
+      new docx.Paragraph({
+        children: [new docx.TextRun({ text: "THESIS", bold: true, size: 22, font: "Arial" })],
+        spacing: { after: 90 }
+      }),
+      ...thesisParas,
+      new docx.Paragraph({ spacing: { after: 160 } })
+    );
+
+    // Exec summary (always included if present)
+    if (safeTrim(execSummary)){
+      docChildren.push(...execSummaryBlock);
+    }
+
+    // include change note only for Internal preset (sell-side behaviour)
+    if (preset === PRESET.INTERNAL){
+      docChildren.push(...changeNoteBlock);
+    }
+
+    // Equity module (only if Equity Research)
     if (noteType === "Equity Research"){
-      children.push(
+      const attachedModelNames = (modelFiles && modelFiles.length) ? Array.from(modelFiles).map(f => f.name) : [];
+
+      docChildren.push(
         new docx.Paragraph({
-          children: [ new docx.TextRun({ text: "Equity Snapshot", bold:true, size: 24, font:"Calibri" }) ],
-          spacing: { after: 120 }
+          children: [new docx.TextRun({ text: "EQUITY MODULE", bold: true, size: 22, font: "Arial" })],
+          spacing: { before: 80, after: 120 }
         })
       );
 
-      const snapBits = [];
-      if ((ticker || "").trim()) snapBits.push(`Ticker: ${ticker.trim()}`);
-      if ((crgRating || "").trim()) snapBits.push(`CRG Rating: ${crgRating.trim()}`);
-      if ((targetPrice || "").trim()) snapBits.push(`Target: ${targetPrice.trim()}`);
-      if (snapBits.length){
-        children.push(
-          new docx.Paragraph({
-            children: [ new docx.TextRun({ text: snapBits.join("  |  "), font:"Calibri" }) ],
-            spacing: { after: 120 }
-          })
-        );
+      if (safeTrim(ticker)){
+        docChildren.push(new docx.Paragraph({
+          children: [new docx.TextRun({ text: "Ticker / Company: ", bold: true }), new docx.TextRun({ text: ticker.trim() })],
+          spacing: { after: 90 }
+        }));
+      }
+      if (safeTrim(crgRating)){
+        docChildren.push(new docx.Paragraph({
+          children: [new docx.TextRun({ text: "CRG Rating: ", bold: true }), new docx.TextRun({ text: crgRating.trim() })],
+          spacing: { after: 90 }
+        }));
       }
 
-      // Price chart
+      const modelLinkPara = hyperlinkParagraph("Model link:", modelLink);
+      if (modelLinkPara) docChildren.push(modelLinkPara);
+
+      // Chart
       if (priceChartImageBytes){
-        children.push(
+        docChildren.push(
           new docx.Paragraph({
-            children: [ new docx.TextRun({ text: "Price chart", bold:true, size: 22, font:"Calibri" }) ],
-            spacing: { after: 80 }
+            children: [new docx.TextRun({ text: "PRICE CHART", bold: true, size: 20, font: "Arial" })],
+            spacing: { before: 120, after: 80 }
           }),
           new docx.Paragraph({
-            children: [ new docx.ImageRun({ data: priceChartImageBytes, transformation: { width: 640, height: 260 } }) ],
+            children: [new docx.ImageRun({ data: priceChartImageBytes, transformation: { width: 650, height: 300 } })],
             alignment: docx.AlignmentType.CENTER,
-            spacing: { after: 80 }
+            spacing: { after: 120 }
           }),
+          // Source line (inline citation tracking)
           new docx.Paragraph({
             children: [
-              new docx.TextRun({ text: `Source: ${chartSource || "N/A"}; CRG estimates`, italics:true, size: 18, font:"Calibri", color:"555555" })
+              new docx.TextRun({ text: "Source: ", bold: true, size: 18, font: "Arial" }),
+              new docx.TextRun({ text: `${priceDataSource}; CRG estimates`, size: 18, font: "Arial" })
             ],
-            spacing: { after: 80 }
+            spacing: { after: 90 }
           })
         );
 
-        if ((chartAnnotation || "").trim()){
-          children.push(
+        // Annotation under chart (optional)
+        if (safeTrim(chartAnnotation)){
+          docChildren.push(
             new docx.Paragraph({
               children: [
-                new docx.TextRun({ text: `Note: ${(chartAnnotation || "").trim()}`, size: 18, font:"Calibri" })
+                new docx.TextRun({ text: "Note: ", bold: true, size: 18, font: "Arial" }),
+                new docx.TextRun({ text: safeTrim(chartAnnotation), size: 18, font: "Arial" })
               ],
-              spacing: { after: 120 }
+              spacing: { after: 140 }
             })
           );
         }
@@ -1443,204 +1476,218 @@ window.addEventListener("DOMContentLoaded", () => {
 
       // Market stats
       if (equityStats && equityStats.currentPrice){
-        const tpNum = safeNum((targetPrice || "").trim());
+        const tpNum = safeNum(targetPrice);
         const upside = computeUpsideToTarget(equityStats.currentPrice, tpNum);
 
-        children.push(
+        docChildren.push(
           new docx.Paragraph({
-            children: [ new docx.TextRun({ text: "Market stats", bold:true, size: 22, font:"Calibri" }) ],
+            children: [new docx.TextRun({ text: "MARKET STATS", bold: true, size: 20, font: "Arial" })],
             spacing: { before: 80, after: 80 }
           }),
           new docx.Paragraph({
-            children: [
-              new docx.TextRun({ text: "Current price: ", bold:true, font:"Calibri" }),
-              new docx.TextRun({ text: equityStats.currentPrice.toFixed(2), font:"Calibri" })
-            ],
-            spacing: { after: 60 }
+            children: [new docx.TextRun({ text: "Current price: ", bold: true }), new docx.TextRun({ text: equityStats.currentPrice.toFixed(2) })],
+            spacing: { after: 70 }
           }),
           new docx.Paragraph({
-            children: [
-              new docx.TextRun({ text: "Volatility (ann.): ", bold:true, font:"Calibri" }),
-              new docx.TextRun({ text: equityStats.realisedVolAnn == null ? "—" : pct(equityStats.realisedVolAnn), font:"Calibri" })
-            ],
-            spacing: { after: 60 }
+            children: [new docx.TextRun({ text: "Volatility (ann.): ", bold: true }), new docx.TextRun({ text: equityStats.realisedVolAnn == null ? "—" : pct(equityStats.realisedVolAnn) })],
+            spacing: { after: 70 }
           }),
           new docx.Paragraph({
-            children: [
-              new docx.TextRun({ text: "Return (range): ", bold:true, font:"Calibri" }),
-              new docx.TextRun({ text: equityStats.rangeReturn == null ? "—" : pct(equityStats.rangeReturn), font:"Calibri" })
-            ],
-            spacing: { after: 60 }
+            children: [new docx.TextRun({ text: "Return (range): ", bold: true }), new docx.TextRun({ text: equityStats.rangeReturn == null ? "—" : pct(equityStats.rangeReturn) })],
+            spacing: { after: 70 }
           })
         );
 
         if (tpNum){
-          children.push(
+          docChildren.push(
             new docx.Paragraph({
-              children: [
-                new docx.TextRun({ text: "+/- to target: ", bold:true, font:"Calibri" }),
-                new docx.TextRun({ text: upside == null ? "—" : pct(upside), font:"Calibri" })
-              ],
-              spacing: { after: 100 }
+              children: [new docx.TextRun({ text: "Target price: ", bold: true }), new docx.TextRun({ text: tpNum.toFixed(2) })],
+              spacing: { after: 70 }
+            }),
+            new docx.Paragraph({
+              children: [new docx.TextRun({ text: "+/- to target: ", bold: true }), new docx.TextRun({ text: upside == null ? "—" : pct(upside) })],
+              spacing: { after: 120 }
             })
           );
-        } else {
-          children.push(new docx.Paragraph({ spacing: { after: 80 } }));
         }
       }
 
-      // Scenario table
-      const scenTable = scenarioTableDoc(scenarioRows);
-      if (scenTable){
-        children.push(
+      // Scenario table generator (Bear/Base/Bull)
+      if (Array.isArray(scenarios) && scenarios.length){
+        docChildren.push(
           new docx.Paragraph({
-            children: [ new docx.TextRun({ text: "Scenario table", bold:true, size: 22, font:"Calibri" }) ],
-            spacing: { before: 60, after: 80 }
-          }),
-          scenTable,
-          new docx.Paragraph({ spacing: { after: 140 } })
-        );
-      }
-
-      // Model link + attachments (internal only)
-      if (includeModelLink){
-        const linkPara = hyperlinkParagraph("Model link:", modelLink);
-        if (linkPara) children.push(linkPara);
-      }
-
-      if (includeAttachedModelList){
-        const attachedNames = (modelFiles && modelFiles.length) ? Array.from(modelFiles).map(f => f.name) : [];
-        children.push(
-          new docx.Paragraph({
-            children: [ new docx.TextRun({ text: "Attached model files", bold:true, size: 22, font:"Calibri" }) ],
+            children: [new docx.TextRun({ text: "SCENARIOS", bold: true, size: 20, font: "Arial" })],
             spacing: { before: 80, after: 80 }
           })
         );
-        if (attachedNames.length){
-          attachedNames.forEach(name => children.push(new docx.Paragraph({ text: name, bullet:{ level:0 }, spacing:{ after: 60 } })));
-        } else {
-          children.push(new docx.Paragraph({ text: "None uploaded", spacing: { after: 100 } }));
-        }
+
+        const table = new docx.Table({
+          width: { size: 100, type: docx.WidthType.PERCENTAGE },
+          rows: [
+            new docx.TableRow({
+              children: [
+                new docx.TableCell({ children: [new docx.Paragraph({ children: [new docx.TextRun({ text: "Case", bold: true, font: "Arial", size: 18 })] })] }),
+                new docx.TableCell({ children: [new docx.Paragraph({ children: [new docx.TextRun({ text: "Price", bold: true, font: "Arial", size: 18 })] })] }),
+                new docx.TableCell({ children: [new docx.Paragraph({ children: [new docx.TextRun({ text: "Key assumption", bold: true, font: "Arial", size: 18 })] })] })
+              ]
+            }),
+            ...scenarios.map(r => new docx.TableRow({
+              children: [
+                new docx.TableCell({ children: [new docx.Paragraph({ text: r.name, spacing: { after: 0 } })] }),
+                new docx.TableCell({ children: [new docx.Paragraph({ text: r.price || "—", spacing: { after: 0 } })] }),
+                new docx.TableCell({ children: [new docx.Paragraph({ text: r.key || "—", spacing: { after: 0 } })] })
+              ]
+            }))
+          ]
+        });
+
+        docChildren.push(table, new docx.Paragraph({ spacing: { after: 140 } }));
       }
 
-      // Valuation / assumptions / sensitivity (all presets can include; internal depth still optional)
-      if ((valuationSummary || "").trim()){
-        children.push(
-          new docx.Paragraph({
-            children: [ new docx.TextRun({ text: "Valuation summary", bold:true, size: 22, font:"Calibri" }) ],
-            spacing: { before: 120, after: 80 }
-          }),
-          ...linesToParagraphs(valuationSummary, 120)
-        );
+      // Attachments list
+      docChildren.push(
+        new docx.Paragraph({
+          children: [new docx.TextRun({ text: "ATTACHMENTS", bold: true, size: 20, font: "Arial" })],
+          spacing: { before: 80, after: 80 }
+        })
+      );
+
+      if (attachedModelNames.length){
+        attachedModelNames.forEach(name => {
+          docChildren.push(new docx.Paragraph({ text: name, bullet: { level: 0 }, spacing: { after: 70 } }));
+        });
+      } else {
+        docChildren.push(new docx.Paragraph({ text: "None uploaded", spacing: { after: 100 } }));
       }
 
-      if ((keyAssumptions || "").trim()){
-        children.push(
-          new docx.Paragraph({
-            children: [ new docx.TextRun({ text: "Key assumptions", bold:true, size: 22, font:"Calibri" }) ],
-            spacing: { before: 120, after: 80 }
-          })
+      // Optional valuation / assumptions / scenario notes
+      if (safeTrim(valuationSummary)){
+        docChildren.push(
+          new docx.Paragraph({ children: [new docx.TextRun({ text: "VALUATION SUMMARY", bold: true, size: 20, font: "Arial" })], spacing: { before: 120, after: 70 } }),
+          ...linesToParagraphs(valuationSummary, 90)
         );
-        // bullets from assumptions
-        keyAssumptions.split("\n").forEach(line => {
-          if (!line.trim()) return;
-          children.push(
-            new docx.Paragraph({
-              text: line.replace(/^[-*•]\s*/, "").trim(),
-              bullet:{ level:0 },
-              spacing:{ after: 60 }
-            })
-          );
+      }
+      if (safeTrim(keyAssumptions)){
+        docChildren.push(
+          new docx.Paragraph({ children: [new docx.TextRun({ text: "KEY ASSUMPTIONS", bold: true, size: 20, font: "Arial" })], spacing: { before: 120, after: 70 } })
+        );
+        bulletLines(keyAssumptions).forEach(line => {
+          docChildren.push(new docx.Paragraph({ text: line, bullet: { level: 0 }, spacing: { after: 70 } }));
         });
       }
-
-      if ((scenarioNotes || "").trim()){
-        children.push(
-          new docx.Paragraph({
-            children: [ new docx.TextRun({ text: "Scenario / sensitivity notes", bold:true, size: 22, font:"Calibri" }) ],
-            spacing: { before: 120, after: 80 }
-          }),
-          ...linesToParagraphs(scenarioNotes, 120)
+      if (safeTrim(scenarioNotes)){
+        docChildren.push(
+          new docx.Paragraph({ children: [new docx.TextRun({ text: "SENSITIVITIES / NOTES", bold: true, size: 20, font: "Arial" })], spacing: { before: 120, after: 70 } }),
+          ...linesToParagraphs(scenarioNotes, 90)
         );
       }
 
-      children.push(new docx.Paragraph({ spacing: { after: 160 } }));
+      docChildren.push(new docx.Paragraph({ spacing: { after: 220 } }));
     }
 
-    // Thesis
-    if ((thesis || "").trim()){
-      children.push(
-        new docx.Paragraph({
-          children: [ new docx.TextRun({ text: "Thesis", bold:true, size: 24, font:"Calibri" }) ],
-          spacing: { after: 120 }
-        }),
-        ...linesToParagraphs(thesis, 120),
-        new docx.Paragraph({ spacing: { after: 160 } })
-      );
-    }
-
-    // Key takeaways
-    children.push(
-      new docx.Paragraph({
-        children: [ new docx.TextRun({ text: "Key takeaways", bold:true, size: 24, font:"Calibri" }) ],
-        spacing: { after: 120 }
-      }),
-      ...bulletsFromLines(keyTakeaways),
-      new docx.Paragraph({ spacing: { after: 160 } })
+    // Core research
+    docChildren.push(
+      new docx.Paragraph({ children: [new docx.TextRun({ text: "KEY TAKEAWAYS", bold: true, size: 22, font: "Arial" })], spacing: { after: 120 } }),
+      ...takeawayBullets,
+      new docx.Paragraph({ spacing: { after: 180 } }),
+      new docx.Paragraph({ children: [new docx.TextRun({ text: "ANALYSIS AND COMMENTARY", bold: true, size: 22, font: "Arial" })], spacing: { after: 120 } }),
+      ...analysisParas
     );
 
-    // Analysis
-    children.push(
-      new docx.Paragraph({
-        children: [ new docx.TextRun({ text: "Analysis", bold:true, size: 24, font:"Calibri" }) ],
-        spacing: { after: 120 }
-      }),
-      ...linesToParagraphs(analysis, 140)
-    );
-
-    // Additional content
-    if ((content || "").trim()){
-      children.push(
-        new docx.Paragraph({ spacing: { after: 140 } }),
-        new docx.Paragraph({
-          children: [ new docx.TextRun({ text: "Additional content", bold:true, size: 22, font:"Calibri" }) ],
-          spacing: { after: 100 }
-        }),
-        ...linesToParagraphs(content, 140)
+    // Content + Cordoba view redactions by preset
+    // - Public pack: include additional content, but remove internal-only metadata (already removed)
+    // - Client-safe: exclude “Additional Content” if it looks like internal appendices (you can change this rule)
+    if (safeTrim(content) && preset !== PRESET.CLIENT){
+      docChildren.push(
+        new docx.Paragraph({ spacing: { after: 160 } }),
+        new docx.Paragraph({ children: [new docx.TextRun({ text: "ADDITIONAL CONTENT", bold: true, size: 22, font: "Arial" })], spacing: { after: 120 } }),
+        ...contentParas
       );
     }
 
-    // Cordoba view (internal only)
-    if (includeCordobaView && (cordobaView || "").trim()){
-      children.push(
-        new docx.Paragraph({ spacing: { after: 140 } }),
-        new docx.Paragraph({
-          children: [ new docx.TextRun({ text: "The Cordoba view", bold:true, size: 22, font:"Calibri" }) ],
-          spacing: { after: 100 }
-        }),
-        ...linesToParagraphs(cordobaView, 140)
+    if (safeTrim(cordobaView)){
+      docChildren.push(
+        new docx.Paragraph({ spacing: { after: 160 } }),
+        new docx.Paragraph({ children: [new docx.TextRun({ text: "THE CORDOBA VIEW", bold: true, size: 22, font: "Arial" })], spacing: { after: 120 } }),
+        ...cordobaParas
       );
     }
 
-    // Figures
-    const imageParagraphs = await addImages(imageFiles);
     if (imageParagraphs.length){
-      children.push(
-        new docx.Paragraph({ spacing: { before: 240, after: 120 } }),
-        new docx.Paragraph({
-          children: [ new docx.TextRun({ text: "Figures & charts", bold:true, size: 24, font:"Calibri" }) ],
-          spacing: { after: 120 }
-        }),
+      docChildren.push(
+        new docx.Paragraph({ spacing: { after: 200 } }),
+        new docx.Paragraph({ children: [new docx.TextRun({ text: "FIGURES AND CHARTS", bold: true, size: 22, font: "Arial" })], spacing: { after: 120 } }),
         ...imageParagraphs
       );
     }
+
+    // ---------- Header / Footer ----------
+    const headerLine = `Cordoba Research Group | ${noteType} | ${formatDateShort(new Date())} | ${version} | ${preset} | ${workflowStatus}`;
+
+    // Put watermark text in header too (Draft)
+    const headerChildren = [
+      new docx.Paragraph({
+        children: [new docx.TextRun({ text: headerLine, size: 16, font: "Arial" })],
+        alignment: docx.AlignmentType.RIGHT,
+        spacing: { after: 70 },
+        border: { bottom: { color: "111111", space: 1, style: docx.BorderStyle.SINGLE, size: 6 } }
+      })
+    ];
+
+    if (watermarkOn){
+      headerChildren.unshift(
+        new docx.Paragraph({
+          children: [
+            new docx.TextRun({
+              text: "DRAFT — INTERNAL — NOT FOR DISTRIBUTION",
+              bold: true,
+              size: 16,
+              font: "Arial",
+              color: "8A1F1F"
+            })
+          ],
+          alignment: docx.AlignmentType.LEFT,
+          spacing: { after: 40 }
+        })
+      );
+    }
+
+    const footerChildren = [
+      new docx.Paragraph({
+        border: { top: { color: "111111", space: 1, style: docx.BorderStyle.SINGLE, size: 6 } },
+        spacing: { after: 0 }
+      }),
+      new docx.Paragraph({
+        children: [
+          new docx.TextRun({ text: "\t" }),
+          new docx.TextRun({
+            text: "Internal research documentation — verify figures, tickers, and assumptions before circulation.",
+            size: 16,
+            font: "Arial",
+            italics: true
+          }),
+          new docx.TextRun({ text: "\t" }),
+          new docx.TextRun({
+            children: ["Page ", docx.PageNumber.CURRENT, " of ", docx.PageNumber.TOTAL_PAGES],
+            size: 16,
+            font: "Arial",
+            italics: true
+          })
+        ],
+        spacing: { before: 0, after: 0 },
+        tabStops: [
+          { type: docx.TabStopType.CENTER, position: 5000 },
+          { type: docx.TabStopType.RIGHT, position: 10000 }
+        ]
+      })
+    ];
 
     const doc = new docx.Document({
       styles: {
         default: {
           document: {
-            run: { font: "Calibri", size: 22, color: "000000" },
-            paragraph: { spacing: { after: 140 } }
+            run: { font: "Arial", size: 20, color: "111111" },
+            paragraph: { spacing: { after: 120 } }
           }
         }
       },
@@ -1648,21 +1695,23 @@ window.addEventListener("DOMContentLoaded", () => {
         properties: {
           page: {
             margin: { top: 720, right: 720, bottom: 720, left: 720 },
-            pageSize: { orientation: docx.PageOrientation.PORTRAIT }
+            // keep landscape as you had; if you want sell-side portrait, say and I’ll switch it.
+            pageSize: { orientation: docx.PageOrientation.LANDSCAPE, width: 15840, height: 12240 }
           }
         },
         headers: { default: new docx.Header({ children: headerChildren }) },
-        footers: { default: footer },
-        children
+        footers: { default: new docx.Footer({ children: footerChildren }) },
+        children: docChildren
       }]
     });
 
     return doc;
   }
 
-  // ================================
-  // Email payload (subject includes version + change note tag)
-  // ================================
+  // ============================================================
+  // Email routing (presets + note type)
+  // - subject includes version + change note marker
+  // ============================================================
   function ccForNoteType(noteTypeRaw){
     const t = (noteTypeRaw || "").toLowerCase();
     if (t.includes("equity")) return "tommaso@cordobarg.com";
@@ -1671,409 +1720,237 @@ window.addEventListener("DOMContentLoaded", () => {
     return "";
   }
 
-  function presetSubjectTag(preset){
-    if (preset === "internal") return "[INTERNAL]";
-    if (preset === "public") return "[PUBLIC]";
-    if (preset === "client") return "[CLIENT]";
-    return "";
+  function toForPreset(preset){
+    if (preset === PRESET.INTERNAL) return "research@cordobarg.com";
+    if (preset === PRESET.PUBLIC)   return "research@cordobarg.com"; // adjust later if you create a public pack mailbox
+    if (preset === PRESET.CLIENT)   return "research@cordobarg.com"; // you can change to a distribution list
+    return "research@cordobarg.com";
   }
 
-  // IMPORTANT FIX:
-  // - Avoid URLSearchParams (it turns spaces into "+")
-  // - Use encodeURIComponent directly
-  // - Force CRLF
-  function buildMailto(to, cc, subject, body){
-    const crlfBody = (body || "").replace(/\n/g, "\r\n");
-    const parts = [];
-    if (cc) parts.push(`cc=${encodeURIComponent(cc)}`);
-    parts.push(`subject=${encodeURIComponent(subject || "")}`);
-    parts.push(`body=${encodeURIComponent(crlfBody)}`);
-    return `mailto:${encodeURIComponent(to)}?${parts.join("&")}`;
-  }
-
-  function buildCrgEmailPayload(){
-    const noteType = ($("noteType")?.value || "Research Note").trim();
-    const title = ($("title")?.value || "").trim();
-    const topic = ($("topic")?.value || "").trim();
-    const thesis = ($("thesis")?.value || "").trim();
-    const status = getStatus();
-    const reviewedBy = getReviewedBy();
-    const preset = getPreset();
-    const v = formatVersion(getVersion());
-    const changeNote = ($("changeNote")?.value || "").trim();
-
-    const ticker = ($("ticker")?.value || "").trim();
-    const crgRating = ($("crgRating")?.value || "").trim();
-    const targetPrice = ($("targetPrice")?.value || "").trim();
-
+  function buildCrgEmailPayload({ noteType, title, topic, ticker, crgRating, targetPrice, version, changeNote, preset, status }){
     const now = new Date();
     const dateShort = formatDateShort(now);
-    const dateLong = formatDateTime(now);
+    const dateLong  = formatDateTime(now);
 
-    const subject = [
-      presetSubjectTag(preset),
-      noteType,
-      v,
+    const subjectParts = [
+      `${noteType || "Research Note"}`,
+      `${version}`,
+      `${preset}`,
+      `${status}`,
       dateShort,
       title ? `— ${title}` : ""
- ""
-    ].filter(Boolean).join(" ");
+    ].filter(Boolean);
 
-    const authorLine = [($("authorFirstName")?.value || "").trim(), ($("authorLastName")?.value || "").trim()]
-      .filter(Boolean).join(" ").trim();
+    // BlueMatrix-style change note marker (short)
+    if (safeTrim(changeNote)) subjectParts.push("— Chg");
 
-    const lines = [];
-    lines.push("Hi CRG Research,");
-    lines.push("Please find my most recent note attached.");
+    const subject = subjectParts.join(" ");
 
-    const meta = [
+    const authorFirstName = safeTrim($("authorFirstName")?.value);
+    const authorLastName  = safeTrim($("authorLastName")?.value);
+    const authorLine = [authorFirstName, authorLastName].filter(Boolean).join(" ").trim();
+
+    const paragraphs = [];
+    paragraphs.push("Hi CRG Research,");
+    paragraphs.push("Please find my most recent note attached.");
+
+    const metaLines = [
+      `Preset: ${preset}`,
+      `Status: ${status}`,
+      `Version: ${version}`,
       `Note type: ${noteType || "N/A"}`,
       title ? `Title: ${title}` : null,
       topic ? `Topic: ${topic}` : null,
-      thesis ? `Thesis: ${thesis}` : null,
-      `Version: ${v}`,
-      `Status: ${status}`,
-      reviewedBy ? `Reviewed by: ${reviewedBy}` : null,
-      changeNote ? `Change note: ${changeNote}` : null,
       ticker ? `Ticker (Stooq): ${ticker}` : null,
       crgRating ? `CRG Rating: ${crgRating}` : null,
       targetPrice ? `Target Price: ${targetPrice}` : null,
+      safeTrim(changeNote) ? `Change note: ${safeTrim(changeNote)}` : null,
       `Generated: ${dateLong}`
     ].filter(Boolean);
 
-    lines.push(meta.join("\n"));
-    lines.push("Best,");
-    lines.push(authorLine || "");
+    paragraphs.push(metaLines.join("\n"));
+    paragraphs.push("Best,");
+    paragraphs.push(authorLine || "");
 
-    // routing: internal preset uses desk CC; public/client remove CC by default
-    const cc = (preset === "internal") ? ccForNoteType(noteType) : "";
+    const body = paragraphs.join("\n\n");
+    const cc = ccForNoteType(noteType);
 
-    return { subject, body: lines.join("\n\n"), cc };
+    return { subject, body, cc };
   }
 
-  $("emailToCrgBtn")?.addEventListener("click", () => {
-    const { subject, body, cc } = buildCrgEmailPayload();
-    const to = "research@cordobarg.com";
-    window.location.href = buildMailto(to, cc, subject, body);
-  });
+  const emailToCrgBtn = $("emailToCrgBtn");
+  if (emailToCrgBtn){
+    emailToCrgBtn.addEventListener("click", () => {
+      const noteType = safeTrim(noteTypeEl?.value) || "Research Note";
+      const title    = safeTrim($("title")?.value);
+      const topic    = safeTrim($("topic")?.value);
+      const ticker   = safeTrim($("ticker")?.value);
+      const rating   = safeTrim($("crgRating")?.value);
+      const tp       = safeTrim($("targetPrice")?.value);
+      const preset   = getPreset();
+      const status   = getStatus();
+      const version  = versionTextEl?.textContent || "v1.0";
+      const changeNote = safeTrim(changeNoteEl?.value);
 
-  // ================================
-  // Reset
-  // ================================
-  function clearChartUI(){
-    setText("currentPrice","—");
-    setText("realisedVol","—");
-    setText("rangeReturn","—");
-    setText("upsideToTarget","—");
-    if (chartStatus) chartStatus.textContent = "";
-    if (priceChart){
-      try{ priceChart.destroy(); } catch(_) {}
-      priceChart = null;
-    }
-    priceChartImageBytes = null;
-    equityStats = { currentPrice:null, realisedVolAnn:null, rangeReturn:null };
+      const { subject, body, cc } = buildCrgEmailPayload({
+        noteType, title, topic, ticker, crgRating: rating, targetPrice: tp,
+        version, changeNote, preset, status
+      });
+
+      const to = toForPreset(preset);
+      const mailto = buildMailto(to, cc, subject, body);
+      window.location.href = mailto;
+    });
   }
 
-  $("resetFormBtn")?.addEventListener("click", () => {
-    const ok = confirm("Reset the form? This will clear all fields on this page.");
-    if (!ok) return;
-
-    const form = $("researchForm");
-    form?.reset();
-
-    // Clear dynamic coauthors
-    if ($("coAuthorsList")) $("coAuthorsList").innerHTML = "";
-    coAuthorCount = 0;
-
-    // Clear file inputs
-    if ($("modelFiles")) $("modelFiles").value = "";
-    if ($("imageUpload")) $("imageUpload").value = "";
-
-    updateAttachmentSummary();
-    clearChartUI();
-
-    // reset version to v1.0
-    setVersion({ major: 1, minor: 0 });
-
-    // preset default
-    setPreset("internal");
-
-    // status default
-    if ($("workflowStatus")) $("workflowStatus").value = "Draft";
-    if ($("reviewedBy")) $("reviewedBy").value = "";
-    if ($("reviewedByOther")) $("reviewedByOther").value = "";
-    toggleReviewedByOther();
-
-    // resync phone
-    syncPrimaryPhone();
-
-    // clear autosave too (system reset)
-    clearAutosave();
-
-    toggleEquitySection();
-    paintWordCounts();
-    updateCompletionMeter();
-
-    const msg = $("message");
-    if (msg){
-      msg.className = "message";
-      msg.textContent = "";
-      msg.style.display = "none";
-    }
-  });
-
-  $("clearAutosaveBtn")?.addEventListener("click", () => {
-    const ok = confirm("Clear autosaved draft? This cannot be undone.");
-    if (!ok) return;
-    clearAutosave();
-  });
-
-  $("jumpMissingBtn")?.addEventListener("click", () => jumpToFirstMissing());
-
-  // ================================
+  // ============================================================
   // Main form submission (export)
-  // ================================
-  $("researchForm")?.addEventListener("submit", async (e) => {
+  // - gates by workflow + preset rules
+  // - bumps version
+  // ============================================================
+  const form = $("researchForm");
+  if (form) form.noValidate = true;
+
+  form.addEventListener("submit", async function(e){
     e.preventDefault();
 
-    const gate = canExport();
-    if (!gate.ok){
-      alert(gate.reason);
-      updateCompletionMeter();
-      return;
-    }
-
-    const btn = $("generateDocBtn");
+    const button = form.querySelector('button[type="submit"]');
     const messageDiv = $("message");
 
-    if (btn){
-      btn.disabled = true;
-      btn.classList.add("loading");
-      btn.textContent = "Generating…";
-    }
-    if (messageDiv){
-      messageDiv.className = "message";
-      messageDiv.textContent = "";
-      messageDiv.style.display = "block";
-    }
+    button.disabled = true;
+    button.classList.add("loading");
+    button.textContent = "Generating Document…";
+    messageDiv.className = "message";
+    messageDiv.textContent = "";
 
     try{
-      if (typeof docx === "undefined") throw new Error("docx library not loaded. Refresh the page.");
-      if (typeof saveAs === "undefined") throw new Error("FileSaver library not loaded. Refresh the page.");
+      if (typeof docx === "undefined") throw new Error("docx library not loaded. Please refresh the page.");
+      if (typeof saveAs === "undefined") throw new Error("FileSaver library not loaded. Please refresh the page.");
+
+      // Workflow gating
+      if (!workflowRequirementsMet()){
+        throw new Error("Export blocked: complete required fields, acknowledgement, and workflow checks (status/preset/reviewer).");
+      }
+
+      // bump version at the moment of export (BlueMatrix behaviour)
+      const version = bumpVersionOnExport();
+
+      // Gather data
+      const noteType = safeTrim(noteTypeEl?.value);
+      const title = safeTrim($("title")?.value);
+      const topic = safeTrim($("topic")?.value);
+
+      const authorLastName = safeTrim($("authorLastName")?.value);
+      const authorFirstName = safeTrim($("authorFirstName")?.value);
+
+      const authorPhone = safeTrim($("authorPhone")?.value);
+      const authorPhoneSafe = naIfBlank(authorPhone);
+
+      const thesis = safeTrim(thesisEl?.value);
+      const execSummary = safeTrim(execSummaryEl?.value);
+
+      const analysis = safeTrim($("analysis")?.value);
+      const keyTakeaways = safeTrim($("keyTakeaways")?.value);
+      const content = safeTrim($("content")?.value);
+      const cordobaView = safeTrim($("cordobaView")?.value);
+      const imageFiles = $("imageUpload")?.files;
+
+      const ticker = safeTrim($("ticker")?.value);
+      const valuationSummary = safeTrim($("valuationSummary")?.value);
+      const keyAssumptions = safeTrim($("keyAssumptions")?.value);
+      const scenarioNotes = safeTrim($("scenarioNotes")?.value);
+      const modelFiles = $("modelFiles") ? $("modelFiles").files : null;
+      const modelLink = safeTrim($("modelLink")?.value);
+
+      const targetPrice = safeTrim($("targetPrice")?.value);
+      const crgRating = safeTrim($("crgRating")?.value);
+
+      const workflowStatus = getStatus();
+      const reviewedBy = naIfBlank(safeTrim(reviewedByEl?.value));
+      const preset = getPreset();
+
+      const changeNote = naIfBlank(safeTrim(changeNoteEl?.value));
+      const priceDataSource = selectedDataSource();
+      const chartAnnotation = safeTrim(chartNoteEl?.value);
+
+      const scenarios = scenarioRows();
 
       const now = new Date();
       const dateTimeString = formatDateTime(now);
 
-      // Version string (current)
-      const vStr = formatVersion(getVersion());
-
-      // Workflow
-      const status = getStatus();
-      const reviewedBy = getReviewedBy();
-      const preset = getPreset();
-
-      // Core fields
-      const template = $("noteTemplate")?.value || "";
-      const noteType = $("noteType")?.value || "";
-      const title = $("title")?.value || "";
-      const topic = $("topic")?.value || "";
-      const thesis = $("thesis")?.value || "";
-
-      const authorLastName = $("authorLastName")?.value || "";
-      const authorFirstName = $("authorFirstName")?.value || "";
-      const authorPhone = $("authorPhone")?.value || "";
-      const authorPhonePrintable = naIfBlank(authorPhone);
-
-      const changeNote = $("changeNote")?.value || "";
-
-      const execSummary = $("executiveSummary")?.value || "";
-
-      const analysis = $("analysis")?.value || "";
-      const keyTakeaways = $("keyTakeaways")?.value || "";
-      const content = $("content")?.value || "";
-      const cordobaView = $("cordobaView")?.value || "";
-
-      const imageFiles = $("imageUpload")?.files || [];
-
-      // Equity fields
-      const ticker = $("ticker")?.value || "";
-      const crgRating = $("crgRating")?.value || "";
-      const targetPrice = $("targetPrice")?.value || "";
-      const valuationSummary = $("valuationSummary")?.value || "";
-      const keyAssumptions = $("keyAssumptions")?.value || "";
-      const scenarioNotes = $("scenarioNotes")?.value || "";
-      const modelFiles = $("modelFiles")?.files || null;
-      const modelLink = $("modelLink")?.value || "";
-      const chartSource = getChartSource();
-      const chartAnnotation = $("chartAnnotation")?.value || "";
-
       // Coauthors
       const coAuthors = [];
-      document.querySelectorAll(".coauthor-entry").forEach(entry => {
-        const lastName = entry.querySelector(".coauthor-lastname")?.value || "";
-        const firstName = entry.querySelector(".coauthor-firstname")?.value || "";
-        const phone = entry.querySelector(".coauthor-phone")?.value || "";
-        if (lastName && firstName) coAuthors.push({ lastName, firstName, phone: naIfBlank(phone) });
+      document.querySelectorAll(".coauthor-row").forEach(entry => {
+        const lastName = safeTrim(entry.querySelector(".coauthor-lastname")?.value);
+        const firstName = safeTrim(entry.querySelector(".coauthor-firstname")?.value);
+        const phone = safeTrim(entry.querySelector(".coauthor-phone")?.value);
+        if (lastName || firstName || phone){
+          coAuthors.push({ lastName, firstName, phone: naIfBlank(phone) });
+        }
       });
 
-      // Scenario table rows
-      const scenarioRows = buildScenarioRows();
+      // Sync auto exec summary right before export if toggle is on
+      if (execToggleEl?.checked){
+        syncExecSummary();
+      }
 
-      // Build doc
       const doc = await createDocument({
-        template,
-        noteType, status, reviewedBy, distributionPreset: preset,
-        versionString: vStr,
-        changeNote,
-        title, topic, thesis,
-        authorLastName, authorFirstName, authorPhonePrintable,
+        noteType, title, topic,
+        authorLastName, authorFirstName, authorPhoneSafe,
         coAuthors,
-        execSummary,
+        thesis,
+        execSummary: safeTrim(execSummaryEl?.value),
         analysis, keyTakeaways, content, cordobaView,
-        ticker, crgRating, targetPrice,
-        equityStats,
+        imageFiles, dateTimeString,
+
+        ticker, valuationSummary, keyAssumptions, scenarioNotes, modelFiles, modelLink,
         priceChartImageBytes,
-        chartSource,
+        targetPrice,
+        equityStats,
+        crgRating,
+
+        workflowStatus,
+        reviewedBy,
+        preset,
+        version,
+        changeNote: (changeNote === "N/A" ? "" : changeNote),
+        priceDataSource,
         chartAnnotation,
-        scenarioRows,
-        valuationSummary, keyAssumptions, scenarioNotes,
-        modelFiles, modelLink,
-        imageFiles,
-        dateTimeString
+        scenarios
       });
 
       const blob = await docx.Packer.toBlob(doc);
 
-      // filename includes version + status + preset
-      const safeTitle = (title || "note").replace(/[^a-z0-9]/gi, "_").toLowerCase();
-      const safeType = (noteType || "research").replace(/\s+/g, "_").toLowerCase();
-      const fileName = `${safeTitle}_${safeType}_${vStr}_${status.toLowerCase()}_${preset}.docx`;
+      const fileName = [
+        (title || "research_note").replace(/[^a-z0-9]/gi,"_").toLowerCase(),
+        noteType.replace(/\s+/g,"_").toLowerCase(),
+        version.replace(/\./g,"_"),
+        preset.replace(/\s+/g,"_").toLowerCase(),
+        workflowStatus.toLowerCase()
+      ].filter(Boolean).join("_") + ".docx";
 
       saveAs(blob, fileName);
 
-      if (messageDiv){
-        messageDiv.className = "message success";
-        messageDiv.textContent = `✓ Exported: ${fileName}`;
-      }
+      messageDiv.className = "message success";
+      messageDiv.textContent = `✓ Document "${fileName}" generated successfully!`;
 
-      // Auto increment version AFTER a successful export
-      const majorBump = !!$("majorBumpNext")?.checked;
-      bumpVersion({ majorBump });
-      if ($("majorBumpNext")) $("majorBumpNext").checked = false;
-
-      // Keep change note as-is (audit trail) — analyst can update manually
+      // autosave after export too
       autosaveNow();
 
     } catch(err){
-      console.error(err);
-      if (messageDiv){
-        messageDiv.className = "message error";
-        messageDiv.textContent = `✗ Error: ${err.message}`;
-      }
+      console.error("Error generating document:", err);
+      messageDiv.className = "message error";
+      messageDiv.textContent = `✗ Error: ${err.message}`;
     } finally {
-      if (btn){
-        btn.disabled = false;
-        btn.classList.remove("loading");
-        btn.textContent = "Generate Word Document";
-      }
-      updateCompletionMeter();
+      button.disabled = false;
+      button.classList.remove("loading");
+      button.textContent = "Generate Word Document";
     }
   });
 
-  // ================================
-  // Wire global listeners (autosave + UI refresh)
-  // ================================
-  const listenIds = [
-    "noteTemplate","noteType","workflowStatus","reviewedBy","reviewedByOther","distributionPreset",
-    "changeNote","title","topic","thesis","executiveSummary",
-    "ticker","crgRating","targetPrice","chartRange","chartDataSource","chartDataSourceOther","chartAnnotation",
-    "valuationSummary","keyAssumptions","scenarioNotes","modelLink",
-    "bearPrice","bearKey","basePrice","baseKey","bullPrice","bullKey",
-    "keyTakeaways","analysis","content","cordobaView",
-    "confirmDraft","majorBumpNext"
-  ];
-
-  listenIds.forEach(id => {
-    const el = $(id);
-    if (!el) return;
-    el.addEventListener("input", () => {
-      scheduleAutosave();
-      updateCompletionMeter();
-      paintWordCounts();
-      maybeGenerateExecutiveSummary();
-    });
-    el.addEventListener("change", () => {
-      scheduleAutosave();
-      updateCompletionMeter();
-      paintWordCounts();
-      maybeGenerateExecutiveSummary();
-    });
-  });
-
-  $("workflowStatus")?.addEventListener("change", () => {
-    updateCompletionMeter();
-    scheduleAutosave();
-  });
-
-  $("reviewedBy")?.addEventListener("change", () => {
-    toggleReviewedByOther();
-    updateCompletionMeter();
-    scheduleAutosave();
-  });
-
-  $("noteType")?.addEventListener("change", () => {
-    toggleEquitySection();
-    updateCompletionMeter();
-    maybeGenerateExecutiveSummary();
-  });
-
-  $("noteTemplate")?.addEventListener("change", () => {
-    applyTemplate($("noteTemplate").value);
-  });
-
-  // Version buttons
-  $("bumpMinorBtn")?.addEventListener("click", () => bumpVersion({ majorBump:false }));
-  $("bumpMajorBtn")?.addEventListener("click", () => bumpVersion({ majorBump:true }));
-
-  // ================================
-  // Boot
-  // ================================
-  // Restore draft if present
-  try{
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (raw){
-      const snap = JSON.parse(raw);
-      applyFormSnapshot(snap);
-      setAutosaveStatus("Restored draft");
-    } else {
-      setAutosaveStatus("No draft");
-    }
-  } catch(e){
-    console.warn("Failed to restore draft:", e);
-    setAutosaveStatus("Draft restore error");
-  }
-
-  // initialise defaults if empty
-  if (!$("distributionPreset")?.value) setPreset("internal");
-  paintPresetPill();
-  paintVersionPill();
-
-  toggleReviewedByOther();
-  toggleEquitySection();
+  // Initial paint
   updateAttachmentSummary();
-  syncPrimaryPhone();
-  paintWordCounts();
   updateCompletionMeter();
-
-  // session timer
-  const sessionStart = Date.now();
-  setInterval(() => {
-    const el = $("sessionTime");
-    if (!el) return;
-    const s = Math.floor((Date.now() - sessionStart) / 1000);
-    const mm = String(Math.floor(s / 60)).padStart(2, "0");
-    const ss = String(s % 60).padStart(2, "0");
-    el.textContent = `${mm}:${ss}`;
-  }, 1000);
-
+  refreshValidationSummary();
+  paintVersion();
 });
