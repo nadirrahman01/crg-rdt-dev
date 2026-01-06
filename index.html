@@ -3,342 +3,506 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>CRG - Research Documentation Tool</title>
+  <title>CRG — Research Documentation Tool</title>
   <link rel="stylesheet" href="assets/styles.css">
 
   <!-- Chart.js (for price chart) -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
-
-  <!-- NEW: small inline CSS for bottom-right institutional footer (safe even if you don't edit styles.css) -->
-  <style>
-    /* pin inside the white container, like an institutional app footer */
-    .container { position: relative; }
-    .institutional-footer{
-      position: absolute;
-      right: 18px;
-      bottom: 14px;
-      text-align: right;
-      max-width: min(520px, calc(100% - 36px));
-      font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
-      font-weight: 300;
-      font-size: 11px;
-      line-height: 1.4;
-      color: rgba(11,14,20,.52);
-      user-select: none;
-      pointer-events: none;
-    }
-    .institutional-footer .inst-version{
-      font-weight: 600;
-      color: rgba(11,14,20,.62);
-      letter-spacing: .2px;
-      margin-bottom: 4px;
-    }
-    .institutional-footer .inst-disclaimer{
-      color: rgba(11,14,20,.50);
-    }
-    /* ensure footer doesn't collide with the form content on smaller screens */
-    .container-pad-bottom{ padding-bottom: 86px; }
-    @media (max-width: 768px){
-      .institutional-footer{
-        right: 14px;
-        bottom: 12px;
-        font-size: 10.5px;
-      }
-      .container-pad-bottom{ padding-bottom: 110px; }
-    }
-  </style>
 </head>
+
 <body>
-  <!-- NEW: add extra bottom padding so the footer never overlaps form content -->
-  <div class="container container-pad-bottom">
 
-    <header class="hero">
-      <h1 class="hero-title">CRG - Research Documentation Tool</h1>
-    </header>
+  <!-- APP SHELL -->
+  <div class="app-shell">
 
-    <!-- NEW: Field completion meter -->
-    <div class="progress-wrap" aria-label="Completion meter">
-      <div class="progress-label">
-        Completion: <span id="completionText">0 / 8 core fields</span>
-      </div>
-      <div class="progress-bar" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
-        <div class="progress-fill" id="completionBar" style="width:0%"></div>
-      </div>
-    </div>
-    <!-- /NEW -->
-
-    <form id="researchForm" novalidate>
-      <!-- Note Type -->
-      <label for="noteType">Type of Note</label>
-      <select id="noteType" required>
-        <option value="">Select note type...</option>
-        <option value="General Note">General Note</option>
-        <option value="Equity Research">Equity Research</option>
-        <option value="Macro Research">Macro Research</option>
-        <option value="Fixed Income Research">Fixed Income Research</option>
-        <option value="Commodity Insights">Commodity Insights</option>
-      </select>
-
-      <!-- NEW: Tool guidance -->
-      <div class="tool-info">
-        <div class="tool-info-title">How to use this tool</div>
-        <div class="tool-info-text">
-          Fill out the note fields, then click <strong>Generate Word Document</strong>.
-          For <strong>Equity Research</strong>, the <strong>Ticker / Company</strong> field is optional — if a ticker isn’t available, leave it blank.
-          This tool pulls price data using <strong>Stooq symbols</strong>: for US equities use <strong>MSFT.US</strong> (or just <strong>MSFT</strong>), and for UK/LSE equities use the <strong>.UK</strong> suffix, e.g. <strong>VOD.UK</strong>, <strong>BP.UK</strong>, <strong>HSBA.UK</strong>.
-          If you’re unsure, use Stooq’s search to confirm the symbol:
-          <a href="https://stooq.com/" target="_blank" rel="noopener noreferrer">stooq.com</a>
-          (type the company name/ticker in their search box).
-          If you’ve built a model, it’s often easiest to upload <strong>screenshots of key model tabs</strong> in the <strong>Upload Images / Graphs</strong> section so the output note is auditable.
+    <!-- SIDEBAR -->
+    <aside class="sidebar">
+      <div class="sidebar-brand">
+        <div class="brand-mark">CRG</div>
+        <div class="brand-text">
+          <div class="brand-title">Research Documentation</div>
+          <div class="brand-sub">Internal Tool</div>
         </div>
       </div>
-      <!-- /NEW -->
 
-      <!-- Title -->
-      <label for="title">Title</label>
-      <input type="text" id="title" required placeholder="Enter research title...">
-
-      <!-- Topic -->
-      <label for="topic">Topic</label>
-      <input type="text" id="topic" required placeholder="Enter topic...">
-
-      <!-- Primary Author -->
-      <label for="authorLastName">Primary Author — Last Name</label>
-      <input type="text" id="authorLastName" required placeholder="e.g., Doe">
-
-      <label for="authorFirstName">Primary Author — First Name</label>
-      <input type="text" id="authorFirstName" required placeholder="e.g., John">
-
-      <!-- NEW: Phone UI (country code + number) -->
-      <label for="authorPhoneNational">Primary Author — Phone <span class="panel-muted">(Optional)</span></label>
-
-      <div class="phone-row" id="authorPhoneRow">
-        <select id="authorPhoneCountry" class="phone-country" aria-label="Country code">
-          <option value="44" selected>🇬🇧 +44 (UK)</option>
-          <option value="1">🇺🇸 +1 (US)</option>
-          <option value="353">🇮🇪 +353 (IE)</option>
-          <option value="33">🇫🇷 +33 (FR)</option>
-          <option value="49">🇩🇪 +49 (DE)</option>
-          <option value="31">🇳🇱 +31 (NL)</option>
-          <option value="34">🇪🇸 +34 (ES)</option>
-          <option value="39">🇮🇹 +39 (IT)</option>
-          <option value="971">🇦🇪 +971 (AE)</option>
-          <option value="966">🇸🇦 +966 (SA)</option>
-          <option value="92">🇵🇰 +92 (PK)</option>
-          <option value="880">🇧🇩 +880 (BD)</option>
-          <option value="91">🇮🇳 +91 (IN)</option>
-          <option value="234">🇳🇬 +234 (NG)</option>
-          <option value="254">🇰🇪 +254 (KE)</option>
-          <option value="27">🇿🇦 +27 (ZA)</option>
-          <option value="995">🇬🇪 +995 (GE)</option>
-          <option value="">Other</option>
-        </select>
-
-        <input
-          type="text"
-          id="authorPhoneNational"
-          class="phone-number"
-          inputmode="numeric"
-          autocomplete="tel-national"
-          placeholder="e.g., 7323 324 120"
-        >
-      </div>
-
-      <!-- KEEP existing hidden field (so the rest of your code still works) -->
-      <input type="text" id="authorPhone" required placeholder="e.g., 44-7393454410" style="display:none;">
-      <!-- /NEW -->
-
-      <!-- Co-Authors Section -->
-      <div id="coAuthorsSection" class="panel">
-        <div class="panel-head">
-          <div class="panel-title">
-            Co-Authors <span class="panel-muted">(Optional)</span>
+      <div class="sidebar-card">
+        <div class="sidebar-card-title">Progress</div>
+        <div class="sidebar-progress">
+          <div class="sidebar-progress-top">
+            <span class="muted">Completion</span>
+            <span class="kpi" id="completionText">0 / 8</span>
           </div>
-          <button type="button" id="addCoAuthor" class="btn btn-secondary">+ Add Co-Author</button>
+          <div class="progress-bar" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
+            <div class="progress-fill" id="completionBar" style="width:0%"></div>
+          </div>
+          <div class="sidebar-meta">
+            <div class="meta-row">
+              <span class="muted">Last saved</span>
+              <span id="lastSavedText">—</span>
+            </div>
+            <div class="meta-row">
+              <span class="muted">Draft</span>
+              <span id="draftStatusPill" class="pill pill-idle">Not saved</span>
+            </div>
+          </div>
         </div>
-
-        <div id="coAuthorsList"></div>
       </div>
 
-      <!-- Equity Research: Model & Valuation Attachments -->
-      <div id="equitySection" class="equity-section" style="display:none;">
-        <div class="equity-header">
-          <div class="equity-title">Equity Research — Model & Valuation</div>
-          <div class="equity-subtitle">
-            Attach your DCF / Excel model and capture assumptions so the note is auditable.
+      <nav class="sidebar-nav" aria-label="Sections">
+        <a class="nav-link" href="#sec-core">
+          <span class="dot"></span> Core Details
+        </a>
+        <a class="nav-link" href="#sec-authors">
+          <span class="dot"></span> Authors
+        </a>
+        <a class="nav-link" href="#sec-equity">
+          <span class="dot"></span> Equity Module
+        </a>
+        <a class="nav-link" href="#sec-writeup">
+          <span class="dot"></span> Write-Up
+        </a>
+        <a class="nav-link" href="#sec-figures">
+          <span class="dot"></span> Figures
+        </a>
+        <a class="nav-link" href="#sec-actions">
+          <span class="dot"></span> Actions
+        </a>
+      </nav>
+
+      <div class="sidebar-foot">
+        <div class="inst-small">RDT v1.1.0</div>
+        <div class="inst-small muted">
+          Cordoba theme • institutional layout
+        </div>
+      </div>
+    </aside>
+
+    <!-- MAIN -->
+    <main class="main">
+      <!-- TOP BAR -->
+      <header class="topbar">
+        <div class="topbar-left">
+          <h1 class="topbar-title">CRG — Research Documentation Tool</h1>
+          <div class="topbar-sub">
+            Draft note builder • Word export • Stooq chart pull
           </div>
         </div>
 
-        <label for="ticker">Ticker / Company <span class="panel-muted">(Optional)</span></label>
-        <input type="text" id="ticker" placeholder="e.g., MSFT.US (US) or VOD.UK (UK/LSE)">
-
-        <!-- NEW: Ticker helper microtext -->
-        <div class="ticker-microtext">
-          Examples: <strong>MSFT.US</strong>, <strong>VOD.UK</strong>
-          <span class="ticker-dot">·</span>
-          <a class="ticker-link" href="https://stooq.com/" target="_blank" rel="noopener noreferrer">Open Stooq search</a>
+        <div class="topbar-actions">
+          <button type="button" id="saveDraftBtn" class="btn btn-secondary btn-compact">
+            Save draft
+          </button>
+          <button type="button" id="clearDraftBtn" class="btn btn-ghost btn-compact">
+            Clear draft
+          </button>
         </div>
-        <!-- /NEW -->
+      </header>
 
-        <!-- NEW: CRG Rating (Equity Research) -->
-        <div class="rating-row">
-          <label for="crgRating" class="rating-label">
-            CRG Rating
-            <span class="info-badge" tabindex="0" aria-label="Rating definitions">i</span>
-               <span class="info-pop">
-                 Outperform (O): expected to materially outperform the sector average over a 12-month horizon.<br><br>
-                 Sector Perform (SP): expected to perform broadly in line with the sector average over a 12-month horizon.<br><br>
-                 Underperform (U): expected to materially underperform the sector average over a 12-month horizon.<br><br>
-                 Restricted (R): assigned where CRG precludes the expression of an investment view due to Shariah considerations or ethical constraints. This includes companies whose activities, capital structure, or revenue mix are not aligned with Shariah-compliant or responsible investment principles.<br><br>
-                 Not Rated (NR): no formal rating has been assigned. This may reflect limited data availability, early-stage analysis, insufficient conviction, or the fact that the research is intended to be exploratory or thematic rather than a security-specific investment view.
-               </span>
-          </label>
+      <!-- CONTENT GRID -->
+      <div class="content-grid">
 
-          <select id="crgRating" class="crg-rating-select">
-            <option value="" selected>Select rating...</option>
-            <option value="Outperform (O)">Outperform (O)</option>
-            <option value="Sector Perform (SP)">Sector Perform (SP)</option>
-            <option value="Underperform (U)">Underperform (U)</option>
-            <option value="Restricted (R)">Restricted (R)</option>
-            <option value="Not Rated (NR)">Not Rated (NR)</option>
-          </select>
-        </div>
-        <!-- /NEW -->
-
-        <!-- Price Chart Panel (existing) -->
-        <div class="chart-panel">
-          <div class="chart-head">
-            <div class="chart-title">Price Chart</div>
-            <div class="chart-actions">
-              <select id="chartRange" class="chart-range">
-                <option value="6mo" selected>6M</option>
-                <option value="1y">1Y</option>
-                <option value="2y">2Y</option>
-                <option value="5y">5Y</option>
-              </select>
-              <button type="button" id="fetchPriceChart" class="btn btn-secondary">Fetch chart</button>
+        <!-- PRIMARY COLUMN -->
+        <section class="card">
+          <div class="card-head">
+            <div>
+              <div class="card-title">Research Input</div>
+              <div class="card-sub">
+                Write like it will be circulated. Keep it auditable, structured, and clean.
+              </div>
+            </div>
+            <div class="card-badge">
+              <span class="badge badge-soft">Internal</span>
             </div>
           </div>
 
-          <div id="chartStatus" class="help-text" style="margin-top: 6px;"></div>
-
-          <div class="chart-wrap">
-            <canvas id="priceChart" height="140"></canvas>
-          </div>
-
-          <!-- NEW: Target price + stats -->
-          <label for="targetPrice" style="margin-top: 14px;">Target Price <span class="panel-muted">(Optional)</span></label>
-          <input type="text" id="targetPrice" placeholder="e.g., 520">
-
-          <div class="metrics-grid">
-            <div class="metric-card">
-              <div class="metric-label">Current Price</div>
-              <div class="metric-value" id="currentPrice">—</div>
-            </div>
-
-            <div class="metric-card">
-              <div class="metric-label">Volatility (ann.)</div>
-              <div class="metric-value" id="realisedVol">—</div>
-            </div>
-
-            <div class="metric-card">
-              <div class="metric-label">Return (range)</div>
-              <div class="metric-value" id="rangeReturn">—</div>
-            </div>
-
-            <div class="metric-card">
-              <div class="metric-label">Upside to Target</div>
-              <div class="metric-value" id="upsideToTarget">—</div>
+          <!-- TOOL GUIDANCE (more institutional) -->
+          <div class="callout">
+            <div class="callout-title">Workflow</div>
+            <div class="callout-text">
+              1) Complete the core fields → 2) Add market module (if equity) → 3) Add figures →
+              4) Generate Word document. <br>
+              Equity chart uses <strong>Stooq symbols</strong>: US <strong>MSFT.US</strong> (or <strong>MSFT</strong>),
+              UK/LSE <strong>VOD.UK</strong>, <strong>BP.UK</strong>, <strong>HSBA.UK</strong>.
+              Verify via <a href="https://stooq.com/" target="_blank" rel="noopener noreferrer">stooq.com</a>.
             </div>
           </div>
-          <!-- /NEW -->
-        </div>
 
-        <label for="modelFiles">Upload Model Files (Excel / PDF) <span class="panel-muted">(Optional)</span></label>
-        <p class="help-text"><em>Tip: Upload the Excel model (.xlsx/.xlsm) and any exported summary tabs as PDF if you have them.</em></p>
-        <input type="file" id="modelFiles" multiple accept=".xlsx,.xlsm,.xls,.csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel,application/pdf">
+          <form id="researchForm" novalidate>
 
-        <!-- NEW: Attachment summary strip -->
-        <div class="attachment-summary" id="attachmentSummary" aria-live="polite">
-          <div class="attachment-summary-head" id="attachmentSummaryHead">No files selected</div>
-          <div class="attachment-summary-list" id="attachmentSummaryList" style="display:none;"></div>
-        </div>
-        <!-- /NEW -->
+            <!-- CORE DETAILS -->
+            <div id="sec-core" class="section">
+              <div class="section-head">
+                <div class="section-title">Core Details</div>
+                <div class="section-sub">These fields drive the document header and metadata.</div>
+              </div>
 
-        <label for="modelLink">Model Link (Drive / SharePoint) <span class="panel-muted">(Optional)</span></label>
-        <input type="text" id="modelLink" placeholder="Paste a share link to the model">
+              <div class="grid-2">
+                <div class="field">
+                  <label for="noteType">Type of Note</label>
+                  <select id="noteType" required>
+                    <option value="">Select note type...</option>
+                    <option value="General Note">General Note</option>
+                    <option value="Equity Research">Equity Research</option>
+                    <option value="Macro Research">Macro Research</option>
+                    <option value="Fixed Income Research">Fixed Income Research</option>
+                    <option value="Commodity Insights">Commodity Insights</option>
+                  </select>
+                  <div class="hint">Determines required fields and routing for email CC.</div>
+                </div>
 
-        <label for="valuationSummary">Valuation Summary <span class="panel-muted">(Optional)</span></label>
-        <textarea id="valuationSummary" rows="6" placeholder="Example: Base-case FV per share, current price, implied upside/downside, and 2–3 lines on the main driver(s)."></textarea>
+                <div class="field">
+                  <label for="topic">Topic</label>
+                  <input type="text" id="topic" required placeholder="e.g., UK consumer squeeze, EM FX regime shift, etc.">
+                  <div class="hint">Short descriptor used in the Word header block.</div>
+                </div>
+              </div>
 
-        <label for="keyAssumptions">Key Assumptions <span class="panel-muted">(Optional)</span></label>
-        <textarea id="keyAssumptions" rows="7" placeholder="Example:
-WACC: 8.5%
-Terminal growth: 2.0%
-Revenue CAGR (5y): 7%
-EBIT margin (exit): 28%
-Tax rate: 19%
-Net debt: £X
-Shares: X"></textarea>
+              <div class="field">
+                <label for="title">Title</label>
+                <input type="text" id="title" required placeholder="Enter a clear, investor-ready title...">
+                <div class="hint">Aim for an editorial headline. Keep it clean and specific.</div>
+              </div>
+            </div>
 
-        <label for="scenarioNotes">Scenario / Sensitivity Notes <span class="panel-muted">(Optional)</span></label>
-        <textarea id="scenarioNotes" rows="5" placeholder="Example: What breaks the thesis? What is the bear/base/bull driver? Any sensitivity highlights (WACC / g / margin)?"></textarea>
+            <!-- AUTHORS -->
+            <div id="sec-authors" class="section">
+              <div class="section-head">
+                <div class="section-title">Authors</div>
+                <div class="section-sub">Primary author is required. Co-authors optional.</div>
+              </div>
+
+              <div class="grid-2">
+                <div class="field">
+                  <label for="authorLastName">Primary Author — Last Name</label>
+                  <input type="text" id="authorLastName" required placeholder="e.g., Rahman">
+                </div>
+                <div class="field">
+                  <label for="authorFirstName">Primary Author — First Name</label>
+                  <input type="text" id="authorFirstName" required placeholder="e.g., Nadir">
+                </div>
+              </div>
+
+              <div class="field">
+                <label for="authorPhoneNational">Primary Author — Phone <span class="muted-inline">(Optional)</span></label>
+                <div class="phone-row" id="authorPhoneRow">
+                  <select id="authorPhoneCountry" class="phone-country" aria-label="Country code">
+                    <option value="44" selected>🇬🇧 +44 (UK)</option>
+                    <option value="1">🇺🇸 +1 (US)</option>
+                    <option value="353">🇮🇪 +353 (IE)</option>
+                    <option value="33">🇫🇷 +33 (FR)</option>
+                    <option value="49">🇩🇪 +49 (DE)</option>
+                    <option value="31">🇳🇱 +31 (NL)</option>
+                    <option value="34">🇪🇸 +34 (ES)</option>
+                    <option value="39">🇮🇹 +39 (IT)</option>
+                    <option value="971">🇦🇪 +971 (AE)</option>
+                    <option value="966">🇸🇦 +966 (SA)</option>
+                    <option value="92">🇵🇰 +92 (PK)</option>
+                    <option value="880">🇧🇩 +880 (BD)</option>
+                    <option value="91">🇮🇳 +91 (IN)</option>
+                    <option value="234">🇳🇬 +234 (NG)</option>
+                    <option value="254">🇰🇪 +254 (KE)</option>
+                    <option value="27">🇿🇦 +27 (ZA)</option>
+                    <option value="995">🇬🇪 +995 (GE)</option>
+                    <option value="">Other</option>
+                  </select>
+
+                  <input
+                    type="text"
+                    id="authorPhoneNational"
+                    class="phone-number"
+                    inputmode="numeric"
+                    autocomplete="tel-national"
+                    placeholder="e.g., 7323 324 120"
+                  >
+                </div>
+
+                <!-- hidden field preserved for export logic -->
+                <input type="text" id="authorPhone" required placeholder="e.g., 44-7393454410" style="display:none;">
+                <div class="hint">Optional. Stored in export as cc-number digits (e.g., 44-7398344190).</div>
+              </div>
+
+              <div id="coAuthorsSection" class="panel">
+                <div class="panel-head">
+                  <div class="panel-title">
+                    Co-Authors <span class="panel-muted">(Optional)</span>
+                  </div>
+                  <button type="button" id="addCoAuthor" class="btn btn-secondary btn-compact">+ Add</button>
+                </div>
+                <div id="coAuthorsList"></div>
+              </div>
+            </div>
+
+            <!-- EQUITY MODULE -->
+            <div id="sec-equity" class="section">
+              <div class="section-head">
+                <div class="section-title">Equity Module</div>
+                <div class="section-sub">Displayed only when note type is Equity Research.</div>
+              </div>
+
+              <div id="equitySection" class="equity-section" style="display:none;">
+
+                <div class="equity-header">
+                  <div class="equity-title">Coverage Note — Market & Model</div>
+                  <div class="equity-subtitle">
+                    Add ticker, rating, chart, and model attachments for auditability.
+                  </div>
+                </div>
+
+                <div class="grid-2">
+                  <div class="field">
+                    <label for="ticker">Ticker / Company <span class="muted-inline">(Optional)</span></label>
+                    <input type="text" id="ticker" placeholder="e.g., MSFT.US or VOD.UK">
+                    <div class="micro">
+                      Examples: <strong>MSFT.US</strong>, <strong>VOD.UK</strong> ·
+                      <a class="link" href="https://stooq.com/" target="_blank" rel="noopener noreferrer">Open Stooq</a>
+                    </div>
+                  </div>
+
+                  <div class="field">
+                    <label for="crgRating" class="rating-label">
+                      CRG Rating
+                      <span class="info-badge" tabindex="0" aria-label="Rating definitions">i</span>
+                      <span class="info-pop">
+                        Outperform (O): expected to materially outperform sector average over 12 months.<br><br>
+                        Sector Perform (SP): broadly in line with sector average over 12 months.<br><br>
+                        Underperform (U): expected to materially underperform sector average over 12 months.<br><br>
+                        Restricted (R): no view due to Shariah/ethical constraints.<br><br>
+                        Not Rated (NR): no formal rating assigned (early-stage / insufficient data).
+                      </span>
+                    </label>
+
+                    <select id="crgRating" class="crg-rating-select">
+                      <option value="" selected>Select rating...</option>
+                      <option value="Outperform (O)">Outperform (O)</option>
+                      <option value="Sector Perform (SP)">Sector Perform (SP)</option>
+                      <option value="Underperform (U)">Underperform (U)</option>
+                      <option value="Restricted (R)">Restricted (R)</option>
+                      <option value="Not Rated (NR)">Not Rated (NR)</option>
+                    </select>
+                    <div class="hint">Shown in the export under Equity module.</div>
+                  </div>
+                </div>
+
+                <!-- CHART PANEL -->
+                <div class="chart-panel">
+                  <div class="chart-head">
+                    <div>
+                      <div class="chart-title">Price Chart</div>
+                      <div class="chart-sub">Stooq daily closes via proxy. Generates a Word-ready PNG.</div>
+                    </div>
+
+                    <div class="chart-actions">
+                      <select id="chartRange" class="chart-range">
+                        <option value="6mo" selected>6M</option>
+                        <option value="1y">1Y</option>
+                        <option value="2y">2Y</option>
+                        <option value="5y">5Y</option>
+                      </select>
+                      <button type="button" id="fetchPriceChart" class="btn btn-secondary btn-compact">
+                        Fetch chart
+                      </button>
+                    </div>
+                  </div>
+
+                  <div id="chartStatus" class="help-text" style="margin-top: 6px;"></div>
+
+                  <div class="chart-wrap">
+                    <canvas id="priceChart" height="140"></canvas>
+                  </div>
+
+                  <div class="grid-2" style="margin-top: 12px;">
+                    <div class="field">
+                      <label for="targetPrice">Target Price <span class="muted-inline">(Optional)</span></label>
+                      <input type="text" id="targetPrice" placeholder="e.g., 520">
+                    </div>
+
+                    <div class="field">
+                      <label for="modelLink">Model Link <span class="muted-inline">(Optional)</span></label>
+                      <input type="text" id="modelLink" placeholder="Paste a Drive / SharePoint share link">
+                    </div>
+                  </div>
+
+                  <div class="metrics-grid">
+                    <div class="metric-card">
+                      <div class="metric-label">Current Price</div>
+                      <div class="metric-value" id="currentPrice">—</div>
+                    </div>
+
+                    <div class="metric-card">
+                      <div class="metric-label">Volatility (ann.)</div>
+                      <div class="metric-value" id="realisedVol">—</div>
+                    </div>
+
+                    <div class="metric-card">
+                      <div class="metric-label">Return (range)</div>
+                      <div class="metric-value" id="rangeReturn">—</div>
+                    </div>
+
+                    <div class="metric-card">
+                      <div class="metric-label">Upside to Target</div>
+                      <div class="metric-value" id="upsideToTarget">—</div>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="field">
+                  <label for="modelFiles">Upload Model Files (Excel / PDF) <span class="muted-inline">(Optional)</span></label>
+                  <div class="hint">Tip: screenshots of key tabs are often the most auditable artifact.</div>
+                  <input type="file" id="modelFiles" multiple
+                    accept=".xlsx,.xlsm,.xls,.csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel,application/pdf">
+                </div>
+
+                <div class="attachment-summary" id="attachmentSummary" aria-live="polite">
+                  <div class="attachment-summary-head" id="attachmentSummaryHead">No files selected</div>
+                  <div class="attachment-summary-list" id="attachmentSummaryList" style="display:none;"></div>
+                </div>
+
+                <div class="field">
+                  <label for="valuationSummary">Valuation Summary <span class="muted-inline">(Optional)</span></label>
+                  <textarea id="valuationSummary" rows="6" placeholder="Base-case FV, current price, implied upside/downside, key driver(s)."></textarea>
+                  <div class="counter"><span id="valuationSummaryCount">0</span> chars</div>
+                </div>
+
+                <div class="field">
+                  <label for="keyAssumptions">Key Assumptions <span class="muted-inline">(Optional)</span></label>
+                  <textarea id="keyAssumptions" rows="7" placeholder="WACC, terminal growth, margins, tax, net debt, shares..."></textarea>
+                  <div class="counter"><span id="keyAssumptionsCount">0</span> chars</div>
+                </div>
+
+                <div class="field">
+                  <label for="scenarioNotes">Scenario / Sensitivity Notes <span class="muted-inline">(Optional)</span></label>
+                  <textarea id="scenarioNotes" rows="5" placeholder="What breaks the thesis? Bear/base/bull drivers. Sensitivities (WACC/g/margin)."></textarea>
+                  <div class="counter"><span id="scenarioNotesCount">0</span> chars</div>
+                </div>
+              </div>
+            </div>
+
+            <!-- WRITE-UP -->
+            <div id="sec-writeup" class="section">
+              <div class="section-head">
+                <div class="section-title">Write-Up</div>
+                <div class="section-sub">This is what will actually be read.</div>
+              </div>
+
+              <div class="field">
+                <label for="keyTakeaways">Key Takeaways</label>
+                <textarea id="keyTakeaways" rows="6" required placeholder="Use bullets with - or * ..."></textarea>
+                <div class="row-meta">
+                  <div class="muted">Aim for 4–8 tight bullets. No fluff.</div>
+                  <div class="counter"><span id="keyTakeawaysCount">0</span> chars</div>
+                </div>
+              </div>
+
+              <div class="field">
+                <label for="analysis">Analysis and Commentary</label>
+                <textarea id="analysis" rows="10" required placeholder="Structured thinking. Put the 'so what' early."></textarea>
+                <div class="row-meta">
+                  <div class="muted">If it’s an investable note, be explicit on catalysts and risks.</div>
+                  <div class="counter">
+                    <span id="analysisWords">0</span> words · <span id="analysisCount">0</span> chars
+                  </div>
+                </div>
+              </div>
+
+              <div class="field">
+                <label for="content">Additional Content <span class="muted-inline">(Optional)</span></label>
+                <textarea id="content" rows="8" placeholder="Extra detail, appendix, data notes..."></textarea>
+                <div class="counter"><span id="contentCount">0</span> chars</div>
+              </div>
+
+              <div class="field">
+                <label for="cordobaView">The Cordoba View <span class="muted-inline">(Optional)</span></label>
+                <textarea id="cordobaView" rows="6" placeholder="CRG positioning / recommendations / framing..."></textarea>
+                <div class="counter"><span id="cordobaViewCount">0</span> chars</div>
+              </div>
+            </div>
+
+            <!-- FIGURES -->
+            <div id="sec-figures" class="section">
+              <div class="section-head">
+                <div class="section-title">Figures</div>
+                <div class="section-sub">Filenames become captions. Name carefully.</div>
+              </div>
+
+              <div class="field">
+                <label for="imageUpload">Upload Images / Graphs <span class="muted-inline">(Optional)</span></label>
+                <div class="hint">Use descriptive filenames (e.g., “FX_reserves_2020_2025.png”).</div>
+                <input type="file" id="imageUpload" multiple accept="image/*">
+              </div>
+            </div>
+
+            <!-- ACTIONS -->
+            <div id="sec-actions" class="section">
+              <div class="section-head">
+                <div class="section-title">Actions</div>
+                <div class="section-sub">Export and distribution workflow.</div>
+              </div>
+
+              <div class="form-actions">
+                <button type="submit" class="btn btn-primary">Generate Word Document</button>
+                <button type="button" id="emailToCrgBtn" class="btn btn-secondary">Email to CRG Research</button>
+                <button type="button" id="resetFormBtn" class="btn btn-ghost">Reset</button>
+              </div>
+
+              <div class="hint" style="margin-top: 10px;">
+                Email opens prefilled — attach the downloaded .docx manually before sending.
+              </div>
+            </div>
+
+          </form>
+
+          <div id="message" class="message"></div>
+
+          <!-- Institutional footer inside card -->
+          <div class="institutional-footer" aria-hidden="true">
+            <div class="inst-version">RDT v1.1.0</div>
+            <div class="inst-disclaimer">
+              Internal use only. Outputs are draft research documentation generated from user inputs and third-party market data.
+              This tool does not provide investment advice. Verify all figures, tickers, and assumptions before circulation.
+            </div>
+          </div>
+        </section>
+
+        <!-- SECONDARY COLUMN: CONTROLS / QUALITY -->
+        <aside class="card sidecard">
+          <div class="card-head">
+            <div>
+              <div class="card-title">Research Controls</div>
+              <div class="card-sub">Small checks that improve note quality.</div>
+            </div>
+          </div>
+
+          <div class="qc-block">
+            <div class="qc-title">Quality checks</div>
+            <ul class="qc-list">
+              <li><span class="qc-dot"></span> Title is specific and tradable</li>
+              <li><span class="qc-dot"></span> Takeaways are crisp (no paragraphs)</li>
+              <li><span class="qc-dot"></span> Risks and disconfirming evidence included</li>
+              <li><span class="qc-dot"></span> Numbers traceable to a source / model</li>
+              <li><span class="qc-dot"></span> Cordoba View is actionable (if included)</li>
+            </ul>
+          </div>
+
+          <div class="qc-block">
+            <div class="qc-title">Keyboard shortcuts</div>
+            <div class="qc-text muted">
+              <strong>⌘/Ctrl + S</strong>: Save draft<br>
+              <strong>⌘/Ctrl + Enter</strong>: Generate Word document
+            </div>
+          </div>
+
+          <div class="qc-block">
+            <div class="qc-title">Routing logic</div>
+            <div class="qc-text muted">
+              Equity → CC Tommaso<br>
+              Macro/Market → CC Tim<br>
+              Commodities → CC Uhayd
+            </div>
+          </div>
+        </aside>
+
       </div>
-
-      <!-- Key Takeaways -->
-      <label for="keyTakeaways">Key Takeaways</label>
-      <textarea id="keyTakeaways" rows="6" required placeholder="Enter key takeaways (use bullet points with - or *)..."></textarea>
-
-      <!-- Analysis and Commentary -->
-      <label for="analysis">Analysis and Commentary</label>
-      <textarea id="analysis" rows="8" required placeholder="Enter your analysis and commentary..."></textarea>
-
-      <!-- Additional Content -->
-      <label for="content">Additional Content <span class="panel-muted">(Optional)</span></label>
-      <textarea id="content" rows="10" placeholder="Enter any additional detailed content..."></textarea>
-
-      <!-- The Cordoba View -->
-      <label for="cordobaView">The Cordoba View <span class="panel-muted">(Optional)</span></label>
-      <textarea id="cordobaView" rows="6" placeholder="Enter Cordoba's perspective and recommendations..."></textarea>
-
-      <!-- Image Upload -->
-      <label for="imageUpload">Upload Images / Graphs <span class="panel-muted">(Optional)</span></label>
-      <p class="help-text">
-        <em>Note: The filename will be used as the figure caption in the document. Name your files accordingly.</em>
-      </p>
-      <input type="file" id="imageUpload" multiple accept="image/*">
-
-      <!-- NEW: Button row (keeps original submit button; adds Email + Reset) -->
-      <div class="form-actions">
-        <button type="submit" class="btn btn-primary">Generate Word Document</button>
-        <button type="button" id="emailToCrgBtn" class="btn btn-secondary">Email to CRG Research</button>
-
-        <!-- NEW: Reset form button -->
-        <button type="button" id="resetFormBtn" class="btn btn-secondary">Reset form</button>
-        <!-- /NEW -->
-      </div>
-      <!-- /NEW -->
-
-      <!-- NEW: small helper line (optional) -->
-      <div class="help-text" style="margin-top: 10px;">
-        <em>Email opens prefilled — attach the downloaded .docx before sending.</em>
-      </div>
-      <!-- /NEW -->
-
-    </form>
-
-    <div id="message" class="message"></div>
-
-    <!-- NEW: Institutional footer (bottom-right) -->
-    <div class="institutional-footer" aria-hidden="true">
-      <div class="inst-version">RDT v1.0.3</div>
-      <div class="inst-disclaimer">
-        Internal use only. Outputs are draft research documentation generated from user inputs and third-party market data.
-        This tool does not provide investment advice. Verify all figures, tickers, and assumptions before circulation.
-      </div>
-    </div>
-    <!-- /NEW -->
-
+    </main>
   </div>
 
   <!-- External Libraries -->
