@@ -1,30 +1,25 @@
 console.log("app.js loaded successfully");
 
 window.addEventListener("DOMContentLoaded", () => {
-  // ================================
-  // NEW: Phone formatting helpers (shared)
-  // ================================
+  // =========================================================
+  // Utilities
+  // =========================================================
+  const $ = (id) => document.getElementById(id);
+
   function digitsOnly(v) {
     return (v || "").toString().replace(/\D/g, "");
   }
 
-  // Visible formatting only (keeps UX tidy); hidden value stays cc-NUMBERDIGITS
-  // Example visible: 7398 344 190 (groups of 4/3/3-ish)
   function formatNationalLoose(rawDigits) {
     const d = digitsOnly(rawDigits);
     if (!d) return "";
-
-    // simple, readable grouping: 4-3-3 then remainder
     const p1 = d.slice(0, 4);
     const p2 = d.slice(4, 7);
     const p3 = d.slice(7, 10);
     const rest = d.slice(10);
-
     return [p1, p2, p3, rest].filter(Boolean).join(" ");
   }
 
-  // Hidden combined format used across Word export + email meta, etc.
-  // Example: "44-7398344190"
   function buildInternationalHyphen(ccDigits, nationalDigits) {
     const cc = digitsOnly(ccDigits);
     const nn = digitsOnly(nationalDigits);
@@ -34,10 +29,96 @@ window.addEventListener("DOMContentLoaded", () => {
     return `${cc}-${nn}`;
   }
 
-  // Wire primary author phone (country select + national input -> hidden #authorPhone)
-  const authorPhoneCountryEl = document.getElementById("authorPhoneCountry");
-  const authorPhoneNationalEl = document.getElementById("authorPhoneNational");
-  const authorPhoneHiddenEl = document.getElementById("authorPhone"); // kept for existing logic
+  function safeNum(v) {
+    const n = Number(v);
+    return Number.isFinite(n) ? n : null;
+  }
+
+  function pct(x) {
+    return `${(x * 100).toFixed(1)}%`;
+  }
+
+  function setText(id, text) {
+    const el = $(id);
+    if (el) el.textContent = text;
+  }
+
+  function naIfBlank(v) {
+    const s = (v ?? "").toString().trim();
+    return s ? s : "N/A";
+  }
+
+  // =========================================================
+  // Date/time formatting
+  // =========================================================
+  function formatDateTime(date) {
+    const months = [
+      "January","February","March","April","May","June",
+      "July","August","September","October","November","December"
+    ];
+    const month = months[date.getMonth()];
+    const day = date.getDate();
+    const year = date.getFullYear();
+
+    let hours = date.getHours();
+    const minutes = date.getMinutes().toString().padStart(2, "0");
+    const ampm = hours >= 12 ? "PM" : "AM";
+    hours = hours % 12 || 12;
+
+    return `${month} ${day}, ${year} ${hours}:${minutes} ${ampm}`;
+  }
+
+  function formatDateShort(date) {
+    const y = date.getFullYear();
+    const m = String(date.getMonth() + 1).padStart(2, "0");
+    const d = String(date.getDate()).padStart(2, "0");
+    return `${y}-${m}-${d}`;
+  }
+
+  // =========================================================
+  // Counters (chars/words)
+  // =========================================================
+  function wireCharCount(textareaId, countSpanId) {
+    const el = $(textareaId);
+    const out = $(countSpanId);
+    if (!el || !out) return;
+
+    const update = () => { out.textContent = String((el.value || "").length); };
+    el.addEventListener("input", update);
+    update();
+  }
+
+  function wireWordAndCharCount(textareaId, wordsSpanId, charsSpanId) {
+    const el = $(textareaId);
+    const w = $(wordsSpanId);
+    const c = $(charsSpanId);
+    if (!el || !w || !c) return;
+
+    const update = () => {
+      const txt = (el.value || "").trim();
+      const words = txt ? txt.split(/\s+/).filter(Boolean).length : 0;
+      w.textContent = String(words);
+      c.textContent = String((el.value || "").length);
+    };
+
+    el.addEventListener("input", update);
+    update();
+  }
+
+  wireCharCount("keyTakeaways", "keyTakeawaysCount");
+  wireWordAndCharCount("analysis", "analysisWords", "analysisCount");
+  wireCharCount("content", "contentCount");
+  wireCharCount("cordobaView", "cordobaViewCount");
+  wireCharCount("valuationSummary", "valuationSummaryCount");
+  wireCharCount("keyAssumptions", "keyAssumptionsCount");
+  wireCharCount("scenarioNotes", "scenarioNotesCount");
+
+  // =========================================================
+  // Primary author phone wiring (country + national -> hidden)
+  // =========================================================
+  const authorPhoneCountryEl = $("authorPhoneCountry");
+  const authorPhoneNationalEl = $("authorPhoneNational");
+  const authorPhoneHiddenEl = $("authorPhone");
 
   function syncPrimaryPhone() {
     if (!authorPhoneHiddenEl) return;
@@ -53,7 +134,6 @@ window.addEventListener("DOMContentLoaded", () => {
 
     authorPhoneNationalEl.value = formatNationalLoose(authorPhoneNationalEl.value);
 
-    // best-effort caret stability
     const afterLen = authorPhoneNationalEl.value.length;
     const delta = afterLen - beforeLen;
     const next = Math.max(0, caret + delta);
@@ -66,21 +146,18 @@ window.addEventListener("DOMContentLoaded", () => {
     authorPhoneNationalEl.addEventListener("input", formatPrimaryVisible);
     authorPhoneNationalEl.addEventListener("blur", syncPrimaryPhone);
   }
-  if (authorPhoneCountryEl) {
-    authorPhoneCountryEl.addEventListener("change", syncPrimaryPhone);
-  }
-  // initialise
+  if (authorPhoneCountryEl) authorPhoneCountryEl.addEventListener("change", syncPrimaryPhone);
+
   syncPrimaryPhone();
 
-  // ================================
+  // =========================================================
   // Co-Author Management
-  // ================================
+  // =========================================================
   let coAuthorCount = 0;
 
-  const addCoAuthorBtn = document.getElementById("addCoAuthor");
-  const coAuthorsList = document.getElementById("coAuthorsList");
+  const addCoAuthorBtn = $("addCoAuthor");
+  const coAuthorsList = $("coAuthorsList");
 
-  // NEW: Create a country code select HTML once (reuse)
   const countryOptionsHtml = `
     <option value="44" selected>🇬🇧 +44</option>
     <option value="1">🇺🇸 +1</option>
@@ -105,7 +182,7 @@ window.addEventListener("DOMContentLoaded", () => {
   function wireCoauthorPhone(coAuthorDiv) {
     const ccEl = coAuthorDiv.querySelector(".coauthor-country");
     const nationalEl = coAuthorDiv.querySelector(".coauthor-phone-local");
-    const hiddenEl = coAuthorDiv.querySelector(".coauthor-phone"); // existing expectation
+    const hiddenEl = coAuthorDiv.querySelector(".coauthor-phone");
 
     if (!hiddenEl) return;
 
@@ -136,64 +213,60 @@ window.addEventListener("DOMContentLoaded", () => {
     }
     if (ccEl) ccEl.addEventListener("change", syncHidden);
 
-    // init
     syncHidden();
   }
 
-  if (addCoAuthorBtn) {
-    addCoAuthorBtn.addEventListener("click", function () {
+  if (addCoAuthorBtn && coAuthorsList) {
+    addCoAuthorBtn.addEventListener("click", () => {
       coAuthorCount++;
 
       const coAuthorDiv = document.createElement("div");
       coAuthorDiv.className = "coauthor-entry";
       coAuthorDiv.id = `coauthor-${coAuthorCount}`;
 
-      // IMPORTANT: keep .coauthor-phone (hidden) so the rest of your code stays unchanged
       coAuthorDiv.innerHTML = `
-        <input type="text" placeholder="Last Name" class="coauthor-lastname" required>
-        <input type="text" placeholder="First Name" class="coauthor-firstname" required>
+        <div class="coauthor-grid">
+          <input type="text" placeholder="Last Name" class="coauthor-lastname" required>
+          <input type="text" placeholder="First Name" class="coauthor-firstname" required>
 
-        <div class="phone-row phone-row--compact">
-          <select class="phone-country coauthor-country" aria-label="Country code">
-            ${countryOptionsHtml}
-          </select>
-          <input type="text" placeholder="Phone number" class="phone-number coauthor-phone-local" inputmode="numeric">
+          <div class="phone-row phone-row--compact">
+            <select class="phone-country coauthor-country" aria-label="Country code">
+              ${countryOptionsHtml}
+            </select>
+            <input type="text" placeholder="Phone number" class="phone-number coauthor-phone-local" inputmode="numeric">
+          </div>
+
+          <input type="text" class="coauthor-phone" style="display:none;" required>
+          <button type="button" class="remove-coauthor" data-remove-id="${coAuthorCount}">Remove</button>
         </div>
-
-        <input type="text" class="coauthor-phone" style="display:none;" required>
-        <button type="button" class="remove-coauthor" data-remove-id="${coAuthorCount}">Remove</button>
       `;
 
       coAuthorsList.appendChild(coAuthorDiv);
 
-      // NEW: make phone optional even though HTML has required on hidden
       const phoneHidden = coAuthorDiv.querySelector(".coauthor-phone");
       if (phoneHidden) phoneHidden.required = false;
 
-      // NEW: wire formatter
       wireCoauthorPhone(coAuthorDiv);
-
-      // NEW: update completion meter (coauthors not core, but good to refresh UX)
       updateCompletionMeter();
+      saveDraftDebounced();
     });
 
     document.addEventListener("click", (e) => {
       const btn = e.target.closest(".remove-coauthor");
       if (!btn) return;
       const id = btn.getAttribute("data-remove-id");
-      const coAuthorDiv = document.getElementById(`coauthor-${id}`);
-      if (coAuthorDiv) coAuthorDiv.remove();
-
-      // NEW
+      const row = document.getElementById(`coauthor-${id}`);
+      if (row) row.remove();
       updateCompletionMeter();
+      saveDraftDebounced();
     });
   }
 
-  // ================================
+  // =========================================================
   // Equity Research section toggle
-  // ================================
-  const noteTypeEl = document.getElementById("noteType");
-  const equitySectionEl = document.getElementById("equitySection");
+  // =========================================================
+  const noteTypeEl = $("noteType");
+  const equitySectionEl = $("equitySection");
 
   function toggleEquitySection() {
     if (!noteTypeEl || !equitySectionEl) return;
@@ -204,19 +277,17 @@ window.addEventListener("DOMContentLoaded", () => {
   if (noteTypeEl && equitySectionEl) {
     noteTypeEl.addEventListener("change", () => {
       toggleEquitySection();
-      // NEW
       setTimeout(updateCompletionMeter, 0);
+      saveDraftDebounced();
     });
     toggleEquitySection();
-  } else {
-    console.warn("Equity toggle not wired. Missing #noteType or #equitySection in index.html");
   }
 
-  // ================================
-  // NEW: Completion meter (8 core fields; 12 when Equity selected)
-  // ================================
-  const completionTextEl = document.getElementById("completionText");
-  const completionBarEl = document.getElementById("completionBar");
+  // =========================================================
+  // Completion meter (8 core; 12 when equity)
+  // =========================================================
+  const completionTextEl = $("completionText");
+  const completionBarEl = $("completionBar");
 
   function isFilled(el) {
     if (!el) return false;
@@ -225,7 +296,6 @@ window.addEventListener("DOMContentLoaded", () => {
     return v.length > 0;
   }
 
-  // Base core (8): general notes
   const baseCoreIds = [
     "noteType",
     "title",
@@ -237,48 +307,39 @@ window.addEventListener("DOMContentLoaded", () => {
     "cordobaView"
   ];
 
-  // Equity adds 4 => total 12
-  const equityCoreIds = [
-    "ticker",
-    "crgRating",
-    "targetPrice",
-    "modelFiles"
-  ];
+  const equityCoreIds = ["ticker", "crgRating", "targetPrice", "modelFiles"];
 
   function updateCompletionMeter() {
-    const isEquity = (noteTypeEl && noteTypeEl.value === "Equity Research" && equitySectionEl && equitySectionEl.style.display !== "none");
+    const isEquity =
+      noteTypeEl &&
+      noteTypeEl.value === "Equity Research" &&
+      equitySectionEl &&
+      equitySectionEl.style.display !== "none";
+
     const ids = isEquity ? baseCoreIds.concat(equityCoreIds) : baseCoreIds;
 
     let done = 0;
     ids.forEach((id) => {
-      const el = document.getElementById(id);
+      const el = $(id);
       if (isFilled(el)) done++;
     });
 
     const total = ids.length;
-    const pct = total ? Math.round((done / total) * 100) : 0;
+    const pctVal = total ? Math.round((done / total) * 100) : 0;
 
-    if (completionTextEl) completionTextEl.textContent = `${done} / ${total} core fields`;
-    if (completionBarEl) completionBarEl.style.width = `${pct}%`;
+    if (completionTextEl) completionTextEl.textContent = `${done} / ${total}`;
+    if (completionBarEl) completionBarEl.style.width = `${pctVal}%`;
 
     const bar = completionBarEl?.parentElement;
-    if (bar) bar.setAttribute("aria-valuenow", String(pct));
+    if (bar) bar.setAttribute("aria-valuenow", String(pctVal));
   }
 
-  // Update meter on changes across the form
-  ["input", "change", "keyup"].forEach(evt => {
-    document.addEventListener(evt, (e) => {
-      if (!e.target) return;
-      if (e.target.closest && e.target.closest("#researchForm")) updateCompletionMeter();
-    }, { passive: true });
-  });
-
-  // ================================
-  // NEW: Attachment summary strip (modelFiles)
-  // ================================
-  const modelFilesEl2 = document.getElementById("modelFiles");
-  const attachSummaryHeadEl = document.getElementById("attachmentSummaryHead");
-  const attachSummaryListEl = document.getElementById("attachmentSummaryList");
+  // =========================================================
+  // Attachment summary strip (modelFiles)
+  // =========================================================
+  const modelFilesEl2 = $("modelFiles");
+  const attachSummaryHeadEl = $("attachmentSummaryHead");
+  const attachSummaryListEl = $("attachmentSummaryList");
 
   function updateAttachmentSummary() {
     if (!modelFilesEl2 || !attachSummaryHeadEl || !attachSummaryListEl) return;
@@ -300,36 +361,273 @@ window.addEventListener("DOMContentLoaded", () => {
     modelFilesEl2.addEventListener("change", () => {
       updateAttachmentSummary();
       updateCompletionMeter();
+      saveDraftDebounced();
     });
   }
 
-  // ================================
-  // NEW: Reset form button with confirm
-  // ================================
-  const resetBtn = document.getElementById("resetFormBtn");
-  const formEl = document.getElementById("researchForm");
+  // =========================================================
+  // Autosave Draft (LocalStorage)
+  // =========================================================
+  const DRAFT_KEY = "crg_rdt_draft_v1_1_0";
+
+  const lastSavedTextEl = $("lastSavedText");
+  const draftStatusPill = $("draftStatusPill");
+  const saveDraftBtn = $("saveDraftBtn");
+  const clearDraftBtn = $("clearDraftBtn");
+
+  function setDraftPill(state) {
+    if (!draftStatusPill) return;
+    draftStatusPill.classList.remove("pill-idle", "pill-ok", "pill-warn");
+    if (state === "ok") {
+      draftStatusPill.classList.add("pill-ok");
+      draftStatusPill.textContent = "Saved";
+    } else if (state === "warn") {
+      draftStatusPill.classList.add("pill-warn");
+      draftStatusPill.textContent = "Unsaved changes";
+    } else {
+      draftStatusPill.classList.add("pill-idle");
+      draftStatusPill.textContent = "Not saved";
+    }
+  }
+
+  function nowStamp() {
+    return new Date().toISOString();
+  }
+
+  function renderLastSaved(ts) {
+    if (!lastSavedTextEl) return;
+    if (!ts) { lastSavedTextEl.textContent = "—"; return; }
+    const d = new Date(ts);
+    lastSavedTextEl.textContent = `${formatDateShort(d)} ${String(d.getHours()).padStart(2,"0")}:${String(d.getMinutes()).padStart(2,"0")}`;
+  }
+
+  function getDraftPayload() {
+    // Files cannot be stored in LocalStorage — we store names only.
+    const payload = {
+      savedAt: nowStamp(),
+      fields: {
+        noteType: $("noteType")?.value || "",
+        title: $("title")?.value || "",
+        topic: $("topic")?.value || "",
+        authorLastName: $("authorLastName")?.value || "",
+        authorFirstName: $("authorFirstName")?.value || "",
+        authorPhoneCountry: $("authorPhoneCountry")?.value || "",
+        authorPhoneNational: $("authorPhoneNational")?.value || "",
+        authorPhone: $("authorPhone")?.value || "",
+
+        ticker: $("ticker")?.value || "",
+        crgRating: $("crgRating")?.value || "",
+        targetPrice: $("targetPrice")?.value || "",
+        modelLink: $("modelLink")?.value || "",
+        valuationSummary: $("valuationSummary")?.value || "",
+        keyAssumptions: $("keyAssumptions")?.value || "",
+        scenarioNotes: $("scenarioNotes")?.value || "",
+
+        keyTakeaways: $("keyTakeaways")?.value || "",
+        analysis: $("analysis")?.value || "",
+        content: $("content")?.value || "",
+        cordobaView: $("cordobaView")?.value || ""
+      },
+      coAuthors: []
+    };
+
+    document.querySelectorAll(".coauthor-entry").forEach(entry => {
+      const lastName = entry.querySelector(".coauthor-lastname")?.value || "";
+      const firstName = entry.querySelector(".coauthor-firstname")?.value || "";
+      const cc = entry.querySelector(".coauthor-country")?.value || "";
+      const nat = entry.querySelector(".coauthor-phone-local")?.value || "";
+      if (lastName.trim() && firstName.trim()) {
+        payload.coAuthors.push({ lastName, firstName, cc, nat });
+      }
+    });
+
+    // store file names as FYI
+    payload.modelFiles = (modelFilesEl2 && modelFilesEl2.files) ? Array.from(modelFilesEl2.files).map(f => f.name) : [];
+    payload.images = ($("imageUpload")?.files) ? Array.from($("imageUpload").files).map(f => f.name) : [];
+
+    return payload;
+  }
+
+  function applyDraftPayload(payload) {
+    if (!payload || !payload.fields) return;
+
+    const f = payload.fields;
+
+    if ($("noteType")) $("noteType").value = f.noteType || "";
+    toggleEquitySection();
+
+    if ($("title")) $("title").value = f.title || "";
+    if ($("topic")) $("topic").value = f.topic || "";
+    if ($("authorLastName")) $("authorLastName").value = f.authorLastName || "";
+    if ($("authorFirstName")) $("authorFirstName").value = f.authorFirstName || "";
+
+    if ($("authorPhoneCountry")) $("authorPhoneCountry").value = f.authorPhoneCountry || "44";
+    if ($("authorPhoneNational")) $("authorPhoneNational").value = f.authorPhoneNational || "";
+    formatPrimaryVisible();
+    syncPrimaryPhone();
+
+    if ($("ticker")) $("ticker").value = f.ticker || "";
+    if ($("crgRating")) $("crgRating").value = f.crgRating || "";
+    if ($("targetPrice")) $("targetPrice").value = f.targetPrice || "";
+    if ($("modelLink")) $("modelLink").value = f.modelLink || "";
+    if ($("valuationSummary")) $("valuationSummary").value = f.valuationSummary || "";
+    if ($("keyAssumptions")) $("keyAssumptions").value = f.keyAssumptions || "";
+    if ($("scenarioNotes")) $("scenarioNotes").value = f.scenarioNotes || "";
+
+    if ($("keyTakeaways")) $("keyTakeaways").value = f.keyTakeaways || "";
+    if ($("analysis")) $("analysis").value = f.analysis || "";
+    if ($("content")) $("content").value = f.content || "";
+    if ($("cordobaView")) $("cordobaView").value = f.cordobaView || "";
+
+    // Rebuild coauthors
+    if (coAuthorsList) coAuthorsList.innerHTML = "";
+    coAuthorCount = 0;
+
+    if (Array.isArray(payload.coAuthors)) {
+      payload.coAuthors.forEach(ca => {
+        coAuthorCount++;
+        const coAuthorDiv = document.createElement("div");
+        coAuthorDiv.className = "coauthor-entry";
+        coAuthorDiv.id = `coauthor-${coAuthorCount}`;
+
+        coAuthorDiv.innerHTML = `
+          <div class="coauthor-grid">
+            <input type="text" placeholder="Last Name" class="coauthor-lastname" required>
+            <input type="text" placeholder="First Name" class="coauthor-firstname" required>
+
+            <div class="phone-row phone-row--compact">
+              <select class="phone-country coauthor-country" aria-label="Country code">
+                ${countryOptionsHtml}
+              </select>
+              <input type="text" placeholder="Phone number" class="phone-number coauthor-phone-local" inputmode="numeric">
+            </div>
+
+            <input type="text" class="coauthor-phone" style="display:none;">
+            <button type="button" class="remove-coauthor" data-remove-id="${coAuthorCount}">Remove</button>
+          </div>
+        `;
+
+        coAuthorsList.appendChild(coAuthorDiv);
+
+        coAuthorDiv.querySelector(".coauthor-lastname").value = ca.lastName || "";
+        coAuthorDiv.querySelector(".coauthor-firstname").value = ca.firstName || "";
+        coAuthorDiv.querySelector(".coauthor-country").value = ca.cc || "44";
+        coAuthorDiv.querySelector(".coauthor-phone-local").value = ca.nat || "";
+        wireCoauthorPhone(coAuthorDiv);
+        // format visible number
+        const local = coAuthorDiv.querySelector(".coauthor-phone-local");
+        if (local) local.value = formatNationalLoose(local.value);
+      });
+    }
+
+    // refresh UI
+    updateAttachmentSummary(); // note: can't restore files
+    updateCompletionMeter();
+
+    // refresh counters
+    ["keyTakeaways","analysis","content","cordobaView","valuationSummary","keyAssumptions","scenarioNotes"].forEach(id => {
+      const el = $(id);
+      if (el) el.dispatchEvent(new Event("input"));
+    });
+  }
+
+  function saveDraft() {
+    const payload = getDraftPayload();
+    localStorage.setItem(DRAFT_KEY, JSON.stringify(payload));
+    renderLastSaved(payload.savedAt);
+    setDraftPill("ok");
+  }
+
+  function loadDraft() {
+    const raw = localStorage.getItem(DRAFT_KEY);
+    if (!raw) return null;
+    try { return JSON.parse(raw); } catch (_) { return null; }
+  }
+
+  function clearDraft() {
+    localStorage.removeItem(DRAFT_KEY);
+    renderLastSaved(null);
+    setDraftPill("idle");
+  }
+
+  // Debounced autosave
+  let saveT = null;
+  function saveDraftDebounced() {
+    setDraftPill("warn");
+    clearTimeout(saveT);
+    saveT = setTimeout(() => {
+      try { saveDraft(); } catch (_) {}
+    }, 650);
+  }
+
+  if (saveDraftBtn) saveDraftBtn.addEventListener("click", () => saveDraft());
+  if (clearDraftBtn) clearDraftBtn.addEventListener("click", () => {
+    const ok = confirm("Clear saved draft? This only removes the locally saved draft, not your current page fields.");
+    if (!ok) return;
+    clearDraft();
+  });
+
+  // load draft on start (if exists)
+  const existing = loadDraft();
+  if (existing) {
+    applyDraftPayload(existing);
+    renderLastSaved(existing.savedAt);
+    setDraftPill("ok");
+  } else {
+    renderLastSaved(null);
+    setDraftPill("idle");
+  }
+
+  // autosave on edits
+  ["input", "change", "keyup"].forEach(evt => {
+    document.addEventListener(evt, (e) => {
+      if (!e.target) return;
+      if (e.target.closest && e.target.closest("#researchForm")) {
+        updateCompletionMeter();
+        saveDraftDebounced();
+      }
+    }, { passive: true });
+  });
+
+  // keyboard shortcuts
+  document.addEventListener("keydown", (e) => {
+    const isMac = navigator.platform.toLowerCase().includes("mac");
+    const mod = isMac ? e.metaKey : e.ctrlKey;
+
+    if (mod && e.key.toLowerCase() === "s") {
+      e.preventDefault();
+      saveDraft();
+    }
+
+    if (mod && e.key === "Enter") {
+      const form = $("researchForm");
+      if (form) {
+        e.preventDefault();
+        form.requestSubmit();
+      }
+    }
+  });
+
+  // =========================================================
+  // Reset form
+  // =========================================================
+  const resetBtn = $("resetFormBtn");
+  const formEl = $("researchForm");
 
   function clearChartUI() {
-    // clear chart stats UI safely
-    const setText = (id, text) => {
-      const el = document.getElementById(id);
-      if (el) el.textContent = text;
-    };
     setText("currentPrice", "—");
     setText("realisedVol", "—");
     setText("rangeReturn", "—");
     setText("upsideToTarget", "—");
 
-    const chartStatus = document.getElementById("chartStatus");
+    const chartStatus = $("chartStatus");
     if (chartStatus) chartStatus.textContent = "";
 
-    // if chart exists, destroy
     if (typeof priceChart !== "undefined" && priceChart) {
       try { priceChart.destroy(); } catch (_) {}
       priceChart = null;
     }
 
-    // reset globals if present
     if (typeof priceChartImageBytes !== "undefined") priceChartImageBytes = null;
     if (typeof equityStats !== "undefined") {
       equityStats = { currentPrice: null, realisedVolAnn: null, rangeReturn: null };
@@ -343,125 +641,74 @@ window.addEventListener("DOMContentLoaded", () => {
 
       formEl.reset();
 
-      // Clear co-authors added dynamically
       if (coAuthorsList) coAuthorsList.innerHTML = "";
+      coAuthorCount = 0;
 
-      // Clear file input + attachment summary
       if (modelFilesEl2) modelFilesEl2.value = "";
+      if ($("imageUpload")) $("imageUpload").value = "";
+
       updateAttachmentSummary();
 
-      // Clear message box
-      const messageDiv = document.getElementById("message");
+      const messageDiv = $("message");
       if (messageDiv) {
         messageDiv.className = "message";
         messageDiv.textContent = "";
         messageDiv.style.display = "none";
       }
 
-      // Clear chart UI
       clearChartUI();
-
-      // Re-sync phone hidden values
       syncPrimaryPhone();
-
-      // Hide/show equity section appropriately
       toggleEquitySection();
 
-      // Refresh meter
       setTimeout(updateCompletionMeter, 0);
+      setDraftPill("warn");
+      saveDraftDebounced();
     });
   }
 
-  // Initial paint
-  updateAttachmentSummary();
-  updateCompletionMeter();
+  // =========================================================
+  // Email to CRG (prefilled mailto)
+  // =========================================================
+  const emailToCrgBtn = $("emailToCrgBtn");
 
-  // ================================
-  // Date/time formatting
-  // ================================
-  function formatDateTime(date) {
-    const months = [
-      "January","February","March","April","May","June",
-      "July","August","September","October","November","December"
-    ];
-    const month = months[date.getMonth()];
-    const day = date.getDate();
-    const year = date.getFullYear();
-
-    let hours = date.getHours();
-    const minutes = date.getMinutes().toString().padStart(2, "0");
-    const ampm = hours >= 12 ? "PM" : "AM";
-    hours = hours % 12 || 12;
-
-    return `${month} ${day}, ${year} ${hours}:${minutes} ${ampm}`;
-  }
-
-  // ================================
-  // NEW: Email to CRG (prefilled mailto)
-  // Note: browsers cannot auto-attach files for security reasons.
-  // User will attach the downloaded Word doc manually.
-  // ================================
-  const emailToCrgBtn = document.getElementById("emailToCrgBtn");
-
-  function formatDateShort(date) {
-    const y = date.getFullYear();
-    const m = String(date.getMonth() + 1).padStart(2, "0");
-    const d = String(date.getDate()).padStart(2, "0");
-    return `${y}-${m}-${d}`;
-  }
-
-  // IMPORTANT FIX:
-  // - Avoid URLSearchParams (it turns spaces into "+")
-  // - Use encodeURIComponent directly
-  // - Force CRLF for clean line breaks in email clients
   function buildMailto(to, cc, subject, body) {
     const crlfBody = (body || "").replace(/\n/g, "\r\n");
-
     const parts = [];
     if (cc) parts.push(`cc=${encodeURIComponent(cc)}`);
     parts.push(`subject=${encodeURIComponent(subject || "")}`);
     parts.push(`body=${encodeURIComponent(crlfBody)}`);
-
     return `mailto:${encodeURIComponent(to)}?${parts.join("&")}`;
   }
 
   function ccForNoteType(noteTypeRaw) {
     const t = (noteTypeRaw || "").toLowerCase();
-
     if (t.includes("equity")) return "tommaso@cordobarg.com";
     if (t.includes("macro") || t.includes("market")) return "tim@cordobarg.com";
     if (t.includes("commodity")) return "uhayd@cordobarg.com";
-
     return "";
   }
 
   function buildCrgEmailPayload() {
-    const noteType = (document.getElementById("noteType")?.value || "Research Note").trim();
-    const title = (document.getElementById("title")?.value || "").trim();
-    const topic = (document.getElementById("topic")?.value || "").trim();
+    const noteType = ($("noteType")?.value || "Research Note").trim();
+    const title = ($("title")?.value || "").trim();
+    const topic = ($("topic")?.value || "").trim();
 
-    const authorFirstName = (document.getElementById("authorFirstName")?.value || "").trim();
-    const authorLastName = (document.getElementById("authorLastName")?.value || "").trim();
+    const authorFirstName = ($("authorFirstName")?.value || "").trim();
+    const authorLastName = ($("authorLastName")?.value || "").trim();
 
-    const ticker = (document.getElementById("ticker")?.value || "").trim();
-    const crgRating = (document.getElementById("crgRating")?.value || "").trim();
-    const targetPrice = (document.getElementById("targetPrice")?.value || "").trim();
+    const ticker = ($("ticker")?.value || "").trim();
+    const crgRating = ($("crgRating")?.value || "").trim();
+    const targetPrice = ($("targetPrice")?.value || "").trim();
 
     const now = new Date();
     const dateShort = formatDateShort(now);
     const dateLong = formatDateTime(now);
 
-    const subjectParts = [
-      noteType || "Research Note",
-      dateShort,
-      title ? `— ${title}` : ""
-    ].filter(Boolean);
-
+    const subjectParts = [noteType || "Research Note", dateShort, title ? `— ${title}` : ""].filter(Boolean);
     const subject = subjectParts.join(" ");
     const authorLine = [authorFirstName, authorLastName].filter(Boolean).join(" ").trim();
 
     const paragraphs = [];
-
     paragraphs.push("Hi CRG Research,");
     paragraphs.push("Please find my most recent note attached.");
 
@@ -476,7 +723,6 @@ window.addEventListener("DOMContentLoaded", () => {
     ].filter(Boolean);
 
     paragraphs.push(metaLines.join("\n"));
-
     paragraphs.push("Best,");
     paragraphs.push(authorLine || "");
 
@@ -489,33 +735,41 @@ window.addEventListener("DOMContentLoaded", () => {
   if (emailToCrgBtn) {
     emailToCrgBtn.addEventListener("click", () => {
       const { subject, body, cc } = buildCrgEmailPayload();
-
       const to = "research@cordobarg.com";
-      const mailto = buildMailto(to, cc, subject, body);
-
-      window.location.href = mailto;
+      window.location.href = buildMailto(to, cc, subject, body);
     });
   }
 
-  // ================================
-  // NEW: optional field helpers
-  // ================================
-  function naIfBlank(v) {
-    const s = (v ?? "").toString().trim();
-    // FIX: return "N/A" (no brackets) so coAuthorLine produces "(N/A)" not "((N/A))"
-    return s ? s : "N/A";
+  // =========================================================
+  // Word helpers
+  // =========================================================
+  function linesToParagraphs(text, spacingAfter = 150) {
+    const lines = (text || "").split("\n");
+    return lines.map((line) => {
+      if (line.trim() === "") {
+        return new docx.Paragraph({ text: "", spacing: { after: spacingAfter } });
+      }
+      return new docx.Paragraph({ text: line, spacing: { after: spacingAfter } });
+    });
   }
 
-  function coAuthorLine(coAuthor) {
-    const ln = (coAuthor.lastName || "").toUpperCase();
-    const fn = (coAuthor.firstName || "").toUpperCase();
-    const ph = naIfBlank(coAuthor.phone);
-    return `${ln}, ${fn} (${ph})`;
+  function hyperlinkParagraph(label, url) {
+    const safeUrl = (url || "").trim();
+    if (!safeUrl) return null;
+
+    return new docx.Paragraph({
+      children: [
+        new docx.TextRun({ text: label, bold: true }),
+        new docx.TextRun({ text: " " }),
+        new docx.ExternalHyperlink({
+          children: [new docx.TextRun({ text: safeUrl, style: "Hyperlink" })],
+          link: safeUrl
+        })
+      ],
+      spacing: { after: 120 }
+    });
   }
 
-  // ================================
-  // Add images to Word (user uploads)
-  // ================================
   async function addImages(files) {
     const imageParagraphs = [];
     for (let i = 0; i < files.length; i++) {
@@ -555,52 +809,26 @@ window.addEventListener("DOMContentLoaded", () => {
     return imageParagraphs;
   }
 
-  function linesToParagraphs(text, spacingAfter = 150) {
-    const lines = (text || "").split("\n");
-    return lines.map((line) => {
-      if (line.trim() === "") {
-        return new docx.Paragraph({ text: "", spacing: { after: spacingAfter } });
-      }
-      return new docx.Paragraph({ text: line, spacing: { after: spacingAfter } });
-    });
+  function coAuthorLine(coAuthor) {
+    const ln = (coAuthor.lastName || "").toUpperCase();
+    const fn = (coAuthor.firstName || "").toUpperCase();
+    const ph = naIfBlank(coAuthor.phone);
+    return `${ln}, ${fn} (${ph})`;
   }
 
-  function hyperlinkParagraph(label, url) {
-    const safeUrl = (url || "").trim();
-    if (!safeUrl) return null;
-
-    return new docx.Paragraph({
-      children: [
-        new docx.TextRun({ text: label, bold: true }),
-        new docx.TextRun({ text: " " }),
-        new docx.ExternalHyperlink({
-          children: [new docx.TextRun({ text: safeUrl, style: "Hyperlink" })],
-          link: safeUrl
-        })
-      ],
-      spacing: { after: 120 }
-    });
-  }
-
-  // ================================
+  // =========================================================
   // Price chart (Stooq -> Chart.js -> Word image)
-  // FIX: Stooq has no CORS. Use r.jina.ai proxy.
-  // + NEW: compute stats (current price, vol, range return, upside to target)
-  // ================================
+  // =========================================================
   let priceChart = null;
   let priceChartImageBytes = null;
 
-  let equityStats = {
-    currentPrice: null,
-    realisedVolAnn: null,
-    rangeReturn: null
-  };
+  let equityStats = { currentPrice: null, realisedVolAnn: null, rangeReturn: null };
 
-  const chartStatus = document.getElementById("chartStatus");
-  const fetchChartBtn = document.getElementById("fetchPriceChart");
-  const chartRangeEl = document.getElementById("chartRange");
-  const priceChartCanvas = document.getElementById("priceChart");
-  const targetPriceEl = document.getElementById("targetPrice");
+  const chartStatus = $("chartStatus");
+  const fetchChartBtn = $("fetchPriceChart");
+  const chartRangeEl = $("chartRange");
+  const priceChartCanvas = $("priceChart");
+  const targetPriceEl = $("targetPrice");
 
   function stooqSymbolFromTicker(ticker) {
     const t = (ticker || "").trim();
@@ -628,6 +856,7 @@ window.addEventListener("DOMContentLoaded", () => {
   }
 
   async function fetchStooqDaily(symbol) {
+    // Stooq often blocks CORS. Use r.jina.ai proxy.
     const stooqUrl = `http://stooq.com/q/d/l/?s=${encodeURIComponent(symbol)}&i=d`;
     const proxyUrl = `https://r.jina.ai/${stooqUrl}`;
 
@@ -690,24 +919,12 @@ window.addEventListener("DOMContentLoaded", () => {
     return Uint8Array.from(atob(b64), c => c.charCodeAt(0));
   }
 
-  // ================================
-  // stats helpers
-  // ================================
-  function pct(x) { return `${(x * 100).toFixed(1)}%`; }
-
-  function safeNum(v) {
-    const n = Number(v);
-    return Number.isFinite(n) ? n : null;
-  }
-
   function computeDailyReturns(closes) {
     const rets = [];
     for (let i = 1; i < closes.length; i++) {
       const prev = closes[i - 1];
       const cur = closes[i];
-      if (prev > 0 && Number.isFinite(prev) && Number.isFinite(cur)) {
-        rets.push((cur / prev) - 1);
-      }
+      if (prev > 0 && Number.isFinite(prev) && Number.isFinite(cur)) rets.push((cur / prev) - 1);
     }
     return rets;
   }
@@ -717,11 +934,6 @@ window.addEventListener("DOMContentLoaded", () => {
     const mean = arr.reduce((a, b) => a + b, 0) / arr.length;
     const v = arr.reduce((a, b) => a + (b - mean) ** 2, 0) / (arr.length - 1 || 1);
     return Math.sqrt(v);
-  }
-
-  function setText(id, text) {
-    const el = document.getElementById(id);
-    if (el) el.textContent = text;
   }
 
   function computeUpsideToTarget(currentPrice, targetPrice) {
@@ -739,13 +951,14 @@ window.addEventListener("DOMContentLoaded", () => {
   if (targetPriceEl) {
     targetPriceEl.addEventListener("input", () => {
       updateUpsideDisplay();
-      updateCompletionMeter(); // NEW: targetPrice is a core field for Equity
+      updateCompletionMeter();
+      saveDraftDebounced();
     });
   }
 
   async function buildPriceChart() {
     try {
-      const tickerVal = (document.getElementById("ticker")?.value || "").trim();
+      const tickerVal = ($("ticker")?.value || "").trim();
       if (!tickerVal) throw new Error("Enter a ticker first.");
 
       const range = chartRangeEl ? chartRangeEl.value : "6mo";
@@ -763,11 +976,7 @@ window.addEventListener("DOMContentLoaded", () => {
       const labels = filtered.map(x => x.date);
       const values = filtered.map(x => x.close);
 
-      renderChart({
-        labels,
-        values,
-        title: `${tickerVal.toUpperCase()} Close`
-      });
+      renderChart({ labels, values, title: `${tickerVal.toUpperCase()} Close` });
 
       await new Promise(r => setTimeout(r, 150));
       priceChartImageBytes = canvasToPngBytes(priceChartCanvas);
@@ -793,27 +1002,25 @@ window.addEventListener("DOMContentLoaded", () => {
       updateUpsideDisplay();
 
       if (chartStatus) chartStatus.textContent = `✓ Chart ready (${range.toUpperCase()})`;
+      saveDraftDebounced();
     } catch (e) {
       priceChartImageBytes = null;
-
       equityStats = { currentPrice: null, realisedVolAnn: null, rangeReturn: null };
       setText("currentPrice", "—");
       setText("rangeReturn", "—");
       setText("realisedVol", "—");
       setText("upsideToTarget", "—");
-
       if (chartStatus) chartStatus.textContent = `✗ ${e.message}`;
     } finally {
-      // NEW
       updateCompletionMeter();
     }
   }
 
   if (fetchChartBtn) fetchChartBtn.addEventListener("click", buildPriceChart);
 
-  // ================================
+  // =========================================================
   // Create Word Document
-  // ================================
+  // =========================================================
   async function createDocument(data) {
     const {
       noteType, title, topic,
@@ -842,10 +1049,8 @@ window.addEventListener("DOMContentLoaded", () => {
     const analysisParagraphs = linesToParagraphs(analysis, 150);
     const contentParagraphs = linesToParagraphs(content, 150);
     const cordobaViewParagraphs = linesToParagraphs(cordobaView, 150);
-
     const imageParagraphs = await addImages(imageFiles);
 
-    // NEW: ensure author phone prints as "(N/A)" (single bracket pair)
     const authorPhonePrintable = authorPhoneSafe ? authorPhoneSafe : naIfBlank(authorPhone);
     const authorPhoneWrapped = authorPhonePrintable ? `(${authorPhonePrintable})` : "(N/A)";
 
@@ -863,12 +1068,7 @@ window.addEventListener("DOMContentLoaded", () => {
         new docx.TableRow({
           children: [
             new docx.TableCell({
-              // ================================
-              // ✅ UPDATE: Topic (10pt, not bold) + Title (14pt, bold)
-              // Topic is placed where title used to be; title sits directly below it.
-              // ================================
               children: [
-                // TOPIC line (10pt, not bold)
                 new docx.Paragraph({
                   children: [
                     new docx.TextRun({ text: "TOPIC: ", bold: false, size: 20, font: "Book Antiqua" }),
@@ -876,13 +1076,12 @@ window.addEventListener("DOMContentLoaded", () => {
                   ],
                   spacing: { after: 120 }
                 }),
-                // TITLE line (14pt, bold)
                 new docx.Paragraph({
                   children: [
                     new docx.TextRun({
                       text: (title || ""),
                       bold: true,
-                      size: 28, // 14pt
+                      size: 28,
                       font: "Book Antiqua"
                     })
                   ],
@@ -913,7 +1112,6 @@ window.addEventListener("DOMContentLoaded", () => {
         new docx.TableRow({
           children: [
             new docx.TableCell({
-              // keep structure; blank so topic/title aren't duplicated
               children: [new docx.Paragraph({ text: "", spacing: { after: 200 } })],
               width: { size: 60, type: docx.WidthType.PERCENTAGE },
               verticalAlign: docx.VerticalAlign.TOP
@@ -1218,17 +1416,21 @@ window.addEventListener("DOMContentLoaded", () => {
     return doc;
   }
 
-  // ================================
+  // =========================================================
   // Main Form Submission
-  // ================================
-  const form = document.getElementById("researchForm");
+  // =========================================================
+  const form = $("researchForm");
   if (form) form.noValidate = true;
+
+  // Initial paints
+  updateAttachmentSummary();
+  updateCompletionMeter();
 
   form.addEventListener("submit", async function (e) {
     e.preventDefault();
 
     const button = form.querySelector('button[type="submit"]');
-    const messageDiv = document.getElementById("message");
+    const messageDiv = $("message");
 
     button.disabled = true;
     button.classList.add("loading");
@@ -1240,31 +1442,30 @@ window.addEventListener("DOMContentLoaded", () => {
       if (typeof docx === "undefined") throw new Error("docx library not loaded. Please refresh the page.");
       if (typeof saveAs === "undefined") throw new Error("FileSaver library not loaded. Please refresh the page.");
 
-      const noteType = document.getElementById("noteType").value;
-      const title = document.getElementById("title").value;
-      const topic = document.getElementById("topic").value;
-      const authorLastName = document.getElementById("authorLastName").value;
-      const authorFirstName = document.getElementById("authorFirstName").value;
+      const noteType = $("noteType").value;
+      const title = $("title").value;
+      const topic = $("topic").value;
+      const authorLastName = $("authorLastName").value;
+      const authorFirstName = $("authorFirstName").value;
 
-      // IMPORTANT: hidden field stays source-of-truth
-      const authorPhone = document.getElementById("authorPhone").value;
+      const authorPhone = $("authorPhone").value;
       const authorPhoneSafe = naIfBlank(authorPhone);
 
-      const analysis = document.getElementById("analysis").value;
-      const keyTakeaways = document.getElementById("keyTakeaways").value;
-      const content = document.getElementById("content").value;
-      const cordobaView = document.getElementById("cordobaView").value;
-      const imageFiles = document.getElementById("imageUpload").files;
+      const analysis = $("analysis").value;
+      const keyTakeaways = $("keyTakeaways").value;
+      const content = $("content").value;
+      const cordobaView = $("cordobaView").value;
+      const imageFiles = $("imageUpload").files;
 
-      const ticker = document.getElementById("ticker") ? document.getElementById("ticker").value : "";
-      const valuationSummary = document.getElementById("valuationSummary") ? document.getElementById("valuationSummary").value : "";
-      const keyAssumptions = document.getElementById("keyAssumptions") ? document.getElementById("keyAssumptions").value : "";
-      const scenarioNotes = document.getElementById("scenarioNotes") ? document.getElementById("scenarioNotes").value : "";
-      const modelFiles = document.getElementById("modelFiles") ? document.getElementById("modelFiles").files : null;
-      const modelLink = document.getElementById("modelLink") ? document.getElementById("modelLink").value : "";
+      const ticker = $("ticker") ? $("ticker").value : "";
+      const valuationSummary = $("valuationSummary") ? $("valuationSummary").value : "";
+      const keyAssumptions = $("keyAssumptions") ? $("keyAssumptions").value : "";
+      const scenarioNotes = $("scenarioNotes") ? $("scenarioNotes").value : "";
+      const modelFiles = $("modelFiles") ? $("modelFiles").files : null;
+      const modelLink = $("modelLink") ? $("modelLink").value : "";
 
-      const targetPrice = document.getElementById("targetPrice") ? document.getElementById("targetPrice").value : "";
-      const crgRating = document.getElementById("crgRating") ? document.getElementById("crgRating").value : "";
+      const targetPrice = $("targetPrice") ? $("targetPrice").value : "";
+      const crgRating = $("crgRating") ? $("crgRating").value : "";
 
       const now = new Date();
       const dateTimeString = formatDateTime(now);
@@ -1273,7 +1474,7 @@ window.addEventListener("DOMContentLoaded", () => {
       document.querySelectorAll(".coauthor-entry").forEach(entry => {
         const lastName = entry.querySelector(".coauthor-lastname").value;
         const firstName = entry.querySelector(".coauthor-firstname").value;
-        const phone = entry.querySelector(".coauthor-phone").value; // hidden combined
+        const phone = entry.querySelector(".coauthor-phone").value;
         if (lastName && firstName) coAuthors.push({ lastName, firstName, phone: naIfBlank(phone) });
       });
 
@@ -1300,6 +1501,9 @@ window.addEventListener("DOMContentLoaded", () => {
 
       messageDiv.className = "message success";
       messageDiv.textContent = `✓ Document "${fileName}" generated successfully!`;
+
+      // save draft after successful export too
+      saveDraftDebounced();
     } catch (error) {
       console.error("Error generating document:", error);
       messageDiv.className = "message error";
