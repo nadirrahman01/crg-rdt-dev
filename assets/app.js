@@ -1,15 +1,59 @@
 console.log("app.js loaded successfully");
 
 window.addEventListener("DOMContentLoaded", () => {
-  // =========================================================
-  // Utilities
-  // =========================================================
+
+  // ================================
+  // Small utilities
+  // ================================
   const $ = (id) => document.getElementById(id);
 
   function digitsOnly(v) {
     return (v || "").toString().replace(/\D/g, "");
   }
 
+  function wordCount(text) {
+    const t = (text || "").trim();
+    if (!t) return 0;
+    return t.split(/\s+/).filter(Boolean).length;
+  }
+
+  function setText(id, text) {
+    const el = $(id);
+    if (el) el.textContent = text;
+  }
+
+  function safeNum(v) {
+    const n = Number(v);
+    return Number.isFinite(n) ? n : null;
+  }
+
+  function pct(x) {
+    return `${(x * 100).toFixed(1)}%`;
+  }
+
+  function naIfBlank(v) {
+    const s = (v ?? "").toString().trim();
+    return s ? s : "N/A";
+  }
+
+  // ================================
+  // Clock (session)
+  // ================================
+  const sessionClockEl = $("sessionClock");
+  const sessionStart = Date.now();
+  function tickClock() {
+    if (!sessionClockEl) return;
+    const secs = Math.floor((Date.now() - sessionStart) / 1000);
+    const mm = String(Math.floor(secs / 60)).padStart(2, "0");
+    const ss = String(secs % 60).padStart(2, "0");
+    sessionClockEl.textContent = `Session: ${mm}:${ss}`;
+  }
+  setInterval(tickClock, 1000);
+  tickClock();
+
+  // ================================
+  // Phone formatting helpers
+  // ================================
   function formatNationalLoose(rawDigits) {
     const d = digitsOnly(rawDigits);
     if (!d) return "";
@@ -29,96 +73,10 @@ window.addEventListener("DOMContentLoaded", () => {
     return `${cc}-${nn}`;
   }
 
-  function safeNum(v) {
-    const n = Number(v);
-    return Number.isFinite(n) ? n : null;
-  }
-
-  function pct(x) {
-    return `${(x * 100).toFixed(1)}%`;
-  }
-
-  function setText(id, text) {
-    const el = $(id);
-    if (el) el.textContent = text;
-  }
-
-  function naIfBlank(v) {
-    const s = (v ?? "").toString().trim();
-    return s ? s : "N/A";
-  }
-
-  // =========================================================
-  // Date/time formatting
-  // =========================================================
-  function formatDateTime(date) {
-    const months = [
-      "January","February","March","April","May","June",
-      "July","August","September","October","November","December"
-    ];
-    const month = months[date.getMonth()];
-    const day = date.getDate();
-    const year = date.getFullYear();
-
-    let hours = date.getHours();
-    const minutes = date.getMinutes().toString().padStart(2, "0");
-    const ampm = hours >= 12 ? "PM" : "AM";
-    hours = hours % 12 || 12;
-
-    return `${month} ${day}, ${year} ${hours}:${minutes} ${ampm}`;
-  }
-
-  function formatDateShort(date) {
-    const y = date.getFullYear();
-    const m = String(date.getMonth() + 1).padStart(2, "0");
-    const d = String(date.getDate()).padStart(2, "0");
-    return `${y}-${m}-${d}`;
-  }
-
-  // =========================================================
-  // Counters (chars/words)
-  // =========================================================
-  function wireCharCount(textareaId, countSpanId) {
-    const el = $(textareaId);
-    const out = $(countSpanId);
-    if (!el || !out) return;
-
-    const update = () => { out.textContent = String((el.value || "").length); };
-    el.addEventListener("input", update);
-    update();
-  }
-
-  function wireWordAndCharCount(textareaId, wordsSpanId, charsSpanId) {
-    const el = $(textareaId);
-    const w = $(wordsSpanId);
-    const c = $(charsSpanId);
-    if (!el || !w || !c) return;
-
-    const update = () => {
-      const txt = (el.value || "").trim();
-      const words = txt ? txt.split(/\s+/).filter(Boolean).length : 0;
-      w.textContent = String(words);
-      c.textContent = String((el.value || "").length);
-    };
-
-    el.addEventListener("input", update);
-    update();
-  }
-
-  wireCharCount("keyTakeaways", "keyTakeawaysCount");
-  wireWordAndCharCount("analysis", "analysisWords", "analysisCount");
-  wireCharCount("content", "contentCount");
-  wireCharCount("cordobaView", "cordobaViewCount");
-  wireCharCount("valuationSummary", "valuationSummaryCount");
-  wireCharCount("keyAssumptions", "keyAssumptionsCount");
-  wireCharCount("scenarioNotes", "scenarioNotesCount");
-
-  // =========================================================
-  // Primary author phone wiring (country + national -> hidden)
-  // =========================================================
+  // Wire primary author phone
   const authorPhoneCountryEl = $("authorPhoneCountry");
   const authorPhoneNationalEl = $("authorPhoneNational");
-  const authorPhoneHiddenEl = $("authorPhone");
+  const authorPhoneHiddenEl = $("authorPhone"); // kept for existing logic
 
   function syncPrimaryPhone() {
     if (!authorPhoneHiddenEl) return;
@@ -143,16 +101,26 @@ window.addEventListener("DOMContentLoaded", () => {
   }
 
   if (authorPhoneNationalEl) {
-    authorPhoneNationalEl.addEventListener("input", formatPrimaryVisible);
-    authorPhoneNationalEl.addEventListener("blur", syncPrimaryPhone);
+    authorPhoneNationalEl.addEventListener("input", () => {
+      formatPrimaryVisible();
+      saveDraftSoon();
+    });
+    authorPhoneNationalEl.addEventListener("blur", () => {
+      syncPrimaryPhone();
+      saveDraftSoon();
+    });
   }
-  if (authorPhoneCountryEl) authorPhoneCountryEl.addEventListener("change", syncPrimaryPhone);
-
+  if (authorPhoneCountryEl) {
+    authorPhoneCountryEl.addEventListener("change", () => {
+      syncPrimaryPhone();
+      saveDraftSoon();
+    });
+  }
   syncPrimaryPhone();
 
-  // =========================================================
-  // Co-Author Management
-  // =========================================================
+  // ================================
+  // Co-author management
+  // ================================
   let coAuthorCount = 0;
 
   const addCoAuthorBtn = $("addCoAuthor");
@@ -208,15 +176,24 @@ window.addEventListener("DOMContentLoaded", () => {
     }
 
     if (nationalEl) {
-      nationalEl.addEventListener("input", formatVisible);
-      nationalEl.addEventListener("blur", syncHidden);
+      nationalEl.addEventListener("input", () => {
+        formatVisible();
+        saveDraftSoon();
+      });
+      nationalEl.addEventListener("blur", () => {
+        syncHidden();
+        saveDraftSoon();
+      });
     }
-    if (ccEl) ccEl.addEventListener("change", syncHidden);
+    if (ccEl) ccEl.addEventListener("change", () => {
+      syncHidden();
+      saveDraftSoon();
+    });
 
     syncHidden();
   }
 
-  if (addCoAuthorBtn && coAuthorsList) {
+  if (addCoAuthorBtn) {
     addCoAuthorBtn.addEventListener("click", () => {
       coAuthorCount++;
 
@@ -225,67 +202,77 @@ window.addEventListener("DOMContentLoaded", () => {
       coAuthorDiv.id = `coauthor-${coAuthorCount}`;
 
       coAuthorDiv.innerHTML = `
-        <div class="coauthor-grid">
-          <input type="text" placeholder="Last Name" class="coauthor-lastname" required>
-          <input type="text" placeholder="First Name" class="coauthor-firstname" required>
+        <input type="text" placeholder="Last Name" class="coauthor-lastname" required>
+        <input type="text" placeholder="First Name" class="coauthor-firstname" required>
 
-          <div class="phone-row phone-row--compact">
-            <select class="phone-country coauthor-country" aria-label="Country code">
-              ${countryOptionsHtml}
-            </select>
-            <input type="text" placeholder="Phone number" class="phone-number coauthor-phone-local" inputmode="numeric">
-          </div>
-
-          <input type="text" class="coauthor-phone" style="display:none;" required>
-          <button type="button" class="remove-coauthor" data-remove-id="${coAuthorCount}">Remove</button>
+        <div class="phone-row phone-row--compact">
+          <select class="phone-country coauthor-country" aria-label="Country code">
+            ${countryOptionsHtml}
+          </select>
+          <input type="text" placeholder="Phone number" class="phone-number coauthor-phone-local" inputmode="numeric">
         </div>
+
+        <input type="text" class="coauthor-phone" style="display:none;">
+        <button type="button" class="remove-coauthor" data-remove-id="${coAuthorCount}">Remove</button>
       `;
 
       coAuthorsList.appendChild(coAuthorDiv);
 
+      // phone optional
       const phoneHidden = coAuthorDiv.querySelector(".coauthor-phone");
       if (phoneHidden) phoneHidden.required = false;
 
       wireCoauthorPhone(coAuthorDiv);
+
       updateCompletionMeter();
-      saveDraftDebounced();
+      updateValidationSummary();
+      saveDraftSoon();
     });
 
     document.addEventListener("click", (e) => {
       const btn = e.target.closest(".remove-coauthor");
       if (!btn) return;
       const id = btn.getAttribute("data-remove-id");
-      const row = document.getElementById(`coauthor-${id}`);
-      if (row) row.remove();
+      const div = document.getElementById(`coauthor-${id}`);
+      if (div) div.remove();
+
       updateCompletionMeter();
-      saveDraftDebounced();
+      updateValidationSummary();
+      saveDraftSoon();
     });
   }
 
-  // =========================================================
-  // Equity Research section toggle
-  // =========================================================
+  // ================================
+  // Equity section toggle
+  // ================================
   const noteTypeEl = $("noteType");
   const equitySectionEl = $("equitySection");
+  const navEquityLink = $("navEquityLink");
 
   function toggleEquitySection() {
     if (!noteTypeEl || !equitySectionEl) return;
     const isEquity = noteTypeEl.value === "Equity Research";
     equitySectionEl.style.display = isEquity ? "block" : "none";
+    if (navEquityLink) navEquityLink.style.display = isEquity ? "block" : "none";
   }
 
   if (noteTypeEl && equitySectionEl) {
     noteTypeEl.addEventListener("change", () => {
       toggleEquitySection();
-      setTimeout(updateCompletionMeter, 0);
-      saveDraftDebounced();
+      setTimeout(() => {
+        updateCompletionMeter();
+        updateValidationSummary();
+      }, 0);
+      saveDraftSoon();
     });
     toggleEquitySection();
+  } else {
+    console.warn("Equity toggle not wired. Missing #noteType or #equitySection in index.html");
   }
 
-  // =========================================================
-  // Completion meter (8 core; 12 when equity)
-  // =========================================================
+  // ================================
+  // Completion meter (core fields)
+  // ================================
   const completionTextEl = $("completionText");
   const completionBarEl = $("completionBar");
 
@@ -296,6 +283,7 @@ window.addEventListener("DOMContentLoaded", () => {
     return v.length > 0;
   }
 
+  // Base core (8)
   const baseCoreIds = [
     "noteType",
     "title",
@@ -307,15 +295,16 @@ window.addEventListener("DOMContentLoaded", () => {
     "cordobaView"
   ];
 
-  const equityCoreIds = ["ticker", "crgRating", "targetPrice", "modelFiles"];
+  // Equity adds 4 (institutional discipline)
+  const equityCoreIds = [
+    "ticker",
+    "crgRating",
+    "targetPrice",
+    "modelFiles"
+  ];
 
   function updateCompletionMeter() {
-    const isEquity =
-      noteTypeEl &&
-      noteTypeEl.value === "Equity Research" &&
-      equitySectionEl &&
-      equitySectionEl.style.display !== "none";
-
+    const isEquity = (noteTypeEl && noteTypeEl.value === "Equity Research" && equitySectionEl && equitySectionEl.style.display !== "none");
     const ids = isEquity ? baseCoreIds.concat(equityCoreIds) : baseCoreIds;
 
     let done = 0;
@@ -325,18 +314,33 @@ window.addEventListener("DOMContentLoaded", () => {
     });
 
     const total = ids.length;
-    const pctVal = total ? Math.round((done / total) * 100) : 0;
+    const pctDone = total ? Math.round((done / total) * 100) : 0;
 
-    if (completionTextEl) completionTextEl.textContent = `${done} / ${total}`;
-    if (completionBarEl) completionBarEl.style.width = `${pctVal}%`;
+    if (completionTextEl) completionTextEl.textContent = `${done} / ${total} core fields`;
+    if (completionBarEl) completionBarEl.style.width = `${pctDone}%`;
 
     const bar = completionBarEl?.parentElement;
-    if (bar) bar.setAttribute("aria-valuenow", String(pctVal));
+    if (bar) bar.setAttribute("aria-valuenow", String(pctDone));
   }
 
-  // =========================================================
-  // Attachment summary strip (modelFiles)
-  // =========================================================
+  // ================================
+  // Word count (institutional UX)
+  // ================================
+  const ktEl = $("keyTakeaways");
+  const analysisEl = $("analysis");
+  const contentEl = $("content");
+  const cvEl = $("cordobaView");
+
+  function refreshWordCounts() {
+    if (ktEl) setText("ktCount", `${wordCount(ktEl.value)} words`);
+    if (analysisEl) setText("analysisCount", `${wordCount(analysisEl.value)} words`);
+    if (contentEl) setText("contentCount", `${wordCount(contentEl.value)} words`);
+    if (cvEl) setText("cvCount", `${wordCount(cvEl.value)} words`);
+  }
+
+  // ================================
+  // Attachment summary (modelFiles)
+  // ================================
   const modelFilesEl2 = $("modelFiles");
   const attachSummaryHeadEl = $("attachmentSummaryHead");
   const attachSummaryListEl = $("attachmentSummaryList");
@@ -361,258 +365,266 @@ window.addEventListener("DOMContentLoaded", () => {
     modelFilesEl2.addEventListener("change", () => {
       updateAttachmentSummary();
       updateCompletionMeter();
-      saveDraftDebounced();
+      updateValidationSummary();
+      saveDraftSoon();
     });
   }
 
-  // =========================================================
-  // Autosave Draft (LocalStorage)
-  // =========================================================
-  const DRAFT_KEY = "crg_rdt_draft_v1_1_0";
+  // ================================
+  // Validation summary + export gate
+  // ================================
+  const validationSummaryEl = $("validationSummary");
+  const confirmDraftEl = $("confirmDraft");
+  const generateBtn = $("generateBtn");
 
-  const lastSavedTextEl = $("lastSavedText");
-  const draftStatusPill = $("draftStatusPill");
-  const saveDraftBtn = $("saveDraftBtn");
-  const clearDraftBtn = $("clearDraftBtn");
+  function listMissingCoreFields() {
+    const isEquity = (noteTypeEl && noteTypeEl.value === "Equity Research" && equitySectionEl && equitySectionEl.style.display !== "none");
+    const ids = isEquity ? baseCoreIds.concat(equityCoreIds) : baseCoreIds;
 
-  function setDraftPill(state) {
-    if (!draftStatusPill) return;
-    draftStatusPill.classList.remove("pill-idle", "pill-ok", "pill-warn");
-    if (state === "ok") {
-      draftStatusPill.classList.add("pill-ok");
-      draftStatusPill.textContent = "Saved";
-    } else if (state === "warn") {
-      draftStatusPill.classList.add("pill-warn");
-      draftStatusPill.textContent = "Unsaved changes";
-    } else {
-      draftStatusPill.classList.add("pill-idle");
-      draftStatusPill.textContent = "Not saved";
+    const missing = [];
+    ids.forEach((id) => {
+      const el = $(id);
+      if (!isFilled(el)) missing.push(id);
+    });
+    return missing;
+  }
+
+  function humanLabelFor(id) {
+    const map = {
+      noteType: "Type of Note",
+      title: "Title",
+      topic: "Topic",
+      authorLastName: "Primary Author — Last Name",
+      authorFirstName: "Primary Author — First Name",
+      keyTakeaways: "Key Takeaways",
+      analysis: "Analysis and Commentary",
+      cordobaView: "The Cordoba View",
+      ticker: "Ticker / Company",
+      crgRating: "CRG Rating",
+      targetPrice: "Target Price",
+      modelFiles: "Model Files"
+    };
+    return map[id] || id;
+  }
+
+  function updateValidationSummary() {
+    const missing = listMissingCoreFields();
+    const confirmOk = confirmDraftEl ? confirmDraftEl.checked : true;
+
+    if (validationSummaryEl) {
+      if (!missing.length) {
+        validationSummaryEl.textContent = confirmOk
+          ? "No issues detected. Ready to export."
+          : "Ready to export — please confirm the draft disclaimer checkbox.";
+      } else {
+        const lines = missing.slice(0, 8).map(id => `• Missing: ${humanLabelFor(id)}`);
+        const extra = missing.length > 8 ? `\n• +${missing.length - 8} more…` : "";
+        validationSummaryEl.textContent = `Please complete required fields:\n${lines.join("\n")}${extra}`;
+      }
+    }
+
+    if (generateBtn) {
+      const allow = (missing.length === 0) && confirmOk;
+      generateBtn.disabled = !allow;
+      generateBtn.style.opacity = allow ? "1" : "0.6";
+      generateBtn.style.cursor = allow ? "pointer" : "not-allowed";
     }
   }
 
-  function nowStamp() {
-    return new Date().toISOString();
+  if (confirmDraftEl) {
+    confirmDraftEl.addEventListener("change", () => {
+      updateValidationSummary();
+      saveDraftSoon();
+    });
   }
 
-  function renderLastSaved(ts) {
-    if (!lastSavedTextEl) return;
-    if (!ts) { lastSavedTextEl.textContent = "—"; return; }
-    const d = new Date(ts);
-    lastSavedTextEl.textContent = `${formatDateShort(d)} ${String(d.getHours()).padStart(2,"0")}:${String(d.getMinutes()).padStart(2,"0")}`;
+  // Jump to first missing core
+  const jumpBtn = $("jumpToFirstMissing");
+  if (jumpBtn) {
+    jumpBtn.addEventListener("click", () => {
+      const missing = listMissingCoreFields();
+      if (!missing.length) return;
+
+      const first = $(missing[0]);
+      if (first) {
+        first.scrollIntoView({ behavior: "smooth", block: "center" });
+        try { first.focus({ preventScroll: true }); } catch (_) {}
+      }
+    });
   }
 
-  function getDraftPayload() {
-    // Files cannot be stored in LocalStorage — we store names only.
-    const payload = {
-      savedAt: nowStamp(),
-      fields: {
-        noteType: $("noteType")?.value || "",
-        title: $("title")?.value || "",
-        topic: $("topic")?.value || "",
-        authorLastName: $("authorLastName")?.value || "",
-        authorFirstName: $("authorFirstName")?.value || "",
-        authorPhoneCountry: $("authorPhoneCountry")?.value || "",
-        authorPhoneNational: $("authorPhoneNational")?.value || "",
-        authorPhone: $("authorPhone")?.value || "",
+  // ================================
+  // Autosave (localStorage)
+  // ================================
+  const AUTO_KEY = "crg_rdt_draft_v1_1_0";
+  const autoSaveStatusEl = $("autoSaveStatus");
+  let saveTimer = null;
 
-        ticker: $("ticker")?.value || "",
-        crgRating: $("crgRating")?.value || "",
-        targetPrice: $("targetPrice")?.value || "",
-        modelLink: $("modelLink")?.value || "",
-        valuationSummary: $("valuationSummary")?.value || "",
-        keyAssumptions: $("keyAssumptions")?.value || "",
-        scenarioNotes: $("scenarioNotes")?.value || "",
+  function setAutosaveStatus(text) {
+    if (autoSaveStatusEl) autoSaveStatusEl.textContent = text;
+  }
 
-        keyTakeaways: $("keyTakeaways")?.value || "",
-        analysis: $("analysis")?.value || "",
-        content: $("content")?.value || "",
-        cordobaView: $("cordobaView")?.value || ""
-      },
-      coAuthors: []
-    };
+  function serializeDraft() {
+    const fields = [
+      "noteType","title","topic",
+      "authorLastName","authorFirstName","authorPhoneCountry","authorPhoneNational","authorPhone",
+      "ticker","crgRating","targetPrice","modelLink","valuationSummary","keyAssumptions","scenarioNotes",
+      "keyTakeaways","analysis","content","cordobaView",
+      "confirmDraft"
+    ];
 
+    const out = { v: 1, ts: Date.now(), fields: {}, coauthors: [] };
+
+    fields.forEach(id => {
+      const el = $(id);
+      if (!el) return;
+      if (el.type === "checkbox") out.fields[id] = !!el.checked;
+      else out.fields[id] = el.value ?? "";
+    });
+
+    // Co-authors
     document.querySelectorAll(".coauthor-entry").forEach(entry => {
-      const lastName = entry.querySelector(".coauthor-lastname")?.value || "";
-      const firstName = entry.querySelector(".coauthor-firstname")?.value || "";
-      const cc = entry.querySelector(".coauthor-country")?.value || "";
-      const nat = entry.querySelector(".coauthor-phone-local")?.value || "";
-      if (lastName.trim() && firstName.trim()) {
-        payload.coAuthors.push({ lastName, firstName, cc, nat });
+      const ln = entry.querySelector(".coauthor-lastname")?.value || "";
+      const fn = entry.querySelector(".coauthor-firstname")?.value || "";
+      const cc = entry.querySelector(".coauthor-country")?.value || "44";
+      const local = entry.querySelector(".coauthor-phone-local")?.value || "";
+      const combined = buildInternationalHyphen(cc, digitsOnly(local));
+      if (ln.trim() || fn.trim() || combined.trim()) {
+        out.coauthors.push({ ln, fn, cc, local, combined });
       }
     });
 
-    // store file names as FYI
-    payload.modelFiles = (modelFilesEl2 && modelFilesEl2.files) ? Array.from(modelFilesEl2.files).map(f => f.name) : [];
-    payload.images = ($("imageUpload")?.files) ? Array.from($("imageUpload").files).map(f => f.name) : [];
-
-    return payload;
+    // NOTE: files are not autosaved (browser security). We just keep text fields.
+    return out;
   }
 
-  function applyDraftPayload(payload) {
-    if (!payload || !payload.fields) return;
+  function restoreDraft() {
+    try {
+      const raw = localStorage.getItem(AUTO_KEY);
+      if (!raw) return false;
+      const data = JSON.parse(raw);
+      if (!data || !data.fields) return false;
 
-    const f = payload.fields;
-
-    if ($("noteType")) $("noteType").value = f.noteType || "";
-    toggleEquitySection();
-
-    if ($("title")) $("title").value = f.title || "";
-    if ($("topic")) $("topic").value = f.topic || "";
-    if ($("authorLastName")) $("authorLastName").value = f.authorLastName || "";
-    if ($("authorFirstName")) $("authorFirstName").value = f.authorFirstName || "";
-
-    if ($("authorPhoneCountry")) $("authorPhoneCountry").value = f.authorPhoneCountry || "44";
-    if ($("authorPhoneNational")) $("authorPhoneNational").value = f.authorPhoneNational || "";
-    formatPrimaryVisible();
-    syncPrimaryPhone();
-
-    if ($("ticker")) $("ticker").value = f.ticker || "";
-    if ($("crgRating")) $("crgRating").value = f.crgRating || "";
-    if ($("targetPrice")) $("targetPrice").value = f.targetPrice || "";
-    if ($("modelLink")) $("modelLink").value = f.modelLink || "";
-    if ($("valuationSummary")) $("valuationSummary").value = f.valuationSummary || "";
-    if ($("keyAssumptions")) $("keyAssumptions").value = f.keyAssumptions || "";
-    if ($("scenarioNotes")) $("scenarioNotes").value = f.scenarioNotes || "";
-
-    if ($("keyTakeaways")) $("keyTakeaways").value = f.keyTakeaways || "";
-    if ($("analysis")) $("analysis").value = f.analysis || "";
-    if ($("content")) $("content").value = f.content || "";
-    if ($("cordobaView")) $("cordobaView").value = f.cordobaView || "";
-
-    // Rebuild coauthors
-    if (coAuthorsList) coAuthorsList.innerHTML = "";
-    coAuthorCount = 0;
-
-    if (Array.isArray(payload.coAuthors)) {
-      payload.coAuthors.forEach(ca => {
-        coAuthorCount++;
-        const coAuthorDiv = document.createElement("div");
-        coAuthorDiv.className = "coauthor-entry";
-        coAuthorDiv.id = `coauthor-${coAuthorCount}`;
-
-        coAuthorDiv.innerHTML = `
-          <div class="coauthor-grid">
-            <input type="text" placeholder="Last Name" class="coauthor-lastname" required>
-            <input type="text" placeholder="First Name" class="coauthor-firstname" required>
-
-            <div class="phone-row phone-row--compact">
-              <select class="phone-country coauthor-country" aria-label="Country code">
-                ${countryOptionsHtml}
-              </select>
-              <input type="text" placeholder="Phone number" class="phone-number coauthor-phone-local" inputmode="numeric">
-            </div>
-
-            <input type="text" class="coauthor-phone" style="display:none;">
-            <button type="button" class="remove-coauthor" data-remove-id="${coAuthorCount}">Remove</button>
-          </div>
-        `;
-
-        coAuthorsList.appendChild(coAuthorDiv);
-
-        coAuthorDiv.querySelector(".coauthor-lastname").value = ca.lastName || "";
-        coAuthorDiv.querySelector(".coauthor-firstname").value = ca.firstName || "";
-        coAuthorDiv.querySelector(".coauthor-country").value = ca.cc || "44";
-        coAuthorDiv.querySelector(".coauthor-phone-local").value = ca.nat || "";
-        wireCoauthorPhone(coAuthorDiv);
-        // format visible number
-        const local = coAuthorDiv.querySelector(".coauthor-phone-local");
-        if (local) local.value = formatNationalLoose(local.value);
+      Object.keys(data.fields).forEach(id => {
+        const el = $(id);
+        if (!el) return;
+        if (el.type === "checkbox") el.checked = !!data.fields[id];
+        else el.value = data.fields[id] ?? "";
       });
+
+      // restore coauthors
+      if (coAuthorsList) coAuthorsList.innerHTML = "";
+      coAuthorCount = 0;
+
+      (data.coauthors || []).forEach(ca => {
+        coAuthorCount++;
+        const div = document.createElement("div");
+        div.className = "coauthor-entry";
+        div.id = `coauthor-${coAuthorCount}`;
+        div.innerHTML = `
+          <input type="text" placeholder="Last Name" class="coauthor-lastname" required>
+          <input type="text" placeholder="First Name" class="coauthor-firstname" required>
+
+          <div class="phone-row phone-row--compact">
+            <select class="phone-country coauthor-country" aria-label="Country code">
+              ${countryOptionsHtml}
+            </select>
+            <input type="text" placeholder="Phone number" class="phone-number coauthor-phone-local" inputmode="numeric">
+          </div>
+
+          <input type="text" class="coauthor-phone" style="display:none;">
+          <button type="button" class="remove-coauthor" data-remove-id="${coAuthorCount}">Remove</button>
+        `;
+        coAuthorsList.appendChild(div);
+
+        div.querySelector(".coauthor-lastname").value = ca.ln ?? "";
+        div.querySelector(".coauthor-firstname").value = ca.fn ?? "";
+        div.querySelector(".coauthor-country").value = ca.cc ?? "44";
+        div.querySelector(".coauthor-phone-local").value = ca.local ?? "";
+
+        const hidden = div.querySelector(".coauthor-phone");
+        if (hidden) hidden.required = false;
+
+        wireCoauthorPhone(div);
+      });
+
+      // re-sync hidden phone
+      syncPrimaryPhone();
+
+      toggleEquitySection();
+      refreshWordCounts();
+      updateAttachmentSummary();
+      updateCompletionMeter();
+      updateValidationSummary();
+
+      setAutosaveStatus("Autosave: restored");
+      return true;
+    } catch (e) {
+      console.warn("Autosave restore failed:", e);
+      return false;
     }
-
-    // refresh UI
-    updateAttachmentSummary(); // note: can't restore files
-    updateCompletionMeter();
-
-    // refresh counters
-    ["keyTakeaways","analysis","content","cordobaView","valuationSummary","keyAssumptions","scenarioNotes"].forEach(id => {
-      const el = $(id);
-      if (el) el.dispatchEvent(new Event("input"));
-    });
   }
 
   function saveDraft() {
-    const payload = getDraftPayload();
-    localStorage.setItem(DRAFT_KEY, JSON.stringify(payload));
-    renderLastSaved(payload.savedAt);
-    setDraftPill("ok");
+    try {
+      const data = serializeDraft();
+      localStorage.setItem(AUTO_KEY, JSON.stringify(data));
+      const d = new Date();
+      const hh = String(d.getHours()).padStart(2, "0");
+      const mm = String(d.getMinutes()).padStart(2, "0");
+      setAutosaveStatus(`Autosave: ${hh}:${mm}`);
+    } catch (e) {
+      console.warn("Autosave failed:", e);
+      setAutosaveStatus("Autosave: unavailable");
+    }
   }
 
-  function loadDraft() {
-    const raw = localStorage.getItem(DRAFT_KEY);
-    if (!raw) return null;
-    try { return JSON.parse(raw); } catch (_) { return null; }
+  function saveDraftSoon() {
+    clearTimeout(saveTimer);
+    saveTimer = setTimeout(saveDraft, 350);
   }
 
-  function clearDraft() {
-    localStorage.removeItem(DRAFT_KEY);
-    renderLastSaved(null);
-    setDraftPill("idle");
+  const clearAutosaveBtn = $("clearAutosaveBtn");
+  if (clearAutosaveBtn) {
+    clearAutosaveBtn.addEventListener("click", () => {
+      const ok = confirm("Clear autosaved draft? This will not delete any files you uploaded, only text drafts.");
+      if (!ok) return;
+      localStorage.removeItem(AUTO_KEY);
+      setAutosaveStatus("Autosave: cleared");
+    });
   }
 
-  // Debounced autosave
-  let saveT = null;
-  function saveDraftDebounced() {
-    setDraftPill("warn");
-    clearTimeout(saveT);
-    saveT = setTimeout(() => {
-      try { saveDraft(); } catch (_) {}
-    }, 650);
-  }
-
-  if (saveDraftBtn) saveDraftBtn.addEventListener("click", () => saveDraft());
-  if (clearDraftBtn) clearDraftBtn.addEventListener("click", () => {
-    const ok = confirm("Clear saved draft? This only removes the locally saved draft, not your current page fields.");
-    if (!ok) return;
-    clearDraft();
-  });
-
-  // load draft on start (if exists)
-  const existing = loadDraft();
-  if (existing) {
-    applyDraftPayload(existing);
-    renderLastSaved(existing.savedAt);
-    setDraftPill("ok");
-  } else {
-    renderLastSaved(null);
-    setDraftPill("idle");
-  }
-
-  // autosave on edits
+  // global listeners for autosave + UX refresh
   ["input", "change", "keyup"].forEach(evt => {
     document.addEventListener(evt, (e) => {
-      if (!e.target) return;
-      if (e.target.closest && e.target.closest("#researchForm")) {
+      const form = $("researchForm");
+      if (!form) return;
+      if (e.target && e.target.closest && e.target.closest("#researchForm")) {
+        refreshWordCounts();
         updateCompletionMeter();
-        saveDraftDebounced();
+        updateValidationSummary();
+        saveDraftSoon();
       }
     }, { passive: true });
   });
 
-  // keyboard shortcuts
-  document.addEventListener("keydown", (e) => {
-    const isMac = navigator.platform.toLowerCase().includes("mac");
-    const mod = isMac ? e.metaKey : e.ctrlKey;
+  // Restore on load (best effort)
+  restoreDraft();
 
-    if (mod && e.key.toLowerCase() === "s") {
-      e.preventDefault();
-      saveDraft();
-    }
-
-    if (mod && e.key === "Enter") {
-      const form = $("researchForm");
-      if (form) {
-        e.preventDefault();
-        form.requestSubmit();
-      }
-    }
-  });
-
-  // =========================================================
-  // Reset form
-  // =========================================================
+  // ================================
+  // Reset form button
+  // ================================
   const resetBtn = $("resetFormBtn");
   const formEl = $("researchForm");
+
+  let priceChart = null;
+  let priceChartImageBytes = null;
+
+  let equityStats = {
+    currentPrice: null,
+    realisedVolAnn: null,
+    rangeReturn: null
+  };
 
   function clearChartUI() {
     setText("currentPrice", "—");
@@ -623,15 +635,13 @@ window.addEventListener("DOMContentLoaded", () => {
     const chartStatus = $("chartStatus");
     if (chartStatus) chartStatus.textContent = "";
 
-    if (typeof priceChart !== "undefined" && priceChart) {
+    if (priceChart) {
       try { priceChart.destroy(); } catch (_) {}
       priceChart = null;
     }
+    priceChartImageBytes = null;
 
-    if (typeof priceChartImageBytes !== "undefined") priceChartImageBytes = null;
-    if (typeof equityStats !== "undefined") {
-      equityStats = { currentPrice: null, realisedVolAnn: null, rangeReturn: null };
-    }
+    equityStats = { currentPrice: null, realisedVolAnn: null, rangeReturn: null };
   }
 
   if (resetBtn && formEl) {
@@ -645,9 +655,9 @@ window.addEventListener("DOMContentLoaded", () => {
       coAuthorCount = 0;
 
       if (modelFilesEl2) modelFilesEl2.value = "";
-      if ($("imageUpload")) $("imageUpload").value = "";
-
       updateAttachmentSummary();
+
+      clearChartUI();
 
       const messageDiv = $("message");
       if (messageDiv) {
@@ -656,19 +666,49 @@ window.addEventListener("DOMContentLoaded", () => {
         messageDiv.style.display = "none";
       }
 
-      clearChartUI();
+      // clear autosave too
+      localStorage.removeItem(AUTO_KEY);
+      setAutosaveStatus("Autosave: —");
+
       syncPrimaryPhone();
       toggleEquitySection();
 
-      setTimeout(updateCompletionMeter, 0);
-      setDraftPill("warn");
-      saveDraftDebounced();
+      refreshWordCounts();
+      updateCompletionMeter();
+      updateValidationSummary();
     });
   }
 
-  // =========================================================
+  // ================================
+  // Date/time formatting
+  // ================================
+  function formatDateTime(date) {
+    const months = [
+      "January","February","March","April","May","June",
+      "July","August","September","October","November","December"
+    ];
+    const month = months[date.getMonth()];
+    const day = date.getDate();
+    const year = date.getFullYear();
+
+    let hours = date.getHours();
+    const minutes = date.getMinutes().toString().padStart(2, "0");
+    const ampm = hours >= 12 ? "PM" : "AM";
+    hours = hours % 12 || 12;
+
+    return `${month} ${day}, ${year} ${hours}:${minutes} ${ampm}`;
+  }
+
+  function formatDateShort(date) {
+    const y = date.getFullYear();
+    const m = String(date.getMonth() + 1).padStart(2, "0");
+    const d = String(date.getDate()).padStart(2, "0");
+    return `${y}-${m}-${d}`;
+  }
+
+  // ================================
   // Email to CRG (prefilled mailto)
-  // =========================================================
+  // ================================
   const emailToCrgBtn = $("emailToCrgBtn");
 
   function buildMailto(to, cc, subject, body) {
@@ -704,7 +744,12 @@ window.addEventListener("DOMContentLoaded", () => {
     const dateShort = formatDateShort(now);
     const dateLong = formatDateTime(now);
 
-    const subjectParts = [noteType || "Research Note", dateShort, title ? `— ${title}` : ""].filter(Boolean);
+    const subjectParts = [
+      noteType || "Research Note",
+      dateShort,
+      title ? `— ${title}` : ""
+    ].filter(Boolean);
+
     const subject = subjectParts.join(" ");
     const authorLine = [authorFirstName, authorLastName].filter(Boolean).join(" ").trim();
 
@@ -740,36 +785,9 @@ window.addEventListener("DOMContentLoaded", () => {
     });
   }
 
-  // =========================================================
-  // Word helpers
-  // =========================================================
-  function linesToParagraphs(text, spacingAfter = 150) {
-    const lines = (text || "").split("\n");
-    return lines.map((line) => {
-      if (line.trim() === "") {
-        return new docx.Paragraph({ text: "", spacing: { after: spacingAfter } });
-      }
-      return new docx.Paragraph({ text: line, spacing: { after: spacingAfter } });
-    });
-  }
-
-  function hyperlinkParagraph(label, url) {
-    const safeUrl = (url || "").trim();
-    if (!safeUrl) return null;
-
-    return new docx.Paragraph({
-      children: [
-        new docx.TextRun({ text: label, bold: true }),
-        new docx.TextRun({ text: " " }),
-        new docx.ExternalHyperlink({
-          children: [new docx.TextRun({ text: safeUrl, style: "Hyperlink" })],
-          link: safeUrl
-        })
-      ],
-      spacing: { after: 120 }
-    });
-  }
-
+  // ================================
+  // Add images to Word
+  // ================================
   async function addImages(files) {
     const imageParagraphs = [];
     for (let i = 0; i < files.length; i++) {
@@ -809,6 +827,33 @@ window.addEventListener("DOMContentLoaded", () => {
     return imageParagraphs;
   }
 
+  function linesToParagraphs(text, spacingAfter = 150) {
+    const lines = (text || "").split("\n");
+    return lines.map((line) => {
+      if (line.trim() === "") {
+        return new docx.Paragraph({ text: "", spacing: { after: spacingAfter } });
+      }
+      return new docx.Paragraph({ text: line, spacing: { after: spacingAfter } });
+    });
+  }
+
+  function hyperlinkParagraph(label, url) {
+    const safeUrl = (url || "").trim();
+    if (!safeUrl) return null;
+
+    return new docx.Paragraph({
+      children: [
+        new docx.TextRun({ text: label, bold: true }),
+        new docx.TextRun({ text: " " }),
+        new docx.ExternalHyperlink({
+          children: [new docx.TextRun({ text: safeUrl, style: "Hyperlink" })],
+          link: safeUrl
+        })
+      ],
+      spacing: { after: 120 }
+    });
+  }
+
   function coAuthorLine(coAuthor) {
     const ln = (coAuthor.lastName || "").toUpperCase();
     const fn = (coAuthor.firstName || "").toUpperCase();
@@ -816,14 +861,11 @@ window.addEventListener("DOMContentLoaded", () => {
     return `${ln}, ${fn} (${ph})`;
   }
 
-  // =========================================================
+  // ================================
   // Price chart (Stooq -> Chart.js -> Word image)
-  // =========================================================
-  let priceChart = null;
-  let priceChartImageBytes = null;
-
-  let equityStats = { currentPrice: null, realisedVolAnn: null, rangeReturn: null };
-
+  // FIX: Stooq has no CORS. Use r.jina.ai proxy.
+  // + stats: current price, vol, range return, upside to target
+  // ================================
   const chartStatus = $("chartStatus");
   const fetchChartBtn = $("fetchPriceChart");
   const chartRangeEl = $("chartRange");
@@ -856,7 +898,6 @@ window.addEventListener("DOMContentLoaded", () => {
   }
 
   async function fetchStooqDaily(symbol) {
-    // Stooq often blocks CORS. Use r.jina.ai proxy.
     const stooqUrl = `http://stooq.com/q/d/l/?s=${encodeURIComponent(symbol)}&i=d`;
     const proxyUrl = `https://r.jina.ai/${stooqUrl}`;
 
@@ -924,7 +965,9 @@ window.addEventListener("DOMContentLoaded", () => {
     for (let i = 1; i < closes.length; i++) {
       const prev = closes[i - 1];
       const cur = closes[i];
-      if (prev > 0 && Number.isFinite(prev) && Number.isFinite(cur)) rets.push((cur / prev) - 1);
+      if (prev > 0 && Number.isFinite(prev) && Number.isFinite(cur)) {
+        rets.push((cur / prev) - 1);
+      }
     }
     return rets;
   }
@@ -952,7 +995,8 @@ window.addEventListener("DOMContentLoaded", () => {
     targetPriceEl.addEventListener("input", () => {
       updateUpsideDisplay();
       updateCompletionMeter();
-      saveDraftDebounced();
+      updateValidationSummary();
+      saveDraftSoon();
     });
   }
 
@@ -976,7 +1020,11 @@ window.addEventListener("DOMContentLoaded", () => {
       const labels = filtered.map(x => x.date);
       const values = filtered.map(x => x.close);
 
-      renderChart({ labels, values, title: `${tickerVal.toUpperCase()} Close` });
+      renderChart({
+        labels,
+        values,
+        title: `${tickerVal.toUpperCase()} Close`
+      });
 
       await new Promise(r => setTimeout(r, 150));
       priceChartImageBytes = canvasToPngBytes(priceChartCanvas);
@@ -984,7 +1032,6 @@ window.addEventListener("DOMContentLoaded", () => {
       const closes = values;
       const currentPrice = closes[closes.length - 1];
       const startPrice = closes[0];
-
       const rangeReturn = (startPrice && currentPrice) ? (currentPrice / startPrice) - 1 : null;
 
       const dailyRets = computeDailyReturns(closes);
@@ -1002,7 +1049,6 @@ window.addEventListener("DOMContentLoaded", () => {
       updateUpsideDisplay();
 
       if (chartStatus) chartStatus.textContent = `✓ Chart ready (${range.toUpperCase()})`;
-      saveDraftDebounced();
     } catch (e) {
       priceChartImageBytes = null;
       equityStats = { currentPrice: null, realisedVolAnn: null, rangeReturn: null };
@@ -1013,14 +1059,16 @@ window.addEventListener("DOMContentLoaded", () => {
       if (chartStatus) chartStatus.textContent = `✗ ${e.message}`;
     } finally {
       updateCompletionMeter();
+      updateValidationSummary();
+      saveDraftSoon();
     }
   }
 
   if (fetchChartBtn) fetchChartBtn.addEventListener("click", buildPriceChart);
 
-  // =========================================================
+  // ================================
   // Create Word Document
-  // =========================================================
+  // ================================
   async function createDocument(data) {
     const {
       noteType, title, topic,
@@ -1049,11 +1097,13 @@ window.addEventListener("DOMContentLoaded", () => {
     const analysisParagraphs = linesToParagraphs(analysis, 150);
     const contentParagraphs = linesToParagraphs(content, 150);
     const cordobaViewParagraphs = linesToParagraphs(cordobaView, 150);
+
     const imageParagraphs = await addImages(imageFiles);
 
     const authorPhonePrintable = authorPhoneSafe ? authorPhoneSafe : naIfBlank(authorPhone);
     const authorPhoneWrapped = authorPhonePrintable ? `(${authorPhonePrintable})` : "(N/A)";
 
+    // Header table (topic + title left, author(s) right)
     const infoTable = new docx.Table({
       width: { size: 100, type: docx.WidthType.PERCENTAGE },
       borders: {
@@ -1081,7 +1131,7 @@ window.addEventListener("DOMContentLoaded", () => {
                     new docx.TextRun({
                       text: (title || ""),
                       bold: true,
-                      size: 28,
+                      size: 28, // 14pt
                       font: "Book Antiqua"
                     })
                   ],
@@ -1147,6 +1197,7 @@ window.addEventListener("DOMContentLoaded", () => {
       })
     ];
 
+    // Equity block
     if (noteType === "Equity Research") {
       const attachedModelNames = (modelFiles && modelFiles.length) ? Array.from(modelFiles).map(f => f.name) : [];
 
@@ -1194,7 +1245,7 @@ window.addEventListener("DOMContentLoaded", () => {
       if (equityStats && equityStats.currentPrice) {
         const tp = (targetPrice || "").trim();
         const tpNum = safeNum(tp);
-        const upside = computeUpsideToTarget(equityStats.currentPrice, tpNum);
+        const upside = (tpNum ? (tpNum / equityStats.currentPrice - 1) : null);
 
         documentChildren.push(
           new docx.Paragraph({
@@ -1306,6 +1357,7 @@ window.addEventListener("DOMContentLoaded", () => {
       documentChildren.push(new docx.Paragraph({ spacing: { after: 250 } }));
     }
 
+    // Core sections
     documentChildren.push(
       new docx.Paragraph({
         children: [new docx.TextRun({ text: "Key Takeaways", bold: true, size: 24, font: "Book Antiqua" })],
@@ -1317,9 +1369,12 @@ window.addEventListener("DOMContentLoaded", () => {
         children: [new docx.TextRun({ text: "Analysis and Commentary", bold: true, size: 24, font: "Book Antiqua" })],
         spacing: { after: 200 }
       }),
-      ...analysisParagraphs,
-      ...contentParagraphs
+      ...analysisParagraphs
     );
+
+    if ((content || "").trim()) {
+      documentChildren.push(...contentParagraphs);
+    }
 
     if ((cordobaView || "").trim()) {
       documentChildren.push(
@@ -1416,102 +1471,157 @@ window.addEventListener("DOMContentLoaded", () => {
     return doc;
   }
 
-  // =========================================================
+  // ================================
   // Main Form Submission
-  // =========================================================
+  // ================================
   const form = $("researchForm");
   if (form) form.noValidate = true;
 
-  // Initial paints
-  updateAttachmentSummary();
-  updateCompletionMeter();
+  function buildCorePayload() {
+    const noteType = $("noteType").value;
+    const title = $("title").value;
+    const topic = $("topic").value;
+
+    const authorLastName = $("authorLastName").value;
+    const authorFirstName = $("authorFirstName").value;
+
+    const authorPhone = $("authorPhone").value;          // hidden source of truth
+    const authorPhoneSafe = naIfBlank(authorPhone);
+
+    const analysis = $("analysis").value;
+    const keyTakeaways = $("keyTakeaways").value;
+    const content = $("content").value;
+    const cordobaView = $("cordobaView").value;
+
+    const imageFiles = $("imageUpload").files;
+
+    const ticker = $("ticker") ? $("ticker").value : "";
+    const valuationSummary = $("valuationSummary") ? $("valuationSummary").value : "";
+    const keyAssumptions = $("keyAssumptions") ? $("keyAssumptions").value : "";
+    const scenarioNotes = $("scenarioNotes") ? $("scenarioNotes").value : "";
+    const modelFiles = $("modelFiles") ? $("modelFiles").files : null;
+    const modelLink = $("modelLink") ? $("modelLink").value : "";
+
+    const targetPrice = $("targetPrice") ? $("targetPrice").value : "";
+    const crgRating = $("crgRating") ? $("crgRating").value : "";
+
+    const now = new Date();
+    const dateTimeString = formatDateTime(now);
+
+    const coAuthors = [];
+    document.querySelectorAll(".coauthor-entry").forEach(entry => {
+      const lastName = entry.querySelector(".coauthor-lastname").value;
+      const firstName = entry.querySelector(".coauthor-firstname").value;
+      const phone = entry.querySelector(".coauthor-phone").value; // hidden combined
+      if (lastName && firstName) coAuthors.push({ lastName, firstName, phone: naIfBlank(phone) });
+    });
+
+    return {
+      noteType, title, topic,
+      authorLastName, authorFirstName, authorPhone, authorPhoneSafe,
+      coAuthors,
+      analysis, keyTakeaways, content, cordobaView,
+      imageFiles, dateTimeString,
+      ticker, valuationSummary, keyAssumptions, scenarioNotes, modelFiles, modelLink,
+      priceChartImageBytes,
+      targetPrice,
+      equityStats,
+      crgRating
+    };
+  }
+
+  // keyboard shortcut: Cmd/Ctrl+Enter => submit
+  document.addEventListener("keydown", (e) => {
+    const isMac = navigator.platform.toUpperCase().includes("MAC");
+    const mod = isMac ? e.metaKey : e.ctrlKey;
+    if (mod && e.key === "Enter") {
+      const missing = listMissingCoreFields();
+      const confirmOk = confirmDraftEl ? confirmDraftEl.checked : true;
+      if (missing.length === 0 && confirmOk) {
+        e.preventDefault();
+        form.requestSubmit();
+      }
+    }
+  });
 
   form.addEventListener("submit", async function (e) {
     e.preventDefault();
 
-    const button = form.querySelector('button[type="submit"]');
     const messageDiv = $("message");
+    const button = $("generateBtn");
 
-    button.disabled = true;
-    button.classList.add("loading");
-    button.textContent = "Generating Document...";
-    messageDiv.className = "message";
-    messageDiv.textContent = "";
+    // gate
+    const missing = listMissingCoreFields();
+    const confirmOk = confirmDraftEl ? confirmDraftEl.checked : true;
+    if (missing.length > 0 || !confirmOk) {
+      updateValidationSummary();
+      if (messageDiv) {
+        messageDiv.className = "message error";
+        messageDiv.textContent = "✗ Please complete required fields and confirm the draft disclaimer before exporting.";
+      }
+      return;
+    }
+
+    if (button) {
+      button.disabled = true;
+      button.classList.add("loading");
+      button.textContent = "Generating…";
+    }
+
+    if (messageDiv) {
+      messageDiv.className = "message";
+      messageDiv.textContent = "";
+    }
 
     try {
       if (typeof docx === "undefined") throw new Error("docx library not loaded. Please refresh the page.");
       if (typeof saveAs === "undefined") throw new Error("FileSaver library not loaded. Please refresh the page.");
 
-      const noteType = $("noteType").value;
-      const title = $("title").value;
-      const topic = $("topic").value;
-      const authorLastName = $("authorLastName").value;
-      const authorFirstName = $("authorFirstName").value;
-
-      const authorPhone = $("authorPhone").value;
-      const authorPhoneSafe = naIfBlank(authorPhone);
-
-      const analysis = $("analysis").value;
-      const keyTakeaways = $("keyTakeaways").value;
-      const content = $("content").value;
-      const cordobaView = $("cordobaView").value;
-      const imageFiles = $("imageUpload").files;
-
-      const ticker = $("ticker") ? $("ticker").value : "";
-      const valuationSummary = $("valuationSummary") ? $("valuationSummary").value : "";
-      const keyAssumptions = $("keyAssumptions") ? $("keyAssumptions").value : "";
-      const scenarioNotes = $("scenarioNotes") ? $("scenarioNotes").value : "";
-      const modelFiles = $("modelFiles") ? $("modelFiles").files : null;
-      const modelLink = $("modelLink") ? $("modelLink").value : "";
-
-      const targetPrice = $("targetPrice") ? $("targetPrice").value : "";
-      const crgRating = $("crgRating") ? $("crgRating").value : "";
-
-      const now = new Date();
-      const dateTimeString = formatDateTime(now);
-
-      const coAuthors = [];
-      document.querySelectorAll(".coauthor-entry").forEach(entry => {
-        const lastName = entry.querySelector(".coauthor-lastname").value;
-        const firstName = entry.querySelector(".coauthor-firstname").value;
-        const phone = entry.querySelector(".coauthor-phone").value;
-        if (lastName && firstName) coAuthors.push({ lastName, firstName, phone: naIfBlank(phone) });
-      });
-
-      const doc = await createDocument({
-        noteType, title, topic,
-        authorLastName, authorFirstName, authorPhone,
-        authorPhoneSafe,
-        coAuthors,
-        analysis, keyTakeaways, content, cordobaView,
-        imageFiles, dateTimeString,
-        ticker, valuationSummary, keyAssumptions, scenarioNotes, modelFiles, modelLink,
-        priceChartImageBytes,
-        targetPrice,
-        equityStats,
-        crgRating
-      });
-
+      const payload = buildCorePayload();
+      const doc = await createDocument(payload);
       const blob = await docx.Packer.toBlob(doc);
 
-      const fileName =
-        `${title.replace(/[^a-z0-9]/gi, "_").toLowerCase()}_${noteType.replace(/\s+/g, "_").toLowerCase()}.docx`;
+      const safeTitle = (payload.title || "research_note").replace(/[^a-z0-9]/gi, "_").toLowerCase();
+      const safeType = (payload.noteType || "note").replace(/\s+/g, "_").toLowerCase();
+      const fileName = `${safeTitle}_${safeType}.docx`;
 
       saveAs(blob, fileName);
 
-      messageDiv.className = "message success";
-      messageDiv.textContent = `✓ Document "${fileName}" generated successfully!`;
+      if (messageDiv) {
+        messageDiv.className = "message success";
+        messageDiv.textContent = `✓ Document "${fileName}" generated successfully!`;
+      }
 
-      // save draft after successful export too
-      saveDraftDebounced();
+      // persist latest draft after export (so user doesn’t lose text)
+      saveDraftSoon();
+
     } catch (error) {
       console.error("Error generating document:", error);
-      messageDiv.className = "message error";
-      messageDiv.textContent = `✗ Error: ${error.message}`;
+      if (messageDiv) {
+        messageDiv.className = "message error";
+        messageDiv.textContent = `✗ Error: ${error.message}`;
+      }
     } finally {
-      button.disabled = false;
-      button.classList.remove("loading");
-      button.textContent = "Generate Word Document";
+      if (button) {
+        button.disabled = false;
+        button.classList.remove("loading");
+        button.textContent = "Generate Word Document";
+      }
+      updateValidationSummary();
     }
   });
+
+  // Initial paint
+  refreshWordCounts();
+  updateAttachmentSummary();
+  updateCompletionMeter();
+  updateValidationSummary();
+
+  // show autosave status if draft exists
+  try {
+    const raw = localStorage.getItem(AUTO_KEY);
+    setAutosaveStatus(raw ? "Autosave: ready" : "Autosave: —");
+  } catch (_) {
+    setAutosaveStatus("Autosave: unavailable");
+  }
 });
