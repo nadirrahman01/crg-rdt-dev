@@ -1,14 +1,12 @@
-<!-- ================================
-CRG RDT — Institutional (BlueMatrix-style)
-index.html
-================================ -->
+<!-- index.html -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>CRG — Research Documentation Tool</title>
+  <title>CRG - Research Documentation Tool</title>
 
+  <!-- Institutional stylesheet -->
   <link rel="stylesheet" href="assets/styles.css">
 
   <!-- Chart.js (price chart) -->
@@ -18,203 +16,189 @@ index.html
 <body>
   <div class="app">
 
-    <!-- Topbar -->
-    <div class="topbar">
+    <!-- Topbar (old-school institutional) -->
+    <header class="topbar">
       <div class="topbar-left">
         <div class="brand">
-          <div class="brand-line1">CRG</div>
-          <div class="brand-line2">Research Documentation Tool</div>
+          <div class="brand-line1">CORDOBA RESEARCH GROUP</div>
+          <div class="brand-line2">Research Documentation Tool (RDT)</div>
         </div>
 
         <div class="topbar-meta">
-          <div class="meta-item"><span class="meta-label">Mode:</span> Internal research note builder</div>
-          <div class="meta-item"><span class="meta-label">Session:</span> <span id="sessionTimer">00:00</span></div>
-          <div class="meta-item"><span class="meta-label">Autosave:</span> <span id="autosaveStatus">On</span></div>
-          <div class="meta-item"><span class="meta-label">Version:</span> <span id="versionDisplay">v1.0</span></div>
-          <div class="meta-item"><span class="meta-label">Status:</span> <span id="statusDisplay">Draft</span></div>
-          <div class="meta-item"><span class="meta-label">Preset:</span> <span id="presetDisplay">Internal only</span></div>
+          <div class="meta-item"><span class="meta-label">Document control:</span> Internal system output</div>
+          <div class="meta-item"><span class="meta-label">Version:</span> <strong id="versionText">v1.0</strong></div>
+          <div class="meta-item"><span class="meta-label">Status:</span> <strong id="statusTextMirror">Draft</strong></div>
         </div>
       </div>
 
       <div class="topbar-right">
-        <button type="button" id="jumpFirstMissing" class="btn btn-quiet">Jump to first missing</button>
+        <button type="button" id="jumpMissingBtn" class="btn btn-quiet">Jump to first missing</button>
         <button type="button" id="clearAutosaveBtn" class="btn btn-quiet">Clear autosave</button>
       </div>
-    </div>
+    </header>
 
     <div class="main">
+
       <!-- Left rail -->
       <aside class="rail">
         <div class="rail-block">
-          <div class="rail-title">Workflow</div>
-          <ol class="rail-steps">
-            <li><a class="rail-link" href="#sec-setup">Note setup</a></li>
-            <li><a class="rail-link" href="#sec-authors">Authors</a></li>
-            <li><a class="rail-link" href="#sec-core">Core research</a></li>
-            <li><a class="rail-link" id="equityRailLink" href="#sec-equity">Equity module</a></li>
-            <li><a class="rail-link" href="#sec-figures">Figures & attachments</a></li>
-            <li><a class="rail-link" href="#sec-review">Review & export</a></li>
-          </ol>
+          <div class="rail-title">Completion</div>
+
+          <div class="rail-kpi">
+            <span id="completionText">0 / 0 required</span>
+            <span class="muted" id="completionPct"></span>
+          </div>
+
+          <div class="rail-bar" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
+            <div class="rail-bar-fill" id="completionBar"></div>
+          </div>
+
+          <div class="rail-mini">
+            <div class="rail-mini-title">Navigation</div>
+            <ol class="rail-steps">
+              <li><a class="rail-link" href="#sec-setup">1. Setup</a></li>
+              <li><a class="rail-link" href="#sec-authors">2. Authors</a></li>
+              <li><a class="rail-link" href="#sec-core">3. Core research</a></li>
+              <li id="equityRailLink"><a class="rail-link" href="#sec-equity">4. Equity module</a></li>
+              <li><a class="rail-link" href="#sec-figures">5. Figures</a></li>
+              <li><a class="rail-link" href="#sec-review">6. Review & export</a></li>
+            </ol>
+          </div>
         </div>
 
         <div class="rail-block">
-          <div class="rail-title">Completion</div>
-          <div class="rail-kpi">
-            <div>Fields:</div>
-            <div><strong id="completionText">0 / 0</strong></div>
-          </div>
-          <div class="rail-bar" aria-label="Completion bar">
-            <div class="rail-bar-fill" id="completionBar" style="width:0%"></div>
-          </div>
+          <div class="rail-title">Analyst prompts</div>
+          <ul class="rail-bullets">
+            <li>Write a thesis that can be quoted.</li>
+            <li>Anchor numbers to a source and date.</li>
+            <li>State disconfirmers (what would prove you wrong).</li>
+            <li>Keep “Cordoba view” tradeable and conditional.</li>
+          </ul>
+        </div>
 
-          <div class="rail-mini">
-            <div class="rail-mini-title">Quality prompts</div>
-            <ul class="rail-bullets">
-              <li>State the thesis in 1–2 sentences.</li>
-              <li>Anchor claims to data or a clear assumption.</li>
-              <li>Write at least one disconfirming risk.</li>
-              <li>Make takeaways decision-useful.</li>
-            </ul>
-          </div>
-
-          <div class="rail-mini">
-            <div class="rail-mini-title">Ticker help</div>
-            <div class="rail-help">
-              Price data uses <strong>Stooq</strong> symbols via proxy.<br/>
-              US: <strong>MSFT.US</strong> (or <strong>MSFT</strong>)<br/>
-              UK/LSE: <strong>VOD.UK</strong>, <strong>BP.UK</strong><br/>
-              Confirm on <a href="https://stooq.com/" target="_blank" rel="noopener noreferrer">stooq.com</a>
-            </div>
+        <div class="rail-block">
+          <div class="rail-title">Data note</div>
+          <div class="rail-help">
+            Equity chart fetch uses Stooq daily closes via proxy. Confirm symbols on stooq.com.
+            Examples: MSFT.US, VOD.UK, BMW.DE.
           </div>
         </div>
       </aside>
 
       <!-- Main canvas -->
       <main class="canvas">
+
         <form id="researchForm" novalidate>
 
-          <!-- NOTE SETUP -->
-          <section class="card" id="sec-setup">
+          <!-- =========================
+               1) Setup
+               ========================= -->
+          <section id="sec-setup" class="card">
             <div class="card-head">
               <div>
                 <div class="card-title">1) Note setup</div>
-                <div class="card-subtitle">
-                  Defines formatting, routing, and compliance watermarking.
-                </div>
+                <div class="card-subtitle">Template, distribution preset, workflow status, versioning, and change note.</div>
               </div>
             </div>
 
             <div class="grid-2">
               <div>
-                <label for="templateSelect">Template</label>
-                <select id="templateSelect">
-                  <option value="">Select template...</option>
-                  <option value="macro_update">Macro update</option>
-                  <option value="equity_initiation">Equity initiation</option>
-                  <option value="event_note">Event note</option>
+                <label for="noteTemplate">Template</label>
+                <select id="noteTemplate">
+                  <option value="">Select template…</option>
+                  <option value="Macro update">Macro update</option>
+                  <option value="Equity initiation">Equity initiation</option>
+                  <option value="Event note">Event note</option>
                 </select>
-                <div class="hint">Templates pre-fill structure and adjust expectations (you can edit everything).</div>
+                <div class="hint">Templates prefill fields if blank and adjust structure.</div>
               </div>
 
-              <div>
-                <label>Distribution preset</label>
-                <div style="display:flex; gap:8px; flex-wrap:wrap;">
-                  <button type="button" class="btn" data-preset="internal">Internal only</button>
-                  <button type="button" class="btn" data-preset="public">Public pack</button>
-                  <button type="button" class="btn" data-preset="client">Client-safe</button>
-                </div>
-                <div class="hint">
-                  Presets control watermarking, sections exported, and email routing defaults.
-                </div>
-              </div>
-            </div>
-
-            <div class="grid-2">
               <div>
                 <label for="noteType">Type of note</label>
                 <select id="noteType" required>
-                  <option value="">Select note type...</option>
+                  <option value="">Select note type…</option>
                   <option value="General Note">General Note</option>
                   <option value="Equity Research">Equity Research</option>
                   <option value="Macro Research">Macro Research</option>
                   <option value="Fixed Income Research">Fixed Income Research</option>
                   <option value="Commodity Insights">Commodity Insights</option>
                 </select>
+                <div class="hint">Controls modules and routing logic.</div>
               </div>
-
-              <div>
-                <label for="topic">Topic</label>
-                <input type="text" id="topic" required placeholder="e.g., UK inflation dynamics, Vietnam consumer, uranium supply chain..." />
-                <div class="hint">Keep topic short. Title can be more descriptive.</div>
-              </div>
-            </div>
-
-            <div class="grid-1">
-              <label for="title">Title</label>
-              <input type="text" id="title" required placeholder="Institutional title (avoid blog-style headlines)..." />
-              <div class="hint">Aim for a clear investor-led statement.</div>
             </div>
 
             <div class="grid-2">
               <div>
-                <label for="workflowStatus">Workflow status</label>
-                <select id="workflowStatus">
+                <label for="distributionPreset">Distribution preset</label>
+                <select id="distributionPreset" required>
+                  <option value="Internal only" selected>Internal only</option>
+                  <option value="Public pack">Public pack</option>
+                  <option value="Client-safe">Client-safe</option>
+                </select>
+                <div class="hint">Client-safe requires Status = Cleared. Presets control watermarking, redactions, and routing.</div>
+              </div>
+
+              <div>
+                <label for="workflowStatus">Status</label>
+                <select id="workflowStatus" required>
                   <option value="Draft" selected>Draft</option>
                   <option value="Reviewed">Reviewed</option>
                   <option value="Cleared">Cleared</option>
                 </select>
-                <div class="hint">Draft exports are watermarked automatically.</div>
+                <div class="hint">Draft exports are watermarked. Reviewed/Cleared remove watermark.</div>
               </div>
+            </div>
 
+            <div class="grid-2">
               <div>
                 <label for="reviewedBy">Reviewed by</label>
                 <select id="reviewedBy">
-                  <option value="">Select reviewer...</option>
+                  <option value="">Select reviewer…</option>
                   <option value="Tim">Tim</option>
                   <option value="Tommaso">Tommaso</option>
                   <option value="Uhayd">Uhayd</option>
                   <option value="Nadir">Nadir</option>
                 </select>
-                <div class="hint">Optional. Helpful for audit trail.</div>
+                <div class="hint">Required when Status is Reviewed or Cleared.</div>
+              </div>
+
+              <div>
+                <label for="changeNote">Change note <span class="muted">(optional)</span></label>
+                <textarea id="changeNote" rows="3" placeholder="e.g., Updated valuation post earnings; revised WACC."></textarea>
+                <div class="hint">Included in Word header (Internal only preset) and email subject marker.</div>
               </div>
             </div>
 
-            <div class="grid-2">
-              <div>
-                <label for="changeNote">Change note <span class="muted">(optional)</span></label>
-                <input type="text" id="changeNote" placeholder="e.g., Updated valuation post earnings; revised WACC." />
-                <div class="hint">Used in Word header and email subject line.</div>
-              </div>
+            <div class="grid-1">
+              <label for="topic">Topic</label>
+              <input type="text" id="topic" required placeholder="e.g., UK inflation dynamics, Vietnam consumer, uranium supply chain…">
+              <div class="hint">Short descriptor used in document header block.</div>
 
-              <div>
-                <label for="versionBump">Version bump</label>
-                <select id="versionBump">
-                  <option value="minor" selected>Minor (vX.Y → vX.(Y+1))</option>
-                  <option value="major">Major (vX.Y → v(X+1).0)</option>
-                  <option value="none">No bump (keep current)</option>
-                </select>
-                <div class="hint">Auto-increments on export based on this setting.</div>
-              </div>
+              <label for="title" style="margin-top:10px;">Title</label>
+              <input type="text" id="title" required placeholder="Enter research title…">
+              <div class="hint">Institutional: angle-first, investor-led phrasing.</div>
             </div>
           </section>
 
-          <!-- AUTHORS -->
-          <section class="card" id="sec-authors">
+          <!-- =========================
+               2) Authors
+               ========================= -->
+          <section id="sec-authors" class="card">
             <div class="card-head">
               <div>
                 <div class="card-title">2) Authors</div>
-                <div class="card-subtitle">Primary author is required. Co-authors are optional.</div>
+                <div class="card-subtitle">Primary author and co-authors (optional).</div>
               </div>
             </div>
 
             <div class="grid-2">
               <div>
                 <label for="authorLastName">Primary author — last name</label>
-                <input type="text" id="authorLastName" required placeholder="e.g., Rahman" />
+                <input type="text" id="authorLastName" required placeholder="e.g., Rahman">
               </div>
               <div>
                 <label for="authorFirstName">Primary author — first name</label>
-                <input type="text" id="authorFirstName" required placeholder="e.g., Nadir" />
+                <input type="text" id="authorFirstName" required placeholder="e.g., Nadir">
               </div>
             </div>
 
@@ -227,123 +211,111 @@ index.html
                   <option value="353">+353</option>
                   <option value="33">+33</option>
                   <option value="49">+49</option>
+                  <option value="31">+31</option>
+                  <option value="34">+34</option>
+                  <option value="39">+39</option>
                   <option value="971">+971</option>
+                  <option value="966">+966</option>
+                  <option value="92">+92</option>
+                  <option value="880">+880</option>
+                  <option value="91">+91</option>
+                  <option value="234">+234</option>
+                  <option value="254">+254</option>
+                  <option value="27">+27</option>
+                  <option value="995">+995</option>
                   <option value="">Other</option>
                 </select>
-                <input
-                  type="text"
-                  id="authorPhoneNational"
-                  class="phone-number"
-                  inputmode="numeric"
-                  autocomplete="tel-national"
-                  placeholder="e.g., 7323 324 120"
-                />
+                <input type="text" id="authorPhoneNational" class="phone-number" inputmode="numeric" autocomplete="tel-national" placeholder="e.g., 7323 324 120">
               </div>
 
-              <!-- Hidden field remains the export source-of-truth -->
-              <input type="text" id="authorPhone" style="display:none;" />
-              <div class="hint">Stored as <strong>CC-NUMBER</strong> (digits only). Display formatting won’t affect export.</div>
+              <!-- hidden source-of-truth (used by JS + Word export) -->
+              <input type="text" id="authorPhone" style="display:none;">
+              <div class="hint">Stored as CC-NUMBER (digits only). Display formatting does not affect export.</div>
             </div>
 
             <div class="grid-1">
               <div class="coauthor-head">
                 <div class="coauthor-title">Co-authors <span class="muted">(optional)</span></div>
-                <button type="button" id="addCoAuthor" class="btn">+ Add co-author</button>
+                <button type="button" id="addCoAuthor" class="btn">Add co-author</button>
               </div>
               <div id="coAuthorsList"></div>
             </div>
           </section>
 
-          <!-- CORE RESEARCH -->
-          <section class="card" id="sec-core">
+          <!-- =========================
+               3) Core research
+               ========================= -->
+          <section id="sec-core" class="card">
             <div class="card-head">
               <div>
                 <div class="card-title">3) Core research</div>
-                <div class="card-subtitle">
-                  This is the institutional body: executive summary, thesis, takeaways, analysis, and the Cordoba view.
-                </div>
-              </div>
-            </div>
-
-            <div class="grid-1">
-              <label>
-                <input type="checkbox" id="autoExecSummary" />
-                Auto-generate executive summary (editable)
-              </label>
-              <div class="hint">
-                Pulls from: thesis + first takeaway + target/rating (if Equity). You can edit the output.
+                <div class="card-subtitle">Thesis, executive summary (optional), takeaways, analysis, and Cordoba view.</div>
               </div>
             </div>
 
             <div class="grid-1">
               <div class="field-head">
-                <label for="execSummary">Executive summary</label>
-                <div class="field-metrics"><span id="execSummaryWords">0</span> words</div>
+                <label for="thesis">Thesis</label>
+                <div class="field-metrics"><span id="thesisCount">0</span> words</div>
               </div>
-              <textarea id="execSummary" rows="6" placeholder="(Optional unless auto-generate is enabled)"></textarea>
-              <div class="hint">Aim for one page: what, why now, what’s priced, what changes the view.</div>
-            </div>
+              <textarea id="thesis" rows="3" required placeholder="1–2 lines: what changed, what’s priced, what’s mispriced."></textarea>
+              <div class="hint">Write something a PM could quote back to you.</div>
 
-            <div class="grid-1">
+              <div class="toggle-row">
+                <input type="checkbox" id="autoExecSummary">
+                <label for="autoExecSummary" class="toggle-label">Auto-generate Executive Summary (editable)</label>
+              </div>
+
               <div class="field-head">
-                <label for="thesis">Thesis (1–2 sentences)</label>
-                <div class="field-metrics"><span id="thesisWords">0</span> words</div>
+                <label for="execSummary">Executive Summary <span class="muted">(optional)</span></label>
+                <div class="field-metrics"><span id="execCount">0</span> words</div>
               </div>
-              <textarea id="thesis" rows="3" required placeholder="State the view clearly. Keep it tight and falsifiable."></textarea>
-              <div class="hint">If this is long, the note will drift. Keep it disciplined.</div>
-            </div>
+              <textarea id="execSummary" rows="6" placeholder="If auto-toggle is on, this will be generated and you can edit it."></textarea>
+              <div class="hint">Front-loaded page: thesis + first takeaway + rating/target (if relevant).</div>
 
-            <div class="grid-1">
               <div class="field-head">
                 <label for="keyTakeaways">Key takeaways</label>
-                <div class="field-metrics"><span id="keyTakeawaysWords">0</span> words</div>
+                <div class="field-metrics"><span id="takeawayCount">0</span> words</div>
               </div>
-              <textarea id="keyTakeaways" rows="6" required placeholder="Use bullets with - or *"></textarea>
-              <div class="hint">Decision-useful, not descriptive. 3–6 bullets is typically enough.</div>
-            </div>
+              <textarea id="keyTakeaways" rows="6" required placeholder="Use bullet points with - or * …"></textarea>
 
-            <div class="grid-1">
               <div class="field-head">
                 <label for="analysis">Analysis and commentary</label>
-                <div class="field-metrics"><span id="analysisWords">0</span> words</div>
+                <div class="field-metrics"><span id="analysisCount">0</span> words</div>
               </div>
-              <textarea id="analysis" rows="10" required placeholder="Thesis → evidence → risks → positioning."></textarea>
-              <div class="hint">Include at least one disconfirming risk and what would change your view.</div>
-            </div>
+              <textarea id="analysis" rows="10" required placeholder="Thesis → evidence → transmission → risks → positioning."></textarea>
 
-            <div class="grid-1">
               <label for="content">Additional content <span class="muted">(optional)</span></label>
-              <textarea id="content" rows="8" placeholder="Appendices, deeper detail, scenario tables, background context..."></textarea>
-              <div class="hint">Optional. Use for depth without bloating the core analysis.</div>
-            </div>
+              <textarea id="content" rows="7" placeholder="Appendices, deeper detail, background context…"></textarea>
 
-            <div class="grid-1">
-              <label for="cordobaView">The Cordoba view <span class="muted">(optional; excluded in Client-safe preset)</span></label>
-              <textarea id="cordobaView" rows="6" placeholder="Your stance, what you’d do, and why."></textarea>
-              <div class="hint">The “so what”. Clear stance + conditions for change.</div>
+              <div class="field-head">
+                <label for="cordobaView">The Cordoba view</label>
+                <div class="field-metrics"><span id="cvCount">0</span> words</div>
+              </div>
+              <textarea id="cordobaView" rows="6" required placeholder="Your stance, what you’d do, and conditions for change."></textarea>
             </div>
           </section>
 
-          <!-- EQUITY MODULE -->
-          <section class="card" id="sec-equity" style="display:none;">
+          <!-- =========================
+               4) Equity module (conditional)
+               ========================= -->
+          <section id="sec-equity" class="card" style="display:none;">
             <div class="card-head">
               <div>
                 <div class="card-title">4) Equity module</div>
-                <div class="card-subtitle">
-                  Price chart, rating/target, scenario table, model audit trail. Only appears for Equity Research.
-                </div>
+                <div class="card-subtitle">Rating, target, chart, source attribution, scenarios, and model attachments.</div>
               </div>
             </div>
 
             <div class="grid-2">
               <div>
                 <label for="ticker">Ticker / Company <span class="muted">(optional)</span></label>
-                <input type="text" id="ticker" placeholder="e.g., MSFT.US or VOD.UK" />
+                <input type="text" id="ticker" placeholder="e.g., MSFT.US or VOD.UK">
               </div>
               <div>
-                <label for="crgRating">CRG rating</label>
-                <select id="crgRating">
-                  <option value="">Select rating...</option>
+                <label for="crgRating">CRG Rating</label>
+                <select id="crgRating" required>
+                  <option value="">Select rating…</option>
                   <option value="Outperform (O)">Outperform (O)</option>
                   <option value="Sector Perform (SP)">Sector Perform (SP)</option>
                   <option value="Underperform (U)">Underperform (U)</option>
@@ -355,151 +327,126 @@ index.html
 
             <div class="grid-2">
               <div>
-                <label for="targetPrice">Target price <span class="muted">(optional)</span></label>
-                <input type="text" id="targetPrice" placeholder="e.g., 520" />
+                <label for="targetPrice">Target price</label>
+                <input type="text" id="targetPrice" required placeholder="e.g., 520">
               </div>
-
               <div>
-                <label for="dataSource">Data source (chart / stats)</label>
-                <select id="dataSource">
-                  <option value="Stooq" selected>Stooq</option>
+                <label for="priceDataSource">Data source</label>
+                <select id="priceDataSource">
+                  <option value="Stooq (via proxy)" selected>Stooq (via proxy)</option>
                   <option value="Bloomberg">Bloomberg</option>
                   <option value="Company filings">Company filings</option>
                   <option value="Internal model">Internal model</option>
                 </select>
-                <div class="hint">Printed under the chart as “Source: …; CRG estimates”.</div>
               </div>
             </div>
 
-            <div class="card-subhead">Scenario table (Bear / Base / Bull)</div>
-            <div class="grid-2">
-              <div>
-                <label for="bearPrice">Bear price</label>
-                <input type="text" id="bearPrice" placeholder="e.g., 380" />
-              </div>
-              <div>
-                <label for="bearKey">Bear key assumption</label>
-                <input type="text" id="bearKey" placeholder="e.g., margin compression; WACC +100bp" />
-              </div>
-            </div>
-            <div class="grid-2">
-              <div>
-                <label for="basePrice">Base price</label>
-                <input type="text" id="basePrice" placeholder="e.g., 520" />
-              </div>
-              <div>
-                <label for="baseKey">Base key assumption</label>
-                <input type="text" id="baseKey" placeholder="e.g., steady demand; normalised margins" />
-              </div>
-            </div>
-            <div class="grid-2">
-              <div>
-                <label for="bullPrice">Bull price</label>
-                <input type="text" id="bullPrice" placeholder="e.g., 650" />
-              </div>
-              <div>
-                <label for="bullKey">Bull key assumption</label>
-                <input type="text" id="bullKey" placeholder="e.g., re-rating; upside volume surprise" />
-              </div>
-            </div>
-
-            <div class="card-subhead">Price chart & stats</div>
             <div class="grid-1 chart-panel">
               <div class="chart-row">
+                <div><strong>Price chart</strong> <span class="muted">(fetch embeds chart into Word)</span></div>
                 <div class="chart-controls">
-                  <span class="inline-label">Range</span>
+                  <label class="inline-label" for="chartRange">Range</label>
                   <select id="chartRange" class="inline-select">
                     <option value="6mo" selected>6M</option>
                     <option value="1y">1Y</option>
                     <option value="2y">2Y</option>
                     <option value="5y">5Y</option>
                   </select>
-                  <button type="button" id="fetchPriceChart" class="btn">Fetch chart</button>
+                  <button type="button" id="fetchPriceChart" class="btn">Fetch</button>
                 </div>
-                <div class="field-metrics" id="chartStatus"></div>
               </div>
 
+              <div id="chartStatus" class="hint"></div>
               <div class="chart-wrap">
                 <canvas id="priceChart"></canvas>
               </div>
 
-              <div class="metrics-grid">
-                <div class="metric">
-                  <div class="metric-label">Current price</div>
-                  <div class="metric-value" id="currentPrice">—</div>
-                </div>
-                <div class="metric">
-                  <div class="metric-label">Volatility (ann.)</div>
-                  <div class="metric-value" id="realisedVol">—</div>
-                </div>
-                <div class="metric">
-                  <div class="metric-label">Return (range)</div>
-                  <div class="metric-value" id="rangeReturn">—</div>
-                </div>
-                <div class="metric">
-                  <div class="metric-label">Upside to target</div>
-                  <div class="metric-value" id="upsideToTarget">—</div>
-                </div>
-              </div>
+              <label for="chartAnnotation">Chart annotation <span class="muted">(optional)</span></label>
+              <textarea id="chartAnnotation" rows="3" placeholder="e.g., Note: spike reflects post-earnings repricing."></textarea>
 
-              <div class="grid-1" style="padding:0; margin-top:10px;">
-                <label for="chartAnnotation">Chart annotation <span class="muted">(optional)</span></label>
-                <textarea id="chartAnnotation" rows="3" placeholder="Note: spike reflects post-earnings repricing."></textarea>
+              <div class="metrics-grid">
+                <div class="metric"><div class="metric-label">Current Price</div><div class="metric-value" id="currentPrice">—</div></div>
+                <div class="metric"><div class="metric-label">Volatility (ann.)</div><div class="metric-value" id="realisedVol">—</div></div>
+                <div class="metric"><div class="metric-label">Return (range)</div><div class="metric-value" id="rangeReturn">—</div></div>
+                <div class="metric"><div class="metric-label">Upside to Target</div><div class="metric-value" id="upsideToTarget">—</div></div>
               </div>
             </div>
 
+            <div class="card-subhead">Scenarios (Bear / Base / Bull)</div>
+            <div class="grid-2">
+              <div>
+                <label for="scenarioBearPrice">Bear price</label>
+                <input type="text" id="scenarioBearPrice" placeholder="e.g., 380">
+                <label for="scenarioBearKey" style="margin-top:8px;">Bear key assumption</label>
+                <input type="text" id="scenarioBearKey" placeholder="e.g., margins compress, weaker demand">
+              </div>
+              <div>
+                <label for="scenarioBasePrice">Base price</label>
+                <input type="text" id="scenarioBasePrice" placeholder="e.g., 520">
+                <label for="scenarioBaseKey" style="margin-top:8px;">Base key assumption</label>
+                <input type="text" id="scenarioBaseKey" placeholder="e.g., steady growth, stable margins">
+              </div>
+            </div>
+            <div class="grid-2" style="padding-top:0;">
+              <div>
+                <label for="scenarioBullPrice">Bull price</label>
+                <input type="text" id="scenarioBullPrice" placeholder="e.g., 680">
+                <label for="scenarioBullKey" style="margin-top:8px;">Bull key assumption</label>
+                <input type="text" id="scenarioBullKey" placeholder="e.g., multiple expansion, upside surprise">
+              </div>
+              <div></div>
+            </div>
+
+            <div class="card-subhead">Model & valuation</div>
             <div class="grid-1">
-              <label for="modelFiles">Upload model files (Excel / PDF) <span class="muted">(optional)</span></label>
-              <input type="file" id="modelFiles" multiple accept=".xlsx,.xlsm,.xls,.csv,application/pdf">
-              <div class="attach-strip" id="attachmentSummary">
-                <div class="attach-head" id="attachmentSummaryHead"><strong>No files selected</strong></div>
+              <label for="modelFiles">Upload model files (Excel / PDF)</label>
+              <input type="file" id="modelFiles" multiple accept=".xlsx,.xlsm,.xls,.csv,application/pdf" required>
+
+              <div class="attach-strip" id="attachmentSummary" aria-live="polite">
+                <div id="attachmentSummaryHead">No files selected</div>
                 <div id="attachmentSummaryList" style="display:none;"></div>
               </div>
-            </div>
 
-            <div class="grid-1">
-              <label for="modelLink">Model link (Drive / SharePoint) <span class="muted">(optional)</span></label>
-              <input type="text" id="modelLink" placeholder="Paste a share link to the model" />
-            </div>
+              <label for="modelLink">Model link <span class="muted">(optional)</span></label>
+              <input type="text" id="modelLink" placeholder="Drive / SharePoint link">
 
-            <div class="grid-1">
               <label for="valuationSummary">Valuation summary <span class="muted">(optional)</span></label>
-              <textarea id="valuationSummary" rows="6" placeholder="Base-case FV per share, implied upside, and main driver(s)."></textarea>
-            </div>
+              <textarea id="valuationSummary" rows="5"></textarea>
 
-            <div class="grid-1">
               <label for="keyAssumptions">Key assumptions <span class="muted">(optional)</span></label>
-              <textarea id="keyAssumptions" rows="7" placeholder="WACC, g, margins, tax, net debt, shares..."></textarea>
-            </div>
+              <textarea id="keyAssumptions" rows="6"></textarea>
 
-            <div class="grid-1">
               <label for="scenarioNotes">Scenario / sensitivity notes <span class="muted">(optional)</span></label>
-              <textarea id="scenarioNotes" rows="5" placeholder="What breaks the thesis? Bear/base/bull drivers; key sensitivities."></textarea>
+              <textarea id="scenarioNotes" rows="5"></textarea>
             </div>
           </section>
 
-          <!-- FIGURES -->
-          <section class="card" id="sec-figures">
+          <!-- =========================
+               5) Figures
+               ========================= -->
+          <section id="sec-figures" class="card">
             <div class="card-head">
               <div>
                 <div class="card-title">5) Figures & attachments</div>
-                <div class="card-subtitle">Filenames become captions. Upload charts/screenshots for auditability.</div>
+                <div class="card-subtitle">Images are embedded at the end. Filenames become captions.</div>
               </div>
             </div>
 
             <div class="grid-1">
               <label for="imageUpload">Upload images / graphs <span class="muted">(optional)</span></label>
-              <input type="file" id="imageUpload" multiple accept="image/*" />
-              <div class="hint">Tip: Name files like “CPI_breakdown_UK.png” so captions are clean.</div>
+              <input type="file" id="imageUpload" multiple accept="image/*">
+              <div class="hint">In the narrative, refer to “Figure 1 / Figure 2 …”</div>
             </div>
           </section>
 
-          <!-- REVIEW / EXPORT -->
-          <section class="card" id="sec-review">
+          <!-- =========================
+               6) Review & export
+               ========================= -->
+          <section id="sec-review" class="card">
             <div class="card-head">
               <div>
                 <div class="card-title">6) Review & export</div>
-                <div class="card-subtitle">Pre-flight checks, compliance acknowledgement, then export.</div>
+                <div class="card-subtitle">Compliance acknowledgement, gating, and export routing.</div>
               </div>
             </div>
 
@@ -507,55 +454,82 @@ index.html
               <div class="review-block">
                 <div class="review-title">Pre-flight checklist</div>
                 <ul class="review-list">
-                  <li>Thesis is tight and falsifiable.</li>
+                  <li>Title matches thesis (no drift).</li>
                   <li>Takeaways are decision-useful.</li>
-                  <li>Risks / disconfirming evidence are stated.</li>
-                  <li>Figures or links support key claims.</li>
-                  <li>Rating/target (if Equity) is consistent with the view.</li>
+                  <li>Risks / disconfirmers included.</li>
+                  <li>Data sources are stated for key numbers.</li>
+                  <li>Equity: rating/target consistent with narrative.</li>
                 </ul>
               </div>
 
               <div class="review-block">
                 <div class="review-title">Compliance</div>
-                <label class="checkline">
-                  <input type="checkbox" id="complianceAck" />
-                  <span>I confirm this is a draft research document for internal use and I will verify figures before circulation.</span>
-                </label>
-                <div class="hint">Export is locked until this is checked.</div>
 
-                <div class="review-title" style="margin-top:10px;">Validation summary</div>
-                <div id="validationSummary" class="message">—</div>
-
-                <div class="hint">
-                  Tip: <strong>Cmd/Ctrl + Enter</strong> generates the document.
+                <div class="checkline">
+                  <input type="checkbox" id="complianceAck">
+                  <div>
+                    <div><strong>I confirm I will verify figures, tickers, and assumptions before distribution.</strong></div>
+                    <div class="hint">Export blocked until checked. Draft exports are watermarked.</div>
+                  </div>
                 </div>
+
+                <div class="review-title" style="margin-top:12px;">Validation summary</div>
+                <div class="hint" id="validationSummary">Complete required fields to enable export.</div>
               </div>
             </div>
 
             <div class="actions">
-              <button type="button" id="emailToCrgBtn" class="btn">Email to CRG research</button>
-              <button type="button" id="resetFormBtn" class="btn btn-danger">Reset</button>
-              <button type="submit" class="btn btn-primary" id="exportBtn">Generate Word document</button>
+              <button type="button" id="emailToCrgBtn" class="btn">Email to CRG Research</button>
+              <button type="button" id="resetFormBtn" class="btn">Reset</button>
+              <button type="submit" class="btn btn-primary">Generate Word Document</button>
             </div>
 
+            <div id="message" class="message"></div>
+
             <div class="footerline">
-              <div>Internal use only • Draft outputs • Verify figures and assumptions</div>
-              <div>RDT v1.1.0</div>
+              <div>Internal use only • outputs generated from user inputs and referenced data sources</div>
+              <div>CRG RDT</div>
             </div>
           </section>
 
         </form>
-
-        <div id="message" class="message" style="display:none;"></div>
       </main>
     </div>
   </div>
 
-  <!-- External Libraries -->
+  <!-- Docx + FileSaver (Word export) -->
   <script src="https://unpkg.com/docx@7.8.2/build/index.js"></script>
   <script src="https://unpkg.com/file-saver@2.0.5/dist/FileSaver.min.js"></script>
 
-  <!-- App -->
+  <!-- App JS -->
   <script src="assets/app.js"></script>
+
+  <!-- Small UI helpers (word count + status mirror) -->
+  <script>
+    function wordCount(text){
+      return (text || "").trim().split(/\s+/).filter(Boolean).length;
+    }
+    function bindCount(inputId, outId){
+      const el = document.getElementById(inputId);
+      const out = document.getElementById(outId);
+      if (!el || !out) return;
+      const paint = () => out.textContent = String(wordCount(el.value));
+      el.addEventListener("input", paint);
+      paint();
+    }
+
+    bindCount("thesis","thesisCount");
+    bindCount("execSummary","execCount");
+    bindCount("keyTakeaways","takeawayCount");
+    bindCount("analysis","analysisCount");
+    bindCount("cordobaView","cvCount");
+
+    // Mirror workflow status in topbar
+    const statusEl = document.getElementById("workflowStatus");
+    const mirror = document.getElementById("statusTextMirror");
+    function paintStatus(){ if (statusEl && mirror) mirror.textContent = statusEl.value; }
+    if (statusEl) statusEl.addEventListener("change", paintStatus);
+    paintStatus();
+  </script>
 </body>
 </html>
