@@ -4,357 +4,449 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Cordoba Research Group — Research Drafting Tool</title>
-
-  <!-- Cordoba / BlueMatrix-style UI CSS -->
-  <link rel="stylesheet" href="styles.css" />
-
-  <!-- Optional: if you already use Tailwind elsewhere, keep it. Not required for this UI. -->
-  <!-- <script src="https://cdn.tailwindcss.com"></script> -->
+  <link rel="stylesheet" href="style.css" />
 </head>
 
 <body>
-  <main id="rdtApp" class="rdt-shell">
-    <!-- =========================
-         Header / Toolbar
-    ========================== -->
-    <section class="rdt-card" style="padding:16px 16px 14px 16px;">
-      <div class="rdt-toolbar">
-        <div class="rdt-titleblock">
-          <div class="rdt-kicker">Cordoba Research Group</div>
-          <div class="rdt-title">Research Drafting Tool</div>
-          <div class="rdt-meta">
-            <span id="sessionLabel">Session</span> <strong id="sessionValue">00</strong>
-            <span style="margin:0 10px; opacity:.35;">|</span>
-            Version <strong id="versionValue">1.0</strong>
-            <span style="margin:0 10px; opacity:.35;">|</span>
-            Draft watermark: <strong id="draftWatermarkValue">ON</strong>
-            <span style="margin:0 10px; opacity:.35;">|</span>
-            Autosave: <strong id="autosaveValue">—</strong>
-          </div>
-        </div>
-
-        <div class="rdt-inline-options" style="justify-content:flex-end;">
-          <span class="rdt-kpi"><span>Completion</span> <strong id="completionValue">0 / 0</strong></span>
-          <span class="rdt-kpi"><span>Status</span> <strong id="statusPill">Draft</strong></span>
-
-          <button type="button" id="clearAutosaveBtn" class="rdt-btn-subtle">Clear autosave</button>
-          <button type="button" id="resetFormBtn" class="rdt-btn-subtle">Reset form</button>
-          <button type="button" id="jumpToFirstMissingBtn">Jump to first missing</button>
-        </div>
-      </div>
-    </section>
+  <div class="rdt-shell">
 
     <!-- =========================
-         Top Controls
-    ========================== -->
-    <section class="rdt-card" style="margin-top:12px;">
-      <h2 style="margin:0 0 10px 0;">Note builder</h2>
-      <div class="rdt-subtle" style="margin-bottom:12px;">
-        Fill the required fields, then export to Word. Use <strong>Internal</strong> for full detail, <strong>Public</strong> for website notes,
-        and <strong>Client-safe</strong> for externally shareable content.
-      </div>
-
-      <div class="rdt-grid-3">
-        <div>
-          <label for="audience">Audience</label>
-          <select id="audience" name="audience">
-            <option value="internal" selected>Internal</option>
-            <option value="public">Public</option>
-            <option value="client_safe">Client-safe</option>
-          </select>
-        </div>
-
-        <div>
-          <label for="template">Template</label>
-          <select id="template" name="template">
-            <option value="" selected>Select…</option>
-            <option value="macro">Macro Note</option>
-            <option value="equity">Equity Research</option>
-            <option value="credit">Credit / FI Note</option>
-            <option value="thematic">Thematic</option>
-            <option value="event">Event / Reaction</option>
-          </select>
-        </div>
-
-        <div>
-          <label for="noteType">Note type</label>
-          <select id="noteType" name="noteType">
-            <option value="" selected>Select…</option>
-            <option value="macro">Macro</option>
-            <option value="equity">Equity</option>
-            <option value="fixed_income">Fixed Income</option>
-            <option value="commodities">Commodities</option>
-            <option value="geopolitics">Geopolitics</option>
-          </select>
+         Top bar (bank workstation)
+         ========================= -->
+    <header class="rdt-topbar">
+      <div>
+        <div class="rdt-brand-title">Research Drafting Tool</div>
+        <div class="rdt-brand-sub">
+          <span>Cordoba Research Group</span>
+          <span class="rdt-dot">•</span>
+          <span id="sessionId">Session —</span>
+          <span class="rdt-dot">•</span>
+          <span id="saveStatus">Autosave: —</span>
+          <span class="rdt-dot">•</span>
+          <span id="draftBadge">Draft watermark: ON</span>
         </div>
       </div>
 
-      <div class="rdt-grid-2" style="margin-top:12px;">
-        <div>
-          <label for="topic">Topic</label>
-          <input id="topic" name="topic" type="text" placeholder="e.g., Indonesia FX, Uranium supply, Vietnam domestic demand..." />
-        </div>
-
-        <div>
-          <label for="title">Title</label>
-          <input id="title" name="title" type="text" placeholder="Short, investor-ready title" />
-        </div>
+      <div class="rdt-topbar-right">
+        <button class="rdt-btn rdt-btn-ghost" id="btnClearAutosave" type="button">Clear autosave</button>
+        <button class="rdt-btn rdt-btn-ghost" id="btnResetForm" type="button">Reset form</button>
       </div>
-
-      <div class="rdt-grid-3" style="margin-top:12px;">
-        <div>
-          <label for="status">Status</label>
-          <select id="status" name="status">
-            <option value="draft" selected>Draft</option>
-            <option value="review">In review</option>
-            <option value="final">Final</option>
-          </select>
-        </div>
-
-        <div>
-          <label for="reviewedBy">Reviewed by</label>
-          <select id="reviewedBy" name="reviewedBy">
-            <option value="" selected>Select…</option>
-            <option value="none">—</option>
-            <option value="lead">Lead Analyst</option>
-            <option value="editor">Editor</option>
-            <option value="ic">IC / PM</option>
-          </select>
-        </div>
-
-        <div>
-          <label for="changeNote">Change note</label>
-          <input id="changeNote" name="changeNote" type="text" placeholder="Optional (e.g., Updated data / Revised view)" />
-        </div>
-      </div>
-
-      <div class="rdt-inline-options" style="margin-top:12px;">
-        <label><input type="checkbox" id="bumpMajorOnExport" /> Bump major version on export</label>
-        <label><input type="checkbox" id="autoGenerateExecSummary" /> Auto-generate executive summary (if enabled)</label>
-      </div>
-
-      <!-- Equity-only meta (kept hidden unless JS shows it based on noteType/template) -->
-      <div id="equityMeta" class="rdt-card" style="margin-top:14px; display:none; background:rgba(132,95,15,.05); border:1px solid rgba(132,95,15,.14); box-shadow:none;">
-        <h3 style="margin:0 0 8px 0;">Equity research metadata</h3>
-
-        <div class="rdt-grid-3">
-          <div>
-            <label for="ticker">Ticker</label>
-            <input id="ticker" name="ticker" type="text" placeholder="e.g., MSAN (HOSE)" />
-          </div>
-          <div>
-            <label for="targetPrice">Target price</label>
-            <input id="targetPrice" name="targetPrice" type="text" placeholder="e.g., 102.0" />
-          </div>
-          <div>
-            <label for="crgRating">CRG rating</label>
-            <select id="crgRating" name="crgRating">
-              <option value="" selected>Select…</option>
-              <option value="buy">Buy</option>
-              <option value="hold">Hold</option>
-              <option value="sell">Sell</option>
-              <option value="watch">Watchlist</option>
-            </select>
-          </div>
-        </div>
-
-        <div class="rdt-grid-2" style="margin-top:10px;">
-          <div>
-            <label for="valuationSummary">Valuation summary</label>
-            <textarea id="valuationSummary" name="valuationSummary" placeholder="Short valuation setup (multiple, drivers, anchor)"></textarea>
-          </div>
-          <div>
-            <label for="keyAssumptions">Key assumptions</label>
-            <textarea id="keyAssumptions" name="keyAssumptions" placeholder="Revenue, margins, FX, discount rate, etc."></textarea>
-          </div>
-        </div>
-
-        <div class="rdt-grid-2" style="margin-top:10px;">
-          <div>
-            <label for="scenarioNotes">Scenario notes</label>
-            <textarea id="scenarioNotes" name="scenarioNotes" placeholder="Bull/base/bear — what changes and why"></textarea>
-          </div>
-          <div>
-            <label for="modelLink">Model link</label>
-            <input id="modelLink" name="modelLink" type="url" placeholder="Paste a link to the model (Drive/Dropbox/etc.)" />
-          </div>
-        </div>
-
-        <div class="rdt-grid-2" style="margin-top:10px;">
-          <div>
-            <label for="modelFiles">Model files (optional upload)</label>
-            <input id="modelFiles" name="modelFiles" type="file" multiple />
-          </div>
-          <div>
-            <label for="priceChart">Price chart image (optional)</label>
-            <input id="priceChart" name="priceChart" type="file" accept="image/*" />
-          </div>
-        </div>
-      </div>
-    </section>
+    </header>
 
     <!-- =========================
-         Executive summary
-    ========================== -->
-    <section class="rdt-card" style="margin-top:12px;">
-      <div class="rdt-toolbar" style="margin-bottom:8px;">
-        <h2 style="margin:0;">Executive summary</h2>
-        <div class="rdt-wordcount"><span id="execWordCount">0</span> words</div>
-      </div>
+         Main grid
+         ========================= -->
+    <main class="rdt-main">
 
-      <textarea id="executiveSummary" name="executiveSummary" placeholder="Optional — or enable auto-generate. Keep it investor-ready and tight."></textarea>
-      <div class="rdt-subtle" style="margin-top:8px;">Aim for clarity: what changed, why it matters, what we’d do about it.</div>
-    </section>
+      <!-- =========================
+           LEFT: Authoring
+           ========================= -->
+      <section class="rdt-left">
 
-    <!-- =========================
-         Author
-    ========================== -->
-    <section class="rdt-card" style="margin-top:12px;">
-      <h2 style="margin:0 0 10px 0;">Author</h2>
-
-      <div class="rdt-grid-3">
-        <div>
-          <label for="authorLastName">Last name</label>
-          <input id="authorLastName" name="authorLastName" type="text" placeholder="Rahman" />
-        </div>
-        <div>
-          <label for="authorFirstName">First name</label>
-          <input id="authorFirstName" name="authorFirstName" type="text" placeholder="Nadir" />
-        </div>
-        <div>
-          <label for="authorPhone">Phone</label>
-          <div style="display:grid; grid-template-columns: 88px 1fr; gap:10px; margin-top:6px;">
-            <select id="authorPhoneCountry" name="authorPhoneCountry" aria-label="Country code">
-              <option value="+44" selected>+44</option>
-              <option value="+1">+1</option>
-              <option value="+971">+971</option>
-              <option value="+65">+65</option>
-            </select>
-            <input id="authorPhone" name="authorPhone" type="tel" placeholder="National number" />
+        <!-- Note builder -->
+        <div class="rdt-card" id="cardNoteBuilder">
+          <div class="rdt-card-head">
+            <div>
+              <div class="rdt-card-title">Note builder</div>
+              <div class="rdt-card-sub">Choose template and metadata. Required fields drive validation and export readiness.</div>
+            </div>
+            <div class="rdt-wc"><span id="completionPct">0</span>%</div>
           </div>
-          <div class="rdt-subtle" style="margin-top:6px;">
-            Client-safe number: <strong id="authorPhoneSafe">—</strong>
+
+          <div class="rdt-grid-2">
+            <div class="rdt-field">
+              <label>Mode <span class="rdt-req">*</span></label>
+              <div class="rdt-seg" role="tablist" aria-label="Mode">
+                <button class="rdt-seg-btn active" type="button" data-mode="internal" id="modeInternal">Internal</button>
+                <button class="rdt-seg-btn" type="button" data-mode="public" id="modePublic">Public</button>
+                <button class="rdt-seg-btn" type="button" data-mode="client-safe" id="modeClientSafe">Client-safe</button>
+              </div>
+              <div class="rdt-micro">Client-safe suppresses internal language and enforces clean export styling.</div>
+              <input type="hidden" id="modeValue" value="internal" />
+            </div>
+
+            <div class="rdt-grid-2">
+              <div class="rdt-field">
+                <label>Template <span class="rdt-req">*</span></label>
+                <select id="template">
+                  <option value="">Select…</option>
+                  <option value="crg-equity">CRG Equity</option>
+                  <option value="crg-macro">CRG Macro</option>
+                  <option value="crg-credit">CRG Credit</option>
+                  <option value="crg-commodities">CRG Commodities</option>
+                </select>
+              </div>
+
+              <div class="rdt-field">
+                <label>Note type <span class="rdt-req">*</span></label>
+                <select id="noteType">
+                  <option value="">Select…</option>
+                  <option value="equity">Equity Research</option>
+                  <option value="macro">Macro Note</option>
+                  <option value="credit">Credit / FI Note</option>
+                  <option value="commodities">Commodities Note</option>
+                </select>
+              </div>
+            </div>
           </div>
-        </div>
-      </div>
 
-      <div style="margin-top:12px;">
-        <div class="rdt-toolbar">
-          <h3 style="margin:0;">Co-authors</h3>
-          <button type="button" id="addCoAuthorBtn">Add co-author</button>
-        </div>
-        <div id="coAuthors" style="margin-top:10px; display:grid; gap:10px;"></div>
-      </div>
-    </section>
+          <div class="rdt-divider"></div>
 
-    <!-- =========================
-         Key takeaways
-    ========================== -->
-    <section class="rdt-card" style="margin-top:12px;">
-      <div class="rdt-toolbar" style="margin-bottom:8px;">
-        <h2 style="margin:0;">Key takeaways</h2>
-        <div class="rdt-wordcount"><span id="takeawaysWordCount">0</span> words</div>
-      </div>
+          <div class="rdt-grid-2">
+            <div class="rdt-field">
+              <label>Topic <span class="rdt-req">*</span></label>
+              <input id="topic" type="text" placeholder="e.g., Kazakhstan uranium supply, Indonesia FX, UST curve repricing" />
+            </div>
 
-      <textarea id="keyTakeaways" name="keyTakeaways" placeholder="- Keep each takeaway on its own line&#10;- Investor-relevant, not descriptive&#10;- If it’s internal, you can be more direct"></textarea>
-      <div class="rdt-subtle" style="margin-top:8px;">Tip: treat these like the bullets a PM would copy into a morning note.</div>
-    </section>
+            <div class="rdt-field">
+              <label>Title <span class="rdt-req">*</span></label>
+              <input id="title" type="text" placeholder="Keep it sharp. Bank-style. One line." />
+            </div>
+          </div>
 
-    <!-- =========================
-         Analysis and commentary
-    ========================== -->
-    <section class="rdt-card" style="margin-top:12px;">
-      <div class="rdt-toolbar" style="margin-bottom:8px;">
-        <h2 style="margin:0;">Analysis and commentary</h2>
-        <div class="rdt-wordcount"><span id="analysisWordCount">0</span> words</div>
-      </div>
+          <div class="rdt-grid-2" style="margin-top:12px;">
+            <div class="rdt-field">
+              <label>Status</label>
+              <select id="status">
+                <option value="draft">Draft</option>
+                <option value="ready">Ready</option>
+                <option value="final">Final</option>
+              </select>
+            </div>
 
-      <textarea id="analysis" name="analysis" placeholder="Write in paragraphs. Reference figures as (Figure 1), (Figure 2), etc."></textarea>
-      <div class="rdt-subtle" style="margin-top:8px;">
-        Keep it structured: set-up → what’s priced → what’s mispriced → what would change your mind.
-      </div>
-    </section>
+            <div class="rdt-field">
+              <label>Reviewed by</label>
+              <select id="reviewedBy">
+                <option value="">Select…</option>
+                <option value="osman">Osman</option>
+                <option value="chief">Head of Research</option>
+                <option value="peer">Peer review</option>
+              </select>
+            </div>
+          </div>
 
-    <!-- =========================
-         Additional content
-    ========================== -->
-    <section class="rdt-card" style="margin-top:12px;">
-      <div class="rdt-toolbar" style="margin-bottom:8px;">
-        <h2 style="margin:0;">Additional content</h2>
-        <div class="rdt-wordcount"><span id="contentWordCount">0</span> words</div>
-      </div>
+          <div class="rdt-grid-2" style="margin-top:12px;">
+            <div class="rdt-field">
+              <label>Change note</label>
+              <input id="changeNote" type="text" placeholder="Optional: Updated valuation, refreshed comps, revised target price…" />
+            </div>
 
-      <textarea id="content" name="content" placeholder="Optional appendix / data notes / methodology / disclosures"></textarea>
-    </section>
-
-    <!-- =========================
-         The Cordoba view
-    ========================== -->
-    <section class="rdt-card" style="margin-top:12px;">
-      <div class="rdt-toolbar" style="margin-bottom:8px;">
-        <h2 style="margin:0;">The Cordoba view</h2>
-        <div class="rdt-wordcount"><span id="cordobaViewWordCount">0</span> words</div>
-      </div>
-
-      <textarea id="cordobaView" name="cordobaView" placeholder="What we think, and how we would position (internal can be explicit)."></textarea>
-    </section>
-
-    <!-- =========================
-         Figures and charts
-    ========================== -->
-    <section class="rdt-card" style="margin-top:12px;">
-      <h2 style="margin:0 0 10px 0;">Figures and charts</h2>
-
-      <div class="rdt-grid-2">
-        <div>
-          <label for="imageFiles">Upload images</label>
-          <input id="imageFiles" name="imageFiles" type="file" accept="image/*" multiple />
-          <div class="rdt-subtle" style="margin-top:8px;">
-            Add images at the end. In the text, reference as (Figure 1), (Figure 2)…
+            <div class="rdt-inline">
+              <label class="rdt-check" style="margin-top:20px;">
+                <input id="bumpMajor" type="checkbox" />
+                Bump major version on export
+              </label>
+            </div>
           </div>
         </div>
 
-        <div>
-          <label>Figure list</label>
-          <div id="figureList" style="display:grid; gap:10px;"></div>
-        </div>
-      </div>
-    </section>
+        <!-- Equity header (shown for Equity Research) -->
+        <div class="rdt-card" id="cardEquityHeader">
+          <div class="rdt-card-head rdt-card-head-compact">
+            <div>
+              <div class="rdt-card-title">Equity tear sheet header</div>
+              <div class="rdt-card-sub">These fields populate the top-of-note summary panel in Word export.</div>
+            </div>
+            <div class="rdt-wc"><span id="eqHeaderStatus">—</span></div>
+          </div>
 
-    <!-- =========================
-         Export / Validation
-    ========================== -->
-    <section class="rdt-card" style="margin-top:12px;">
-      <h2 style="margin:0 0 10px 0;">Export</h2>
+          <div class="rdt-grid-4">
+            <div class="rdt-field">
+              <label>Ticker <span class="rdt-req">*</span></label>
+              <input id="ticker" type="text" placeholder="AAPL" />
+            </div>
 
-      <div class="rdt-inline-options" style="margin-bottom:10px;">
-        <label><input type="checkbox" id="confirmReady" /> I confirm the draft is ready to export.</label>
-        <label><input type="checkbox" id="emailRouting" /> Email routing</label>
-      </div>
+            <div class="rdt-field">
+              <label>Target price <span class="rdt-req">*</span></label>
+              <input id="targetPrice" type="text" placeholder="210" />
+            </div>
 
-      <div class="rdt-grid-2">
-        <div>
-          <button type="button" id="exportBtn" class="rdt-btn-primary">Generate Word Document</button>
-          <div class="rdt-subtle" style="margin-top:10px;">
-            Export creates a Word doc in the selected template format and applies draft watermark rules.
+            <div class="rdt-field">
+              <label>Currency</label>
+              <select id="tpCurrency">
+                <option value="USD">USD</option>
+                <option value="GBP">GBP</option>
+                <option value="EUR">EUR</option>
+                <option value="HKD">HKD</option>
+              </select>
+            </div>
+
+            <div class="rdt-field">
+              <label>CRG rating <span class="rdt-req">*</span></label>
+              <select id="crgRating">
+                <option value="">Select…</option>
+                <option value="buy">BUY</option>
+                <option value="hold">HOLD</option>
+                <option value="sell">SELL</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="rdt-grid-2" style="margin-top:12px;">
+            <div class="rdt-field">
+              <label>Valuation summary</label>
+              <textarea id="valuationSummary" placeholder="Method, comp set, key bridge, quick sensitivity notes (2–4 lines)."></textarea>
+              <div class="rdt-micro">Used in tear sheet panel and valuation section header callout.</div>
+            </div>
+
+            <div class="rdt-field">
+              <label>Equity stats (optional)</label>
+              <textarea id="equityStats" placeholder="Market cap, EV/EBITDA, P/E, FCF yield, ROIC, net debt/EBITDA — keep it tight."></textarea>
+              <div class="rdt-micro">If supplied, appears as a stats block in the tear sheet.</div>
+            </div>
           </div>
         </div>
 
-        <div>
-          <label>Validation</label>
-          <div id="validationList" aria-live="polite">—</div>
-          <div class="rdt-subtle" style="margin-top:10px;">
-            Quick link: <a href="#" id="quickLink">Open missing field</a>
+        <!-- Author -->
+        <div class="rdt-card" id="cardAuthor">
+          <div class="rdt-card-head">
+            <div>
+              <div class="rdt-card-title">Author</div>
+              <div class="rdt-card-sub">Author metadata prints in the footer and compliance block.</div>
+            </div>
+            <div class="rdt-wc"><span id="authorStatus">—</span></div>
+          </div>
+
+          <div class="rdt-grid-3">
+            <div class="rdt-field">
+              <label>Last name <span class="rdt-req">*</span></label>
+              <input id="authorLastName" type="text" placeholder="Rahman" />
+            </div>
+            <div class="rdt-field">
+              <label>First name <span class="rdt-req">*</span></label>
+              <input id="authorFirstName" type="text" placeholder="Nadir" />
+            </div>
+            <div class="rdt-field">
+              <label>Phone</label>
+              <div class="rdt-split">
+                <select id="authorDial">
+                  <option value="+44">+44</option>
+                  <option value="+1">+1</option>
+                  <option value="+971">+971</option>
+                  <option value="+65">+65</option>
+                </select>
+                <input id="authorPhone" type="tel" placeholder="Number" />
+              </div>
+              <div class="rdt-micro">Used only for internal exports unless client-safe is selected.</div>
+            </div>
+          </div>
+
+          <div class="rdt-divider"></div>
+
+          <div class="rdt-card-head rdt-card-head-compact">
+            <div>
+              <div class="rdt-card-title">Co-authors</div>
+              <div class="rdt-card-sub">Add additional authors. These print under the author line.</div>
+            </div>
+            <button class="rdt-btn rdt-btn-ghost" id="btnAddCoAuthor" type="button">Add co-author</button>
+          </div>
+
+          <div class="rdt-coauthors" id="coAuthorsList">
+            <div class="rdt-empty" id="coAuthorsEmpty">No co-authors added.</div>
           </div>
         </div>
-      </div>
-    </section>
 
-    <!-- Footer spacing -->
-    <div style="height:24px;"></div>
-  </main>
+        <!-- Investment thesis -->
+        <div class="rdt-card" id="cardThesis">
+          <div class="rdt-card-head">
+            <div>
+              <div class="rdt-card-title">Investment thesis <span class="rdt-req">*</span></div>
+              <div class="rdt-card-sub">This is the top narrative paragraph under the tear sheet (bank-style).</div>
+            </div>
+            <div class="rdt-wc"><span id="wcThesis">0</span> words</div>
+          </div>
 
-  <!-- Your “final product” JS (the one we just wrote) -->
-  <script src="assets/app.js"></script>
+          <textarea id="investmentThesis" placeholder="Start with what’s mispriced, why it matters, and what changes the story. Tight, specific, bank tone."></textarea>
+          <div class="rdt-helper">Aim for 6–10 lines. No filler. Avoid generic macro language.</div>
+        </div>
+
+        <!-- Key takeaways -->
+        <div class="rdt-card" id="cardTakeaways">
+          <div class="rdt-card-head">
+            <div>
+              <div class="rdt-card-title">Key takeaways <span class="rdt-req">*</span></div>
+              <div class="rdt-card-sub">3–7 lines. Each line exports as a bullet on the front page.</div>
+            </div>
+            <div class="rdt-wc"><span id="wcTakeaways">0</span> words</div>
+          </div>
+
+          <textarea id="keyTakeaways" placeholder="- 1 line per takeaway. Keep each point standalone."></textarea>
+        </div>
+
+        <!-- Company analysis -->
+        <div class="rdt-card" id="cardCompanyAnalysis">
+          <div class="rdt-card-head">
+            <div>
+              <div class="rdt-card-title">Company analysis <span class="rdt-req">*</span></div>
+              <div class="rdt-card-sub">Business model, drivers, catalysts, and what the market misses.</div>
+            </div>
+            <div class="rdt-wc"><span id="wcCompany">0</span> words</div>
+          </div>
+
+          <textarea id="companyAnalysis" placeholder="Structure: (1) Business model (2) Why now (3) Catalysts (4) Risks."></textarea>
+        </div>
+
+        <!-- Valuation -->
+        <div class="rdt-card" id="cardValuation">
+          <div class="rdt-card-head">
+            <div>
+              <div class="rdt-card-title">Valuation <span class="rdt-req">*</span></div>
+              <div class="rdt-card-sub">Method, bridge, key sensitivities. This exports with clean subheads.</div>
+            </div>
+            <div class="rdt-wc"><span id="wcValuation">0</span> words</div>
+          </div>
+
+          <textarea id="valuation" placeholder="DCF / comps / SOTP. Call out the key assumption that moves value most."></textarea>
+        </div>
+
+        <!-- Key assumptions -->
+        <div class="rdt-card" id="cardAssumptions">
+          <div class="rdt-card-head">
+            <div>
+              <div class="rdt-card-title">Key assumptions <span class="rdt-req">*</span></div>
+              <div class="rdt-card-sub">Revenue, margins, WACC/terminal, unit economics. Exports as a table-like block.</div>
+            </div>
+            <div class="rdt-wc"><span id="wcAssumptions">0</span> words</div>
+          </div>
+
+          <textarea id="keyAssumptions" placeholder="Write as short lines. Example: FY26E revenue +12%, EBIT margin 18%, WACC 9.2%, terminal 2.0%."></textarea>
+        </div>
+
+        <!-- Scenarios -->
+        <div class="rdt-card" id="cardScenarios">
+          <div class="rdt-card-head">
+            <div>
+              <div class="rdt-card-title">Scenarios</div>
+              <div class="rdt-card-sub">Base / bull / bear with triggers and probability. Optional but recommended.</div>
+            </div>
+            <div class="rdt-wc"><span id="wcScenarios">0</span> words</div>
+          </div>
+
+          <textarea id="scenarios" placeholder="Base: … (60%) | Bull: … (25%) | Bear: … (15%). Keep it crisp."></textarea>
+        </div>
+
+        <!-- Appendix -->
+        <div class="rdt-card" id="cardAppendix">
+          <div class="rdt-card-head">
+            <div>
+              <div class="rdt-card-title">Appendix</div>
+              <div class="rdt-card-sub">Extra detail, data notes, model links, or compliance language.</div>
+            </div>
+            <div class="rdt-wc"><span id="wcAppendix">0</span> words</div>
+          </div>
+
+          <textarea id="appendix" placeholder="Optional: data definitions, comp tables, methodology notes."></textarea>
+        </div>
+
+        <!-- Cordoba view -->
+        <div class="rdt-card" id="cardCordobaView">
+          <div class="rdt-card-head">
+            <div>
+              <div class="rdt-card-title">The Cordoba view <span class="rdt-req">*</span></div>
+              <div class="rdt-card-sub">One paragraph: rating logic, risk/reward, what changes your mind.</div>
+            </div>
+            <div class="rdt-wc"><span id="wcCordoba">0</span> words</div>
+          </div>
+
+          <textarea id="cordobaView" placeholder="Speak plainly. Strong view. Clear why. Define the watch items."></textarea>
+        </div>
+
+        <!-- Figures -->
+        <div class="rdt-card" id="cardFigures">
+          <div class="rdt-card-head">
+            <div>
+              <div class="rdt-card-title">Figures and charts</div>
+              <div class="rdt-card-sub">Upload figures at the end; reference as “Figure 1”, “Figure 2” inside the note.</div>
+            </div>
+            <div class="rdt-wc"><span id="figCount">0</span> figures</div>
+          </div>
+
+          <div class="rdt-grid-2">
+            <div class="rdt-field">
+              <label>Upload images</label>
+              <input id="figureFiles" type="file" multiple accept="image/*" />
+              <div class="rdt-micro">PNG/JPG recommended. Captions can be edited below after upload.</div>
+            </div>
+            <div class="rdt-field">
+              <label>Price chart (optional)</label>
+              <input id="priceChartFile" type="file" accept="image/*" />
+              <div class="rdt-micro">If supplied, prints in the tear sheet.</div>
+            </div>
+          </div>
+
+          <div class="rdt-divider"></div>
+
+          <div class="rdt-figures" id="figuresList">
+            <div class="rdt-empty" id="figuresEmpty">No figures uploaded yet.</div>
+          </div>
+        </div>
+
+      </section>
+
+      <!-- =========================
+           RIGHT: Export / validation
+           ========================= -->
+      <aside class="rdt-right">
+
+        <div class="rdt-card rdt-sticky" id="cardExport">
+          <div class="rdt-card-head">
+            <div>
+              <div class="rdt-card-title">Export</div>
+              <div class="rdt-card-sub">Validation is strict. Export produces a bank-style Word note with a tear sheet.</div>
+            </div>
+          </div>
+
+          <label class="rdt-check" style="margin-top:2px;">
+            <input id="confirmReady" type="checkbox" />
+            I confirm the draft is ready to export.
+          </label>
+
+          <div class="rdt-actions">
+            <button class="rdt-btn rdt-btn-primary" id="btnExportWord" type="button">Generate Word Document</button>
+            <button class="rdt-btn rdt-btn-ghost" id="btnJumpMissing" type="button">Jump to first missing</button>
+          </div>
+
+          <div class="rdt-kpis">
+            <div class="rdt-kpi">
+              <div class="rdt-kpi-label">Completion</div>
+              <div class="rdt-kpi-value"><span id="kpiCompletion">0</span>%</div>
+            </div>
+            <div class="rdt-kpi">
+              <div class="rdt-kpi-label">Autosave</div>
+              <div class="rdt-kpi-value" id="kpiAutosave">—</div>
+            </div>
+          </div>
+
+          <div class="rdt-divider"></div>
+
+          <div id="validationBox" class="rdt-warn" style="display:none;">
+            Missing required fields. Fix these before exporting:
+            <ul class="rdt-miss" id="missingList"></ul>
+          </div>
+
+          <div id="readyBox" class="rdt-ok" style="display:none;">
+            Validation: ready to export.
+          </div>
+
+          <div class="rdt-divider"></div>
+
+          <div class="rdt-shortcuts">
+            <div><span class="rdt-chip">Ctrl</span> + <span class="rdt-chip">S</span> → force save</div>
+            <div><span class="rdt-chip">Ctrl</span> + <span class="rdt-chip">Enter</span> → export (if valid)</div>
+            <div class="rdt-muted">Client-safe mode applies clean wording + removes phone number.</div>
+          </div>
+        </div>
+
+      </aside>
+
+    </main>
+
+    <!-- Toast -->
+    <div class="rdt-toast" id="toast">Saved</div>
+
+  </div>
+
+  <!-- Your app JS (must exist) -->
+  <script src="app.js"></script>
 </body>
 </html>
