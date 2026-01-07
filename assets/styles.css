@@ -1,467 +1,620 @@
-/* =====================================================================
-   Cordoba Research Group — RDT (BlueMatrix-style UI)
-   styles.css
+/* =========================================================
+   Cordoba Research Group — RDT (Bank-grade workstation UI)
+   File: style.css
+   Works with app.js markup (.rdt-*)
+   ========================================================= */
 
-   Goals:
-   - “Terminal-grade” professional authoring UI
-   - Dense but readable: clear hierarchy, strong grids, subtle borders
-   - Works with BOTH:
-     (A) your existing HTML form IDs
-     (B) the fallback UI this JS can generate (rdt-shell / rdt-card)
-
-   Brand hints:
-   - Cordoba Gold: #845F0F (or #9A690F if you prefer)
-   - Soft paper: #FFF7F0 / #FFFCF9
-   - Headings: Times (classic research note vibe)
-   - Body: Helvetica (light)
-
-   ===================================================================== */
-
-/* -------------------------
-   CSS Variables
--------------------------- */
 :root{
-  --bg: #FFFCF9;
-  --paper: #FFFFFF;
-  --paper2: #FFF7F0;
+  --ink:#0B0E14;
+  --muted:rgba(11,14,20,.62);
+  --muted2:rgba(11,14,20,.44);
+  --border:rgba(11,14,20,.10);
+  --border2:rgba(11,14,20,.14);
+  --bg:#FFFCF9;
+  --card:#FFFFFF;
+  --gold:#845F0F;
+  --soft:#FFF7F0;
 
-  --ink: #0F0F0F;
-  --muted: rgba(15,15,15,.68);
-  --muted2: rgba(15,15,15,.55);
+  --shadow:0 12px 36px rgba(11,14,20,.06);
+  --shadow2:0 10px 28px rgba(11,14,20,.08);
 
-  --border: rgba(15,15,15,.12);
-  --border2: rgba(15,15,15,.08);
-
-  --shadowSoft: 0 14px 40px rgba(0,0,0,.06);
-  --shadowTight: 0 10px 22px rgba(0,0,0,.05);
-
-  --radiusXL: 18px;
-  --radiusLG: 14px;
-  --radiusMD: 12px;
-
-  --gold: #845F0F;     /* swap to #9A690F if you want */
-  --goldSoft: rgba(132,95,15,.10);
-  --focus: rgba(132,95,15,.25);
+  --radius:16px;
+  --radius2:14px;
 
   --mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
   --body: Helvetica, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
   --heading: "Times New Roman", Times, serif;
-
-  --fs-12: 12px;
-  --fs-13: 13px;
-  --fs-14: 14px;
-  --fs-16: 16px;
-  --fs-18: 18px;
-  --fs-22: 22px;
-  --fs-28: 28px;
-
-  --lh: 1.55;
 }
 
-/* -------------------------
-   Global base
--------------------------- */
-html, body{
-  height: 100%;
-}
+*{ box-sizing:border-box; }
+html,body{ height:100%; }
 body{
-  margin: 0;
-  background: var(--bg);
-  color: var(--ink);
-  font-family: var(--body);
-  line-height: var(--lh);
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
+  margin:0;
+  background:var(--bg);
+  color:var(--ink);
+  font-family:var(--body);
+  -webkit-font-smoothing:antialiased;
+  -moz-osx-font-smoothing:grayscale;
 }
 
-/* Make images behave */
-img{
-  max-width: 100%;
-  height: auto;
-}
-
-/* Links */
-a{
-  color: var(--gold);
-  text-decoration: none;
-}
-a:hover{
-  text-decoration: underline;
-}
-
-/* -------------------------
-   Shell / Layout
--------------------------- */
-#rdtApp{
-  width: 100%;
-}
-
-/* fallback wrapper produced by JS */
+/* Shell */
 .rdt-shell{
-  padding: 18px;
-  max-width: 1180px;
-  margin: 0 auto;
+  min-height:100vh;
+  display:flex;
+  flex-direction:column;
 }
 
-/* Optional: if your existing HTML has a main container, this helps */
-.rdt-container,
-.container,
-main{
-  max-width: 1180px;
-  margin: 0 auto;
+/* Top bar */
+.rdt-topbar{
+  position:sticky;
+  top:0;
+  z-index:50;
+  background:rgba(255,252,249,.85);
+  backdrop-filter:saturate(180%) blur(10px);
+  border-bottom:1px solid var(--border);
+  padding:14px 18px;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:14px;
 }
 
-/* Section headings */
-h1, h2, h3{
-  font-family: var(--heading);
-  letter-spacing: -0.01em;
-  margin: 0 0 10px 0;
-}
-h1{ font-size: var(--fs-28); }
-h2{ font-size: var(--fs-22); }
-h3{ font-size: var(--fs-18); }
-
-/* Research-note style subtitle blocks */
-.rdt-subtle{
-  font-size: var(--fs-12);
-  color: var(--muted2);
+.rdt-brand-title{
+  font-family:var(--heading);
+  font-size:20px;
+  font-weight:700;
+  letter-spacing:.2px;
+  line-height:1.05;
 }
 
-/* -------------------------
-   Cards (BlueMatrix-ish)
--------------------------- */
+.rdt-brand-sub{
+  margin-top:4px;
+  font-size:12px;
+  color:var(--muted);
+  display:flex;
+  align-items:center;
+  gap:8px;
+  flex-wrap:wrap;
+}
+
+.rdt-dot{ opacity:.6; }
+
+.rdt-topbar-right{
+  display:flex;
+  align-items:center;
+  gap:10px;
+}
+
+/* Main layout */
+.rdt-main{
+  width:min(1280px, calc(100% - 40px));
+  margin:18px auto 26px auto;
+  display:grid;
+  grid-template-columns: 1fr 360px;
+  gap:16px;
+}
+
+.rdt-left{ min-width:0; }
+.rdt-right{ min-width:0; }
+
+/* Cards */
 .rdt-card{
-  background: var(--paper);
-  border: 1px solid var(--border);
-  border-radius: var(--radiusXL);
-  box-shadow: var(--shadowSoft);
+  background:var(--card);
+  border:1px solid var(--border);
+  border-radius:var(--radius);
+  box-shadow:var(--shadow);
+  padding:14px 14px 12px 14px;
+  margin-bottom:14px;
 }
 
-.rdt-card + .rdt-card{
-  margin-top: 12px;
+.rdt-card-head{
+  display:flex;
+  align-items:flex-start;
+  justify-content:space-between;
+  gap:12px;
+  margin-bottom:8px;
 }
 
-/* Card inner padding helpers */
-.rdt-card,
-.rdt-card > *{
-  box-sizing: border-box;
+.rdt-card-head-compact{ margin-bottom:6px; }
+
+.rdt-card-title{
+  font-size:13px;
+  font-weight:700;
+  color:rgba(11,14,20,.92);
+  letter-spacing:.2px;
 }
 
-/* -------------------------
-   Compact “toolbar” feel
--------------------------- */
-.rdt-toolbar{
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 10px;
-  flex-wrap: wrap;
+.rdt-card-sub{
+  margin-top:2px;
+  font-size:12px;
+  color:var(--muted);
+  line-height:1.45;
 }
 
-.rdt-titleblock{
-  display: grid;
-  gap: 4px;
+.rdt-helper{
+  font-size:12px;
+  color:var(--muted);
+  line-height:1.45;
+  margin:2px 0 10px 0;
 }
 
-.rdt-titleblock .rdt-kicker{
-  font-size: var(--fs-12);
-  color: var(--muted2);
-  letter-spacing: .16em;
-  text-transform: uppercase;
+.rdt-divider{
+  height:1px;
+  background:var(--border);
+  margin:12px 0;
 }
 
-.rdt-titleblock .rdt-title{
-  font-family: var(--heading);
-  font-weight: 700;
-  font-size: var(--fs-28);
-  letter-spacing: -0.02em;
+/* Sticky export card */
+.rdt-sticky{
+  position:sticky;
+  top:74px; /* leaves space for topbar */
 }
 
-.rdt-titleblock .rdt-meta{
-  font-size: var(--fs-12);
-  color: var(--muted2);
+/* Inputs */
+.rdt-field label{
+  display:block;
+  font-size:12px;
+  color:rgba(11,14,20,.78);
+  margin:0 0 6px 0;
+  font-weight:600;
 }
 
-/* -------------------------
-   Form controls
--------------------------- */
-label{
-  display: block;
-  font-size: var(--fs-12);
-  color: var(--muted);
+.rdt-req{
+  color:var(--gold);
+  font-weight:800;
+  margin-left:4px;
 }
 
-/* Inputs / Selects / Textareas */
 input[type="text"],
 input[type="email"],
 input[type="tel"],
-input[type="url"],
-input[type="number"],
 select,
 textarea{
-  width: 100%;
-  box-sizing: border-box;
-  margin-top: 6px;
-  padding: 10px 12px;
-  border-radius: var(--radiusLG);
-  border: 1px solid var(--border);
-  background: var(--paper);
-  color: var(--ink);
-  font-family: var(--body);
-  font-size: var(--fs-14);
-  outline: none;
-  transition: box-shadow .15s ease, border-color .15s ease, background .15s ease;
+  width:100%;
+  font-family:var(--body);
+  font-size:13px;
+  color:var(--ink);
+  background:rgba(255,255,255,.98);
+  border:1px solid var(--border2);
+  border-radius:12px;
+  padding:10px 10px;
+  outline:none;
+  transition: box-shadow .15s ease, border-color .15s ease, transform .15s ease;
 }
 
 textarea{
-  min-height: 120px;
-  resize: vertical;
-  line-height: 1.6;
+  resize:vertical;
+  min-height:120px;
+  line-height:1.5;
 }
 
-/* Placeholder */
-::placeholder{
-  color: rgba(15,15,15,.38);
+select{
+  padding:10px 10px;
+  background-image: linear-gradient(45deg, transparent 50%, rgba(11,14,20,.55) 50%),
+                    linear-gradient(135deg, rgba(11,14,20,.55) 50%, transparent 50%);
+  background-position: calc(100% - 16px) calc(1em + 2px),
+                       calc(100% - 11px) calc(1em + 2px);
+  background-size: 5px 5px, 5px 5px;
+  background-repeat:no-repeat;
+  appearance:none;
 }
 
-/* Focus */
-input:focus,
-select:focus,
-textarea:focus{
-  border-color: rgba(132,95,15,.40);
-  box-shadow: 0 0 0 5px var(--focus);
+input:focus, select:focus, textarea:focus{
+  border-color:rgba(132,95,15,.40);
+  box-shadow:0 0 0 4px rgba(132,95,15,.10);
 }
 
-/* Disabled */
-input:disabled,
-select:disabled,
-textarea:disabled{
-  opacity: .7;
-  background: rgba(0,0,0,.03);
+.rdt-micro{
+  margin-top:6px;
+  font-size:11px;
+  color:var(--muted2);
 }
 
-/* Checkbox / radio alignment */
-input[type="checkbox"],
-input[type="radio"]{
+.rdt-split{
+  display:grid;
+  grid-template-columns: 86px 1fr;
+  gap:8px;
+}
+
+input[type="file"]{
+  width:100%;
+  font-size:12px;
+}
+
+/* Grids */
+.rdt-grid-2{
+  display:grid;
+  grid-template-columns: 1fr 1fr;
+  gap:12px;
+}
+
+.rdt-grid-3{
+  display:grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap:12px;
+}
+
+.rdt-grid-4{
+  display:grid;
+  grid-template-columns: 1fr 1fr 1fr 1fr;
+  gap:12px;
+}
+
+.rdt-row-2{
+  display:grid;
+  grid-template-columns: 1fr 1fr;
+  gap:14px;
+}
+
+/* Word count */
+.rdt-wc{
+  font-size:11px;
+  color:var(--muted2);
+  font-family:var(--mono);
+}
+
+/* Segment buttons (Mode) */
+.rdt-seg{
+  display:flex;
+  gap:8px;
+  padding:6px;
+  border:1px solid var(--border);
+  border-radius:14px;
+  background:rgba(255,247,240,.55);
+}
+
+.rdt-seg-btn{
+  flex:1;
+  border:1px solid transparent;
+  background:transparent;
+  color:rgba(11,14,20,.72);
+  font-size:12px;
+  font-weight:700;
+  padding:9px 10px;
+  border-radius:12px;
+  cursor:pointer;
+  transition: background .15s ease, border-color .15s ease, transform .15s ease;
+}
+
+.rdt-seg-btn:hover{
+  background:rgba(255,255,255,.55);
+  border-color:rgba(11,14,20,.08);
+}
+
+.rdt-seg-btn.active{
+  background:#fff;
+  border-color:rgba(132,95,15,.30);
+  box-shadow:0 10px 22px rgba(132,95,15,.08);
+  color:rgba(11,14,20,.92);
+}
+
+/* Checks */
+.rdt-inline{
+  display:flex;
+  align-items:center;
+  gap:14px;
+  flex-wrap:wrap;
+}
+
+.rdt-check{
+  display:inline-flex;
+  align-items:center;
+  gap:10px;
+  font-size:12px;
+  color:rgba(11,14,20,.78);
+  user-select:none;
+}
+
+.rdt-check input{
+  width:16px;
+  height:16px;
   accent-color: var(--gold);
 }
 
-/* Small inline options */
-.rdt-inline-options{
-  display: flex;
-  gap: 10px;
-  align-items: center;
-  flex-wrap: wrap;
-}
-.rdt-inline-options label{
-  display: inline-flex;
-  gap: 8px;
-  align-items: center;
-  font-size: var(--fs-13);
-  color: rgba(15,15,15,.75);
+/* Buttons */
+.rdt-btn{
+  border-radius:12px;
+  padding:10px 12px;
+  font-size:12px;
+  font-weight:800;
+  border:1px solid var(--border2);
+  cursor:pointer;
+  transition: transform .12s ease, box-shadow .12s ease, background .12s ease, border-color .12s ease, opacity .12s ease;
+  white-space:nowrap;
 }
 
-/* -------------------------
-   Buttons
--------------------------- */
-button,
-input[type="button"],
-input[type="submit"]{
-  appearance: none;
-  -webkit-appearance: none;
-  border: 1px solid var(--border);
-  background: var(--paper);
-  color: rgba(15,15,15,.82);
-  border-radius: 999px;
-  padding: 10px 14px;
-  font-size: var(--fs-13);
-  font-family: var(--body);
-  cursor: pointer;
-  transition: transform .08s ease, box-shadow .15s ease, background .15s ease, border-color .15s ease;
-  box-shadow: 0 8px 18px rgba(0,0,0,.05);
+.rdt-btn:active{ transform: translateY(1px); }
+
+.rdt-btn-ghost{
+  background:rgba(255,255,255,.75);
+  color:rgba(11,14,20,.86);
 }
 
-button:hover,
-input[type="button"]:hover,
-input[type="submit"]:hover{
-  background: var(--paper2);
-  border-color: rgba(132,95,15,.22);
+.rdt-btn-ghost:hover{
+  background:#fff;
+  border-color:rgba(11,14,20,.18);
+  box-shadow:var(--shadow2);
 }
 
-button:active,
-input[type="button"]:active,
-input[type="submit"]:active{
-  transform: translateY(1px);
-  box-shadow: 0 6px 12px rgba(0,0,0,.06);
+.rdt-btn-primary{
+  background:var(--gold);
+  border-color:rgba(132,95,15,.65);
+  color:#fff;
+  box-shadow:0 12px 22px rgba(132,95,15,.18);
 }
 
-/* Primary button variant */
-.rdt-btn-primary,
-button#exportBtn{
-  background: var(--gold);
-  border-color: rgba(0,0,0,.0);
-  color: #fff;
-  box-shadow: 0 12px 24px rgba(132,95,15,.22);
-}
-.rdt-btn-primary:hover,
-button#exportBtn:hover{
-  background: #7A560E;
-}
-.rdt-btn-primary:active,
-button#exportBtn:active{
-  transform: translateY(1px);
+.rdt-btn-primary:hover{
+  opacity:.96;
+  box-shadow:0 14px 28px rgba(132,95,15,.22);
 }
 
-/* Subtle button */
-.rdt-btn-subtle{
-  background: rgba(0,0,0,.02);
+.rdt-actions{
+  display:flex;
+  gap:10px;
+  margin-top:12px;
 }
 
-/* -------------------------
-   Grids (dense, BlueMatrix-like)
--------------------------- */
-.rdt-grid-2{
-  display: grid;
+/* KPIs */
+.rdt-kpis{
+  display:grid;
   grid-template-columns: 1fr 1fr;
-  gap: 14px;
-}
-.rdt-grid-3{
-  display: grid;
-  grid-template-columns: 1fr 1fr 1fr;
-  gap: 10px;
+  gap:10px;
+  margin-top:12px;
 }
 
-@media (max-width: 980px){
-  .rdt-grid-2{ grid-template-columns: 1fr; }
-  .rdt-grid-3{ grid-template-columns: 1fr; }
-}
-
-/* -------------------------
-   Section cards content spacing
--------------------------- */
-.rdt-card{
-  padding: 14px;
-}
-
-/* If your existing HTML already has headings inside cards */
-.rdt-card h2,
-.rdt-card h3{
-  margin-bottom: 8px;
-}
-
-/* Word count label */
-.rdt-wordcount{
-  font-size: var(--fs-12);
-  color: var(--muted2);
-  font-family: var(--mono);
-}
-
-/* -------------------------
-   Validation / Completion panel
--------------------------- */
-#validationList{
-  background: rgba(132,95,15,.06);
-  border: 1px solid rgba(132,95,15,.14);
-  border-radius: var(--radiusLG);
-  padding: 10px 12px;
-  color: rgba(15,15,15,.78);
-}
-
-#completionValue{
-  font-family: var(--mono);
-  font-size: var(--fs-12);
-  color: rgba(15,15,15,.78);
-}
-
-/* -------------------------
-   Figures list (clean and tight)
--------------------------- */
-#figureList > div{
-  background: rgba(0,0,0,.015);
-  border: 1px solid var(--border2);
-  border-radius: var(--radiusLG);
-  box-shadow: 0 10px 18px rgba(0,0,0,.03);
-}
-
-/* File input nicer */
-input[type="file"]{
-  font-size: var(--fs-13);
-  color: rgba(15,15,15,.75);
-}
-input[type="file"]::file-selector-button{
-  border: 1px solid var(--border);
-  background: var(--paper);
-  border-radius: 999px;
-  padding: 8px 12px;
-  margin-right: 10px;
-  cursor: pointer;
-}
-input[type="file"]::file-selector-button:hover{
-  background: var(--paper2);
-}
-
-/* -------------------------
-   “Research terminal” touches
--------------------------- */
 .rdt-kpi{
-  display: inline-flex;
-  gap: 8px;
-  align-items: center;
-  padding: 6px 10px;
-  border-radius: 999px;
-  border: 1px solid var(--border2);
-  background: rgba(255,255,255,.7);
-  font-size: var(--fs-12);
-  color: rgba(15,15,15,.72);
-}
-.rdt-kpi strong{
-  font-family: var(--mono);
-  font-weight: 700;
-  color: rgba(15,15,15,.85);
+  border:1px solid var(--border);
+  border-radius:14px;
+  padding:10px 10px;
+  background:rgba(255,247,240,.35);
 }
 
-/* Tiny separators */
-hr{
-  border: none;
-  height: 1px;
-  background: rgba(15,15,15,.10);
+.rdt-kpi-label{
+  font-size:11px;
+  color:var(--muted2);
+  font-weight:700;
 }
 
-/* -------------------------
-   Make any legacy “broken” form look modern
-   (If your old HTML uses plain <select> / <input> without wrapper)
--------------------------- */
-
-/* Common legacy field stacks */
-fieldset{
-  border: 1px solid var(--border);
-  border-radius: var(--radiusXL);
-  padding: 14px;
-  background: var(--paper);
-  box-shadow: var(--shadowSoft);
-}
-legend{
-  font-family: var(--heading);
-  font-weight: 700;
-  padding: 0 8px;
+.rdt-kpi-value{
+  margin-top:3px;
+  font-size:14px;
+  font-weight:900;
+  letter-spacing:.2px;
 }
 
-/* Reduce giant whitespace if legacy textareas are too small/large */
-textarea{
-  border-radius: var(--radiusXL);
+/* Validation list */
+.rdt-validation{
+  font-size:12px;
+  color:rgba(11,14,20,.80);
+  line-height:1.45;
 }
 
-/* -------------------------
-   Print polish (optional)
--------------------------- */
-@media print{
-  body{
-    background: #fff;
+.rdt-ok{
+  padding:10px 10px;
+  border-radius:14px;
+  background:rgba(46,125,50,.08);
+  border:1px solid rgba(46,125,50,.18);
+  color:rgba(18,90,26,.95);
+  font-weight:800;
+}
+
+.rdt-warn{
+  padding:10px 10px;
+  border-radius:14px;
+  background:rgba(178,106,0,.08);
+  border:1px solid rgba(178,106,0,.16);
+  color:rgba(124,72,0,.95);
+  font-weight:800;
+  margin-bottom:10px;
+}
+
+.rdt-miss{
+  margin:0;
+  padding-left:18px;
+}
+
+.rdt-miss li{
+  margin:6px 0;
+  color:rgba(11,14,20,.74);
+}
+
+.rdt-miss a{
+  color:rgba(11,14,20,.86);
+  text-decoration:none;
+  border-bottom:1px dotted rgba(132,95,15,.35);
+}
+
+.rdt-miss a:hover{
+  color:var(--gold);
+  border-bottom-color:rgba(132,95,15,.70);
+}
+
+.rdt-muted{ color:var(--muted2); }
+
+/* Shortcuts */
+.rdt-shortcuts{
+  display:grid;
+  gap:8px;
+  font-size:12px;
+  color:rgba(11,14,20,.72);
+}
+
+.rdt-chip{
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  padding:2px 8px;
+  border-radius:999px;
+  border:1px solid var(--border);
+  background:rgba(255,247,240,.55);
+  font-family:var(--mono);
+  font-size:11px;
+  color:rgba(11,14,20,.78);
+}
+
+/* Co-authors */
+.rdt-coauthors{
+  display:grid;
+  gap:10px;
+}
+
+.rdt-coauthor{
+  border:1px solid var(--border);
+  border-radius:14px;
+  padding:10px;
+  display:flex;
+  gap:10px;
+  justify-content:space-between;
+  align-items:flex-start;
+  background:rgba(255,247,240,.24);
+}
+
+.rdt-coauthor-main{
+  flex:1;
+  min-width:0;
+}
+
+.rdt-coauthor-name{
+  margin-bottom:8px;
+}
+
+.rdt-coauthor-meta{
+  display:grid;
+  grid-template-columns: 1fr 1fr;
+  gap:8px;
+}
+
+.rdt-coauthor-actions{
+  display:flex;
+  gap:8px;
+}
+
+.rdt-coauthor-input{
+  padding:9px 10px;
+  border-radius:12px;
+}
+
+/* Figures */
+.rdt-figures{
+  display:grid;
+  gap:10px;
+}
+
+.rdt-figure{
+  border:1px solid var(--border);
+  border-radius:14px;
+  padding:10px;
+  background:rgba(255,255,255,.72);
+  display:flex;
+  gap:10px;
+  justify-content:space-between;
+}
+
+.rdt-figure-left{
+  min-width:0;
+  flex:1;
+}
+
+.rdt-figure-tag{
+  display:inline-flex;
+  align-items:center;
+  gap:8px;
+  padding:4px 10px;
+  border-radius:999px;
+  background:rgba(132,95,15,.10);
+  border:1px solid rgba(132,95,15,.20);
+  color:rgba(132,95,15,.95);
+  font-size:11px;
+  font-weight:900;
+  font-family:var(--mono);
+  width:fit-content;
+}
+
+.rdt-figure-name{
+  margin-top:8px;
+  font-size:12px;
+  font-weight:800;
+  color:rgba(11,14,20,.90);
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
+
+.rdt-figure-meta{
+  margin-top:4px;
+  font-size:11px;
+  color:var(--muted2);
+}
+
+.rdt-figure-caption{
+  margin-top:8px;
+  font-size:12px;
+  padding:9px 10px;
+}
+
+.rdt-figure-actions{
+  display:flex;
+  align-items:flex-start;
+}
+
+/* Empty states */
+.rdt-empty{
+  font-size:12px;
+  color:var(--muted2);
+  padding:10px 0;
+}
+
+/* Toast */
+.rdt-toast{
+  position:fixed;
+  left:50%;
+  bottom:18px;
+  transform:translateX(-50%) translateY(10px);
+  background:rgba(11,14,20,.92);
+  color:#fff;
+  padding:10px 14px;
+  border-radius:999px;
+  font-size:12px;
+  font-weight:800;
+  opacity:0;
+  pointer-events:none;
+  transition: opacity .18s ease, transform .18s ease;
+  box-shadow:0 18px 40px rgba(11,14,20,.20);
+  z-index:1000;
+}
+
+.rdt-toast.show{
+  opacity:1;
+  transform:translateX(-50%) translateY(0);
+}
+
+/* Responsive */
+@media (max-width: 1080px){
+  .rdt-main{
+    grid-template-columns: 1fr;
   }
-  .rdt-card{
-    box-shadow: none;
+  .rdt-sticky{
+    position:relative;
+    top:auto;
   }
-  button, input[type="button"], input[type="submit"]{
-    display: none !important;
+  .rdt-grid-4{
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+@media (max-width: 700px){
+  .rdt-main{
+    width:calc(100% - 24px);
+  }
+  .rdt-grid-3,
+  .rdt-grid-2,
+  .rdt-row-2{
+    grid-template-columns: 1fr;
+  }
+  .rdt-topbar{
+    padding:12px 12px;
+  }
+  .rdt-topbar-right{
+    gap:8px;
   }
 }
