@@ -2,428 +2,359 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>CRG — Research Drafting Tool</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Cordoba Research Group — Research Drafting Tool</title>
 
-  <!-- IMPORTANT: make sure file exists at /assets/styles.css -->
-  <link rel="stylesheet" href="./assets/styles.css?v=2.1">
+  <!-- Cordoba / BlueMatrix-style UI CSS -->
+  <link rel="stylesheet" href="styles.css" />
+
+  <!-- Optional: if you already use Tailwind elsewhere, keep it. Not required for this UI. -->
+  <!-- <script src="https://cdn.tailwindcss.com"></script> -->
 </head>
 
 <body>
-  <div class="app">
-    <header class="topbar" role="banner">
-      <div class="topbar-left">
-        <div class="brand">
-          <div class="brand-line1">Cordoba Research Group</div>
-          <div class="brand-line2">Research Drafting Tool</div>
+  <main id="rdtApp" class="rdt-shell">
+    <!-- =========================
+         Header / Toolbar
+    ========================== -->
+    <section class="rdt-card" style="padding:16px 16px 14px 16px;">
+      <div class="rdt-toolbar">
+        <div class="rdt-titleblock">
+          <div class="rdt-kicker">Cordoba Research Group</div>
+          <div class="rdt-title">Research Drafting Tool</div>
+          <div class="rdt-meta">
+            <span id="sessionLabel">Session</span> <strong id="sessionValue">00</strong>
+            <span style="margin:0 10px; opacity:.35;">|</span>
+            Version <strong id="versionValue">1.0</strong>
+            <span style="margin:0 10px; opacity:.35;">|</span>
+            Draft watermark: <strong id="draftWatermarkValue">ON</strong>
+            <span style="margin:0 10px; opacity:.35;">|</span>
+            Autosave: <strong id="autosaveValue">—</strong>
+          </div>
         </div>
 
-        <div class="topbar-meta">
-          <div class="meta-item"><span class="meta-label">Session</span> <span id="sessionTimer">00:00</span></div>
-          <div class="meta-item"><span class="meta-label">Version</span> <span id="versionDisplay">v1.0</span></div>
-          <div class="meta-item"><span class="meta-label">Draft watermark</span> <span id="watermarkBadge">—</span></div>
-          <div class="meta-item"><span class="meta-label">Preset</span> <span id="distPresetLabel">Internal</span></div>
-          <div class="meta-item"><span class="meta-label">Autosave</span> <span id="autosaveStatus">—</span></div>
+        <div class="rdt-inline-options" style="justify-content:flex-end;">
+          <span class="rdt-kpi"><span>Completion</span> <strong id="completionValue">0 / 0</strong></span>
+          <span class="rdt-kpi"><span>Status</span> <strong id="statusPill">Draft</strong></span>
+
+          <button type="button" id="clearAutosaveBtn" class="rdt-btn-subtle">Clear autosave</button>
+          <button type="button" id="resetFormBtn" class="rdt-btn-subtle">Reset form</button>
+          <button type="button" id="jumpToFirstMissingBtn">Jump to first missing</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- =========================
+         Top Controls
+    ========================== -->
+    <section class="rdt-card" style="margin-top:12px;">
+      <h2 style="margin:0 0 10px 0;">Note builder</h2>
+      <div class="rdt-subtle" style="margin-bottom:12px;">
+        Fill the required fields, then export to Word. Use <strong>Internal</strong> for full detail, <strong>Public</strong> for website notes,
+        and <strong>Client-safe</strong> for externally shareable content.
+      </div>
+
+      <div class="rdt-grid-3">
+        <div>
+          <label for="audience">Audience</label>
+          <select id="audience" name="audience">
+            <option value="internal" selected>Internal</option>
+            <option value="public">Public</option>
+            <option value="client_safe">Client-safe</option>
+          </select>
+        </div>
+
+        <div>
+          <label for="template">Template</label>
+          <select id="template" name="template">
+            <option value="" selected>Select…</option>
+            <option value="macro">Macro Note</option>
+            <option value="equity">Equity Research</option>
+            <option value="credit">Credit / FI Note</option>
+            <option value="thematic">Thematic</option>
+            <option value="event">Event / Reaction</option>
+          </select>
+        </div>
+
+        <div>
+          <label for="noteType">Note type</label>
+          <select id="noteType" name="noteType">
+            <option value="" selected>Select…</option>
+            <option value="macro">Macro</option>
+            <option value="equity">Equity</option>
+            <option value="fixed_income">Fixed Income</option>
+            <option value="commodities">Commodities</option>
+            <option value="geopolitics">Geopolitics</option>
+          </select>
         </div>
       </div>
 
-      <div class="topbar-right">
-        <button type="button" id="jumpFirstMissing" class="btn btn-quiet">Jump to missing</button>
-        <button type="button" id="clearAutosave" class="btn btn-quiet">Clear autosave</button>
+      <div class="rdt-grid-2" style="margin-top:12px;">
+        <div>
+          <label for="topic">Topic</label>
+          <input id="topic" name="topic" type="text" placeholder="e.g., Indonesia FX, Uranium supply, Vietnam domestic demand..." />
+        </div>
+
+        <div>
+          <label for="title">Title</label>
+          <input id="title" name="title" type="text" placeholder="Short, investor-ready title" />
+        </div>
       </div>
-    </header>
 
-    <main class="main" role="main">
-      <!-- Left rail (kept minimal + useful only) -->
-      <aside class="rail" aria-label="Status and validation">
-        <div class="rail-block">
-          <div class="rail-title">Completion</div>
-          <div class="rail-kpi">
-            <span id="completionText">0 / 8</span>
-            <span id="completionPct">0%</span>
-          </div>
-          <div class="rail-bar" aria-label="Completion bar">
-            <div id="completionBar" class="rail-bar-fill" style="width:0%"></div>
-          </div>
+      <div class="rdt-grid-3" style="margin-top:12px;">
+        <div>
+          <label for="status">Status</label>
+          <select id="status" name="status">
+            <option value="draft" selected>Draft</option>
+            <option value="review">In review</option>
+            <option value="final">Final</option>
+          </select>
+        </div>
 
-          <div class="rail-mini">
-            <div class="rail-mini-title">Validation</div>
-            <div id="validationSummary" class="rail-mini-body">—</div>
+        <div>
+          <label for="reviewedBy">Reviewed by</label>
+          <select id="reviewedBy" name="reviewedBy">
+            <option value="" selected>Select…</option>
+            <option value="none">—</option>
+            <option value="lead">Lead Analyst</option>
+            <option value="editor">Editor</option>
+            <option value="ic">IC / PM</option>
+          </select>
+        </div>
+
+        <div>
+          <label for="changeNote">Change note</label>
+          <input id="changeNote" name="changeNote" type="text" placeholder="Optional (e.g., Updated data / Revised view)" />
+        </div>
+      </div>
+
+      <div class="rdt-inline-options" style="margin-top:12px;">
+        <label><input type="checkbox" id="bumpMajorOnExport" /> Bump major version on export</label>
+        <label><input type="checkbox" id="autoGenerateExecSummary" /> Auto-generate executive summary (if enabled)</label>
+      </div>
+
+      <!-- Equity-only meta (kept hidden unless JS shows it based on noteType/template) -->
+      <div id="equityMeta" class="rdt-card" style="margin-top:14px; display:none; background:rgba(132,95,15,.05); border:1px solid rgba(132,95,15,.14); box-shadow:none;">
+        <h3 style="margin:0 0 8px 0;">Equity research metadata</h3>
+
+        <div class="rdt-grid-3">
+          <div>
+            <label for="ticker">Ticker</label>
+            <input id="ticker" name="ticker" type="text" placeholder="e.g., MSAN (HOSE)" />
+          </div>
+          <div>
+            <label for="targetPrice">Target price</label>
+            <input id="targetPrice" name="targetPrice" type="text" placeholder="e.g., 102.0" />
+          </div>
+          <div>
+            <label for="crgRating">CRG rating</label>
+            <select id="crgRating" name="crgRating">
+              <option value="" selected>Select…</option>
+              <option value="buy">Buy</option>
+              <option value="hold">Hold</option>
+              <option value="sell">Sell</option>
+              <option value="watch">Watchlist</option>
+            </select>
           </div>
         </div>
 
-        <div class="rail-block">
-          <div class="rail-title">Quick actions</div>
-          <div class="rail-actions">
-            <button type="button" id="emailToCrgBtn" class="btn btn-quiet w-full">Email routing</button>
-            <button type="button" id="resetFormBtn" class="btn btn-quiet w-full">Reset form</button>
+        <div class="rdt-grid-2" style="margin-top:10px;">
+          <div>
+            <label for="valuationSummary">Valuation summary</label>
+            <textarea id="valuationSummary" name="valuationSummary" placeholder="Short valuation setup (multiple, drivers, anchor)"></textarea>
+          </div>
+          <div>
+            <label for="keyAssumptions">Key assumptions</label>
+            <textarea id="keyAssumptions" name="keyAssumptions" placeholder="Revenue, margins, FX, discount rate, etc."></textarea>
           </div>
         </div>
-      </aside>
 
-      <section class="canvas">
-        <form id="researchForm" novalidate>
-          <section class="card" id="sec-setup" aria-label="Note setup">
-            <div class="card-head">
-              <div>
-                <div class="card-title">Note builder</div>
-                <div class="card-subtitle">Fill required fields, then export to Word.</div>
-              </div>
-            </div>
-
-            <div class="grid-2">
-              <div class="segmented" role="group" aria-label="Distribution presets">
-                <button type="button" class="seg-btn" id="presetInternal">Internal</button>
-                <button type="button" class="seg-btn" id="presetPublic">Public</button>
-                <button type="button" class="seg-btn" id="presetClient">Client-safe</button>
-                <input type="hidden" id="distPreset" value="internal">
-              </div>
-
-              <div class="inline-actions">
-                <label class="checkline compact">
-                  <input type="checkbox" id="bumpMajor" />
-                  <span>Bump major on export</span>
-                </label>
-              </div>
-            </div>
-
-            <div class="grid-2">
-              <div>
-                <label for="template">Template</label>
-                <select id="template">
-                  <option value="">Select…</option>
-                  <option value="macro">Macro update</option>
-                  <option value="equity">Equity initiation</option>
-                  <option value="event">Event note</option>
-                </select>
-              </div>
-
-              <div>
-                <label for="noteType">Note type</label>
-                <select id="noteType" required>
-                  <option value="">Select…</option>
-                  <option value="General Note">General Note</option>
-                  <option value="Equity Research">Equity Research</option>
-                  <option value="Macro Research">Macro Research</option>
-                  <option value="Fixed Income Research">Fixed Income Research</option>
-                  <option value="Commodity Insights">Commodity Insights</option>
-                </select>
-              </div>
-            </div>
-
-            <div class="grid-2">
-              <div>
-                <label for="topic">Topic</label>
-                <input type="text" id="topic" required placeholder="e.g., Indonesia FX, uranium supply chain…" />
-              </div>
-              <div>
-                <label for="title">Title</label>
-                <input type="text" id="title" required placeholder="Enter title…" />
-              </div>
-            </div>
-
-            <div class="grid-2">
-              <div>
-                <label for="status">Status</label>
-                <select id="status" required>
-                  <option value="Draft" selected>Draft</option>
-                  <option value="Reviewed">Reviewed</option>
-                  <option value="Cleared">Cleared</option>
-                </select>
-              </div>
-
-              <div>
-                <label for="reviewedBy">Reviewed by</label>
-                <select id="reviewedBy">
-                  <option value="">Select…</option>
-                </select>
-              </div>
-            </div>
-
-            <div class="grid-1">
-              <label for="changeNote">Change note (optional)</label>
-              <input type="text" id="changeNote" placeholder="Optional (e.g., updated post earnings)" />
-            </div>
-          </section>
-
-          <section class="card" id="sec-core" aria-label="Core research">
-            <div class="card-head">
-              <div>
-                <div class="card-title">Executive summary</div>
-              </div>
-              <div class="head-right">
-                <label class="checkline compact">
-                  <input type="checkbox" id="autoExecSummary" />
-                  <span>Auto-generate</span>
-                </label>
-              </div>
-            </div>
-
-            <div class="grid-1">
-              <div class="field-head">
-                <label for="execSummary">Executive summary</label>
-                <div class="field-metrics"><span id="execWords">0 words</span></div>
-              </div>
-              <textarea id="execSummary" rows="8" placeholder="Optional (or enable auto-generate)."></textarea>
-            </div>
-
-            <div class="grid-1">
-              <div class="field-head">
-                <label for="keyTakeaways">Key takeaways</label>
-                <div class="field-metrics"><span id="takeawaysWords">0 words</span></div>
-              </div>
-              <textarea id="keyTakeaways" rows="7" required placeholder="Use '-' bullets…"></textarea>
-            </div>
-
-            <div class="grid-1">
-              <div class="field-head">
-                <label for="analysis">Analysis and commentary</label>
-                <div class="field-metrics"><span id="analysisWords">0 words</span></div>
-              </div>
-              <textarea id="analysis" rows="12" required placeholder="Main analysis."></textarea>
-            </div>
-
-            <div class="grid-1">
-              <div class="field-head">
-                <label for="content">Additional content (optional)</label>
-                <div class="field-metrics"><span id="contentWords">0 words</span></div>
-              </div>
-              <textarea id="content" rows="8" placeholder="Optional appendix / data notes."></textarea>
-            </div>
-
-            <div class="grid-1">
-              <div class="field-head">
-                <label for="cordobaView">The Cordoba view</label>
-                <div class="field-metrics"><span id="viewWords">0 words</span></div>
-              </div>
-              <textarea id="cordobaView" rows="7" required placeholder="Stance + what changes the view."></textarea>
-            </div>
-          </section>
-
-          <section class="card" id="sec-authors" aria-label="Authors">
-            <div class="card-head">
-              <div>
-                <div class="card-title">Author</div>
-              </div>
-            </div>
-
-            <div class="grid-2">
-              <div>
-                <label for="authorLastName">Last name</label>
-                <input type="text" id="authorLastName" required placeholder="e.g., Rahman" />
-              </div>
-              <div>
-                <label for="authorFirstName">First name</label>
-                <input type="text" id="authorFirstName" required placeholder="e.g., Nadir" />
-              </div>
-            </div>
-
-            <div class="grid-2">
-              <div>
-                <label>Phone (optional)</label>
-                <div class="phone-row" id="authorPhoneRow">
-                  <select id="authorPhoneCountry" class="phone-country" aria-label="Country code">
-                    <option value="44" selected>+44</option>
-                    <option value="1">+1</option>
-                    <option value="353">+353</option>
-                    <option value="">Other</option>
-                  </select>
-                  <input
-                    type="text"
-                    id="authorPhoneNational"
-                    class="phone-number"
-                    inputmode="numeric"
-                    autocomplete="tel-national"
-                    placeholder="National number"
-                  />
-                </div>
-                <input type="text" id="authorPhone" style="display:none;">
-              </div>
-
-              <div>
-                <div class="coauthor-head">
-                  <div class="coauthor-title">Co-authors (optional)</div>
-                  <button type="button" id="addCoAuthor" class="btn btn-quiet">Add co-author</button>
-                </div>
-                <div id="coAuthorsList"></div>
-              </div>
-            </div>
-          </section>
-
-          <section class="card" id="sec-equity" aria-label="Equity addendum" style="display:none;">
-            <div class="card-head">
-              <div>
-                <div class="card-title">Equity addendum</div>
-              </div>
-            </div>
-
-            <div class="grid-2">
-              <div>
-                <label for="ticker">Ticker (optional)</label>
-                <input type="text" id="ticker" placeholder="e.g., MSFT.US or VOD.UK" />
-              </div>
-
-              <div>
-                <label for="crgRating">CRG Rating</label>
-                <select id="crgRating" required>
-                  <option value="">Select…</option>
-                  <option value="Outperform (O)">Outperform (O)</option>
-                  <option value="Sector Perform (SP)">Sector Perform (SP)</option>
-                  <option value="Underperform (U)">Underperform (U)</option>
-                  <option value="Restricted (R)">Restricted (R)</option>
-                  <option value="Not Rated (NR)">Not Rated (NR)</option>
-                </select>
-              </div>
-            </div>
-
-            <div class="grid-2">
-              <div>
-                <label for="targetPrice">Target (optional)</label>
-                <input type="text" id="targetPrice" placeholder="e.g., 520" />
-              </div>
-              <div>
-                <label for="modelLink">Model link (optional)</label>
-                <input type="text" id="modelLink" placeholder="Drive / SharePoint link" />
-              </div>
-            </div>
-
-            <div class="card-subhead">Price chart</div>
-            <div class="chart-panel">
-              <div class="chart-row">
-                <div class="chart-controls">
-                  <label class="inline-label" for="chartRange">Range</label>
-                  <select id="chartRange" class="inline-select">
-                    <option value="6mo" selected>6M</option>
-                    <option value="1y">1Y</option>
-                    <option value="2y">2Y</option>
-                    <option value="5y">5Y</option>
-                  </select>
-                  <button type="button" id="fetchPriceChart" class="btn btn-quiet">Fetch</button>
-                </div>
-                <div id="chartStatus" class="hint"></div>
-              </div>
-
-              <div class="chart-wrap">
-                <canvas id="priceChart"></canvas>
-              </div>
-
-              <div class="metrics-grid">
-                <div class="metric"><div class="metric-label">Current</div><div class="metric-value" id="currentPrice">—</div></div>
-                <div class="metric"><div class="metric-label">Vol (ann.)</div><div class="metric-value" id="realisedVol">—</div></div>
-                <div class="metric"><div class="metric-label">Return</div><div class="metric-value" id="rangeReturn">—</div></div>
-                <div class="metric"><div class="metric-label">Upside</div><div class="metric-value" id="upsideToTarget">—</div></div>
-              </div>
-
-              <div class="grid-2" style="padding:10px 0 0;">
-                <div>
-                  <label for="chartDataSource">Data source</label>
-                  <select id="chartDataSource">
-                    <option value="">Select…</option>
-                    <option value="Bloomberg">Bloomberg</option>
-                    <option value="Company filings">Company filings</option>
-                    <option value="Stooq">Stooq</option>
-                    <option value="Internal model">Internal model</option>
-                    <option value="Other">Other</option>
-                  </select>
-                </div>
-                <div>
-                  <label for="chartDataSourceNote">Source note (optional)</label>
-                  <input type="text" id="chartDataSourceNote" placeholder="Optional" />
-                </div>
-              </div>
-
-              <div class="grid-1" style="padding:10px 0 0;">
-                <label for="chartAnnotation">Chart annotation (optional)</label>
-                <input type="text" id="chartAnnotation" placeholder="Optional" />
-              </div>
-            </div>
-
-            <div class="grid-1">
-              <label for="modelFiles">Attach model files (optional)</label>
-              <input type="file" id="modelFiles" multiple accept=".xlsx,.xlsm,.xls,.csv,application/pdf" />
-              <div class="attach-strip" aria-live="polite">
-                <div id="attachmentSummaryHead">No files selected</div>
-                <div id="attachmentSummaryList" style="display:none;"></div>
-              </div>
-            </div>
-
-            <div class="grid-1">
-              <label for="valuationSummary">Valuation summary (optional)</label>
-              <textarea id="valuationSummary" rows="6"></textarea>
-            </div>
-
-            <div class="grid-1">
-              <label for="keyAssumptions">Key assumptions (optional)</label>
-              <textarea id="keyAssumptions" rows="7"></textarea>
-            </div>
-
-            <div class="grid-1">
-              <label for="scenarioNotes">Scenario notes (optional)</label>
-              <textarea id="scenarioNotes" rows="6"></textarea>
-            </div>
-
-            <div class="card-subhead">Scenario table</div>
-            <div class="grid-2">
-              <div><label for="scBearPrice">Bear — Price</label><input type="text" id="scBearPrice" /></div>
-              <div><label for="scBearAssump">Bear — Assumption</label><input type="text" id="scBearAssump" /></div>
-            </div>
-            <div class="grid-2">
-              <div><label for="scBasePrice">Base — Price</label><input type="text" id="scBasePrice" /></div>
-              <div><label for="scBaseAssump">Base — Assumption</label><input type="text" id="scBaseAssump" /></div>
-            </div>
-            <div class="grid-2">
-              <div><label for="scBullPrice">Bull — Price</label><input type="text" id="scBullPrice" /></div>
-              <div><label for="scBullAssump">Bull — Assumption</label><input type="text" id="scBullAssump" /></div>
-            </div>
-          </section>
-
-          <section class="card" id="sec-figures" aria-label="Figures">
-            <div class="card-head">
-              <div>
-                <div class="card-title">Figures and charts</div>
-              </div>
-            </div>
-
-            <div class="grid-1">
-              <label for="imageUpload">Upload images (optional)</label>
-              <input type="file" id="imageUpload" multiple accept="image/*" />
-            </div>
-          </section>
-
-          <section class="card" id="sec-export" aria-label="Export">
-            <div class="card-head">
-              <div>
-                <div class="card-title">Export</div>
-              </div>
-            </div>
-
-            <div class="grid-1">
-              <label class="checkline">
-                <input type="checkbox" id="attestDraft" />
-                <span>I confirm the draft is ready to export.</span>
-              </label>
-            </div>
-
-            <div class="actions">
-              <button type="submit" class="btn btn-primary" id="generateBtn">Generate Word Document</button>
-            </div>
-
-            <div id="message" class="message" aria-live="polite"></div>
-          </section>
-
-          <div class="footerline">
-            <span>Internal use only.</span>
-            <span>RDT v2.1</span>
+        <div class="rdt-grid-2" style="margin-top:10px;">
+          <div>
+            <label for="scenarioNotes">Scenario notes</label>
+            <textarea id="scenarioNotes" name="scenarioNotes" placeholder="Bull/base/bear — what changes and why"></textarea>
           </div>
-        </form>
-      </section>
-    </main>
-  </div>
+          <div>
+            <label for="modelLink">Model link</label>
+            <input id="modelLink" name="modelLink" type="url" placeholder="Paste a link to the model (Drive/Dropbox/etc.)" />
+          </div>
+        </div>
 
-  <!-- Defer scripts in correct order -->
-  <script defer src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
-  <script defer src="https://unpkg.com/docx@7.8.2/build/index.js"></script>
-  <script defer src="https://unpkg.com/file-saver@2.0.5/dist/FileSaver.min.js"></script>
-  <script defer src="./assets/app.js"></script>
+        <div class="rdt-grid-2" style="margin-top:10px;">
+          <div>
+            <label for="modelFiles">Model files (optional upload)</label>
+            <input id="modelFiles" name="modelFiles" type="file" multiple />
+          </div>
+          <div>
+            <label for="priceChart">Price chart image (optional)</label>
+            <input id="priceChart" name="priceChart" type="file" accept="image/*" />
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- =========================
+         Executive summary
+    ========================== -->
+    <section class="rdt-card" style="margin-top:12px;">
+      <div class="rdt-toolbar" style="margin-bottom:8px;">
+        <h2 style="margin:0;">Executive summary</h2>
+        <div class="rdt-wordcount"><span id="execWordCount">0</span> words</div>
+      </div>
+
+      <textarea id="executiveSummary" name="executiveSummary" placeholder="Optional — or enable auto-generate. Keep it investor-ready and tight."></textarea>
+      <div class="rdt-subtle" style="margin-top:8px;">Aim for clarity: what changed, why it matters, what we’d do about it.</div>
+    </section>
+
+    <!-- =========================
+         Author
+    ========================== -->
+    <section class="rdt-card" style="margin-top:12px;">
+      <h2 style="margin:0 0 10px 0;">Author</h2>
+
+      <div class="rdt-grid-3">
+        <div>
+          <label for="authorLastName">Last name</label>
+          <input id="authorLastName" name="authorLastName" type="text" placeholder="Rahman" />
+        </div>
+        <div>
+          <label for="authorFirstName">First name</label>
+          <input id="authorFirstName" name="authorFirstName" type="text" placeholder="Nadir" />
+        </div>
+        <div>
+          <label for="authorPhone">Phone</label>
+          <div style="display:grid; grid-template-columns: 88px 1fr; gap:10px; margin-top:6px;">
+            <select id="authorPhoneCountry" name="authorPhoneCountry" aria-label="Country code">
+              <option value="+44" selected>+44</option>
+              <option value="+1">+1</option>
+              <option value="+971">+971</option>
+              <option value="+65">+65</option>
+            </select>
+            <input id="authorPhone" name="authorPhone" type="tel" placeholder="National number" />
+          </div>
+          <div class="rdt-subtle" style="margin-top:6px;">
+            Client-safe number: <strong id="authorPhoneSafe">—</strong>
+          </div>
+        </div>
+      </div>
+
+      <div style="margin-top:12px;">
+        <div class="rdt-toolbar">
+          <h3 style="margin:0;">Co-authors</h3>
+          <button type="button" id="addCoAuthorBtn">Add co-author</button>
+        </div>
+        <div id="coAuthors" style="margin-top:10px; display:grid; gap:10px;"></div>
+      </div>
+    </section>
+
+    <!-- =========================
+         Key takeaways
+    ========================== -->
+    <section class="rdt-card" style="margin-top:12px;">
+      <div class="rdt-toolbar" style="margin-bottom:8px;">
+        <h2 style="margin:0;">Key takeaways</h2>
+        <div class="rdt-wordcount"><span id="takeawaysWordCount">0</span> words</div>
+      </div>
+
+      <textarea id="keyTakeaways" name="keyTakeaways" placeholder="- Keep each takeaway on its own line&#10;- Investor-relevant, not descriptive&#10;- If it’s internal, you can be more direct"></textarea>
+      <div class="rdt-subtle" style="margin-top:8px;">Tip: treat these like the bullets a PM would copy into a morning note.</div>
+    </section>
+
+    <!-- =========================
+         Analysis and commentary
+    ========================== -->
+    <section class="rdt-card" style="margin-top:12px;">
+      <div class="rdt-toolbar" style="margin-bottom:8px;">
+        <h2 style="margin:0;">Analysis and commentary</h2>
+        <div class="rdt-wordcount"><span id="analysisWordCount">0</span> words</div>
+      </div>
+
+      <textarea id="analysis" name="analysis" placeholder="Write in paragraphs. Reference figures as (Figure 1), (Figure 2), etc."></textarea>
+      <div class="rdt-subtle" style="margin-top:8px;">
+        Keep it structured: set-up → what’s priced → what’s mispriced → what would change your mind.
+      </div>
+    </section>
+
+    <!-- =========================
+         Additional content
+    ========================== -->
+    <section class="rdt-card" style="margin-top:12px;">
+      <div class="rdt-toolbar" style="margin-bottom:8px;">
+        <h2 style="margin:0;">Additional content</h2>
+        <div class="rdt-wordcount"><span id="contentWordCount">0</span> words</div>
+      </div>
+
+      <textarea id="content" name="content" placeholder="Optional appendix / data notes / methodology / disclosures"></textarea>
+    </section>
+
+    <!-- =========================
+         The Cordoba view
+    ========================== -->
+    <section class="rdt-card" style="margin-top:12px;">
+      <div class="rdt-toolbar" style="margin-bottom:8px;">
+        <h2 style="margin:0;">The Cordoba view</h2>
+        <div class="rdt-wordcount"><span id="cordobaViewWordCount">0</span> words</div>
+      </div>
+
+      <textarea id="cordobaView" name="cordobaView" placeholder="What we think, and how we would position (internal can be explicit)."></textarea>
+    </section>
+
+    <!-- =========================
+         Figures and charts
+    ========================== -->
+    <section class="rdt-card" style="margin-top:12px;">
+      <h2 style="margin:0 0 10px 0;">Figures and charts</h2>
+
+      <div class="rdt-grid-2">
+        <div>
+          <label for="imageFiles">Upload images</label>
+          <input id="imageFiles" name="imageFiles" type="file" accept="image/*" multiple />
+          <div class="rdt-subtle" style="margin-top:8px;">
+            Add images at the end. In the text, reference as (Figure 1), (Figure 2)…
+          </div>
+        </div>
+
+        <div>
+          <label>Figure list</label>
+          <div id="figureList" style="display:grid; gap:10px;"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- =========================
+         Export / Validation
+    ========================== -->
+    <section class="rdt-card" style="margin-top:12px;">
+      <h2 style="margin:0 0 10px 0;">Export</h2>
+
+      <div class="rdt-inline-options" style="margin-bottom:10px;">
+        <label><input type="checkbox" id="confirmReady" /> I confirm the draft is ready to export.</label>
+        <label><input type="checkbox" id="emailRouting" /> Email routing</label>
+      </div>
+
+      <div class="rdt-grid-2">
+        <div>
+          <button type="button" id="exportBtn" class="rdt-btn-primary">Generate Word Document</button>
+          <div class="rdt-subtle" style="margin-top:10px;">
+            Export creates a Word doc in the selected template format and applies draft watermark rules.
+          </div>
+        </div>
+
+        <div>
+          <label>Validation</label>
+          <div id="validationList" aria-live="polite">—</div>
+          <div class="rdt-subtle" style="margin-top:10px;">
+            Quick link: <a href="#" id="quickLink">Open missing field</a>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Footer spacing -->
+    <div style="height:24px;"></div>
+  </main>
+
+  <!-- Your “final product” JS (the one we just wrote) -->
+  <script src="app.js"></script>
 </body>
 </html>
