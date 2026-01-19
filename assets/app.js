@@ -1,24 +1,24 @@
+```javascript
 /* =========================================================
    Cordoba Research Group — Research Documentation Tool (RDT)
-   assets/app.js (BlueMatrix-grade v2.1 — Equity-first Export)
+   app.js (Institutional v2.1 — Equity Research formatted properly)
    ---------------------------------------------------------
-   What this version guarantees:
-   1) Backwards compatible with your current HTML IDs/classes.
-   2) Autosave + restore (drafts), robust validation, completion meter.
-   3) Equity Research Word export formatted like the classic sell-side
-      “Initiating Coverage” cover shown in your screenshot:
-        - Institutional header + date + “Initiating Coverage”
-        - Left sidebar “Key data” block + mini chart
-        - Main area: Ticker, Recommendation, Current Price, Target Price
-        - Big headline + Investment thesis paragraphs
-        - Page 2+: Valuation, Drivers, Risks, Catalysts, Appendix/Figures
-   4) Chart fetch embeds chart image + computed stats into the Word tear sheet.
+   Key fixes vs your current export:
+   ✅ Equity Research output now follows a true sell-side “initiating coverage” layout:
+      - Masthead (CRG left, Institutional Equity Research + date + Initiating coverage right)
+      - Page 1: Key data sidebar (ticker, rating, current/target, return, vol + small chart)
+              + Main column (company/ticker + rating + headline + opening paragraphs)
+      - Page 2: Tear sheet page (stats row + large chart) — no duplicated headers
+      - Page 3+: Full report sections (Investment thesis continuation, Valuation, Assumptions, Risks/Scenario, Cordoba View, Figures)
+   ✅ Removed “double header” issue (no in-body header lines; only document header)
+   ✅ Better spacing + sizing so it looks like your reference image
+   ✅ Backwards-compatible with your HTML IDs/classes
    ========================================================= */
 
 (() => {
   "use strict";
 
-  console.log("RDT app.js loaded (Equity-first v2.1)");
+  console.log("RDT institutional app.js loaded (v2.1)");
 
   // ------------------------------
   // Brand (Córdoba)
@@ -27,12 +27,14 @@
     name: "Cordoba Research Group",
     short: "CRG",
     version: "RDT v2.1.0",
+    tagline: "Values that bind",
     colors: {
       gold: "9A690F",
       goldDark: "845F0F",
       cream: "FFF7F0",
       ink: "0B0E14",
       muted: "6B7280",
+      lightMuted: "9CA3AF",
       border: "E5E7EB",
       rail: "F3F4F6",
       callout: "F6F1E8",
@@ -45,43 +47,17 @@
     disclaimers: {
       internal:
         "Internal use only. Outputs are draft research documentation generated from user inputs and third-party market data. Verify all figures, tickers, and assumptions before circulation.",
-      publicInfo: "Cordoba Research Group Public Information"
+      publicInfo: "Public Information"
     }
   };
 
   // ------------------------------
-  // DOM utilities
+  // Utilities
   // ------------------------------
   const $ = (sel, root = document) => root.querySelector(sel);
   const $$ = (sel, root = document) => Array.from(root.querySelectorAll(sel));
-  const clamp = (n, a, b) => Math.min(Math.max(n, a), b);
-
-  function safeTrim(v) {
-    return (v ?? "").toString().trim();
-  }
-
-  function digitsOnly(v) {
-    return (v || "").toString().replace(/\D/g, "");
-  }
-
-  function formatNationalLoose(rawDigits) {
-    const d = digitsOnly(rawDigits);
-    if (!d) return "";
-    const p1 = d.slice(0, 4);
-    const p2 = d.slice(4, 7);
-    const p3 = d.slice(7, 10);
-    const rest = d.slice(10);
-    return [p1, p2, p3, rest].filter(Boolean).join(" ");
-  }
-
-  function buildInternationalHyphen(ccDigits, nationalDigits) {
-    const cc = digitsOnly(ccDigits);
-    const nn = digitsOnly(nationalDigits);
-    if (!cc && !nn) return "";
-    if (cc && !nn) return `${cc}-`;
-    if (!cc && nn) return nn;
-    return `${cc}-${nn}`;
-  }
+  const safeTrim = (v) => (v ?? "").toString().trim();
+  const digitsOnly = (v) => (v || "").toString().replace(/\D/g, "");
 
   function naIfBlank(v) {
     const s = safeTrim(v);
@@ -111,15 +87,6 @@
     el.style.display = text ? "block" : "none";
   }
 
-  function escapeHtml(s) {
-    return (s || "").toString()
-      .replaceAll("&", "&amp;")
-      .replaceAll("<", "&lt;")
-      .replaceAll(">", "&gt;")
-      .replaceAll('"', "&quot;")
-      .replaceAll("'", "&#039;");
-  }
-
   function formatDateTime(date) {
     const months = [
       "January","February","March","April","May","June",
@@ -142,7 +109,7 @@
     return `${y}-${m}-${d}`;
   }
 
-  // Mailto: CRLF body
+  // Mailto helper (CRLF safe)
   function buildMailto(to, cc, subject, body) {
     const crlfBody = (body || "").replace(/\n/g, "\r\n");
     const parts = [];
@@ -159,6 +126,26 @@
     if (t.includes("fixed")) return "tim@cordobarg.com";
     if (t.includes("commodity")) return "uhayd@cordobarg.com";
     return "";
+  }
+
+  // Phone formatting
+  function formatNationalLoose(rawDigits) {
+    const d = digitsOnly(rawDigits);
+    if (!d) return "";
+    const p1 = d.slice(0, 4);
+    const p2 = d.slice(4, 7);
+    const p3 = d.slice(7, 10);
+    const rest = d.slice(10);
+    return [p1, p2, p3, rest].filter(Boolean).join(" ");
+  }
+
+  function buildInternationalHyphen(ccDigits, nationalDigits) {
+    const cc = digitsOnly(ccDigits);
+    const nn = digitsOnly(nationalDigits);
+    if (!cc && !nn) return "";
+    if (cc && !nn) return `${cc}-`;
+    if (!cc && nn) return nn;
+    return `${cc}-${nn}`;
   }
 
   // ------------------------------
@@ -183,6 +170,7 @@
       draft[id] = el.value ?? "";
     });
 
+    // coauthors
     const coAuthors = $$(".coauthor-entry").map(entry => ({
       lastName: safeTrim($(".coauthor-lastname", entry)?.value),
       firstName: safeTrim($(".coauthor-firstname", entry)?.value),
@@ -192,10 +180,12 @@
     })).filter(x => x.lastName || x.firstName || x.phone || x.local);
 
     draft.__coAuthors = coAuthors;
+
+    // chart settings + stats
     draft.__chartRange = $("#chartRange")?.value || "";
     draft.__equityStats = equityStats || null;
-    draft.__savedAt = new Date().toISOString();
 
+    draft.__savedAt = new Date().toISOString();
     return draft;
   }
 
@@ -208,14 +198,14 @@
     try {
       localStorage.setItem(DRAFT_KEY, JSON.stringify(snapshotDraft()));
       setDraftStatus("Saved");
-    } catch (_) { /* ignore */ }
+    } catch (_) {}
   }
 
   let draftSaveTimer = null;
   function scheduleDraftSave() {
     setDraftStatus("Saving…");
     clearTimeout(draftSaveTimer);
-    draftSaveTimer = setTimeout(() => saveDraftNow(), 320);
+    draftSaveTimer = setTimeout(() => saveDraftNow(), 350);
   }
 
   function loadDraft() {
@@ -232,46 +222,8 @@
     try { localStorage.removeItem(DRAFT_KEY); } catch(_) {}
   }
 
-  function applyDraft(draft) {
-    if (!draft) return;
-
-    DRAFT_FIELDS.forEach(id => {
-      const el = document.getElementById(id);
-      if (!el) return;
-      if (typeof draft[id] === "string") el.value = draft[id];
-    });
-
-    // Coauthors
-    if (Array.isArray(draft.__coAuthors) && draft.__coAuthors.length) {
-      const list = document.getElementById("coAuthorsList");
-      if (list) {
-        list.innerHTML = "";
-        draft.__coAuthors.forEach(ca => {
-          const node = createCoauthorNode();
-          $(".coauthor-lastname", node).value = ca.lastName || "";
-          $(".coauthor-firstname", node).value = ca.firstName || "";
-          $(".coauthor-country", node).value = ca.cc || "44";
-          $(".coauthor-phone-local", node).value = ca.local ? formatNationalLoose(ca.local) : "";
-          wireCoauthorPhone(node);
-          const hidden = $(".coauthor-phone", node);
-          if (hidden) hidden.value = ca.phone || hidden.value || "";
-          list.appendChild(node);
-        });
-      }
-    }
-
-    if (draft.__chartRange && $("#chartRange")) $("#chartRange").value = draft.__chartRange;
-
-    if (draft.__equityStats) {
-      equityStats = draft.__equityStats;
-      paintEquityStats();
-    }
-
-    syncPrimaryPhone();
-  }
-
   // ------------------------------
-  // Phone wiring (primary)
+  // Phone wiring (primary + coauthors)
   // ------------------------------
   const authorPhoneCountryEl = document.getElementById("authorPhoneCountry");
   const authorPhoneNationalEl = document.getElementById("authorPhoneNational");
@@ -280,8 +232,8 @@
   function syncPrimaryPhone() {
     if (!authorPhoneHiddenEl) return;
     const cc = authorPhoneCountryEl ? authorPhoneCountryEl.value : "";
-    const nationalDigits = digitsOnly(authorPhoneNationalEl ? authorPhoneNationalEl.value : "");
-    authorPhoneHiddenEl.value = buildInternationalHyphen(cc, nationalDigits);
+    const nn = digitsOnly(authorPhoneNationalEl ? authorPhoneNationalEl.value : "");
+    authorPhoneHiddenEl.value = buildInternationalHyphen(cc, nn);
   }
 
   function formatPrimaryVisible() {
@@ -375,12 +327,11 @@
 
   function createCoauthorNode() {
     coAuthorCount += 1;
+    const div = document.createElement("div");
+    div.className = "coauthor-entry";
+    div.id = `coauthor-${coAuthorCount}`;
 
-    const coAuthorDiv = document.createElement("div");
-    coAuthorDiv.className = "coauthor-entry";
-    coAuthorDiv.id = `coauthor-${coAuthorCount}`;
-
-    coAuthorDiv.innerHTML = `
+    div.innerHTML = `
       <input type="text" placeholder="Last Name" class="coauthor-lastname" autocomplete="family-name">
       <input type="text" placeholder="First Name" class="coauthor-firstname" autocomplete="given-name">
 
@@ -395,16 +346,16 @@
       <button type="button" class="remove-coauthor" data-remove-id="${coAuthorCount}">Remove</button>
     `;
 
-    const phoneHidden = $(".coauthor-phone", coAuthorDiv);
-    if (phoneHidden) phoneHidden.required = false;
+    const hidden = $(".coauthor-phone", div);
+    if (hidden) hidden.required = false;
 
-    wireCoauthorPhone(coAuthorDiv);
+    wireCoauthorPhone(div);
 
     ["input","change","keyup"].forEach(evt => {
-      coAuthorDiv.addEventListener(evt, () => scheduleDraftSave(), { passive: true });
+      div.addEventListener(evt, () => scheduleDraftSave(), { passive: true });
     });
 
-    return coAuthorDiv;
+    return div;
   }
 
   if (addCoAuthorBtn && coAuthorsList) {
@@ -418,8 +369,8 @@
       const btn = e.target.closest(".remove-coauthor");
       if (!btn) return;
       const id = btn.getAttribute("data-remove-id");
-      const coAuthorDiv = document.getElementById(`coauthor-${id}`);
-      if (coAuthorDiv) coAuthorDiv.remove();
+      const node = document.getElementById(`coauthor-${id}`);
+      if (node) node.remove();
       updateCompletionMeter();
       scheduleDraftSave();
     });
@@ -431,13 +382,13 @@
   const noteTypeEl = document.getElementById("noteType");
   const equitySectionEl = document.getElementById("equitySection");
 
-  function isEquityMode() {
-    return !!(noteTypeEl && noteTypeEl.value === "Equity Research" && equitySectionEl && equitySectionEl.style.display !== "none");
-  }
-
   function toggleEquitySection() {
     if (!noteTypeEl || !equitySectionEl) return;
     equitySectionEl.style.display = (noteTypeEl.value === "Equity Research") ? "block" : "none";
+  }
+
+  function isEquityMode() {
+    return !!(noteTypeEl && noteTypeEl.value === "Equity Research");
   }
 
   if (noteTypeEl && equitySectionEl) {
@@ -466,13 +417,10 @@
     "authorLastName","authorFirstName",
     "keyTakeaways","analysis"
   ];
-
-  // Equity requires a rating (like a bank note: must have a call)
   const equityCoreIds = ["crgRating"];
 
   function updateCompletionMeter() {
     const ids = isEquityMode() ? baseCoreIds.concat(equityCoreIds) : baseCoreIds;
-
     let done = 0;
     ids.forEach(id => {
       const el = document.getElementById(id);
@@ -506,6 +454,15 @@
   const modelFilesEl = document.getElementById("modelFiles");
   const attachSummaryHeadEl = document.getElementById("attachmentSummaryHead");
   const attachSummaryListEl = document.getElementById("attachmentSummaryList");
+
+  function escapeHtml(s) {
+    return (s || "").toString()
+      .replaceAll("&", "&amp;")
+      .replaceAll("<", "&lt;")
+      .replaceAll(">", "&gt;")
+      .replaceAll('"', "&quot;")
+      .replaceAll("'", "&#039;");
+  }
 
   function updateAttachmentSummary() {
     if (!modelFilesEl || !attachSummaryHeadEl || !attachSummaryListEl) return;
@@ -669,8 +626,7 @@
   }
 
   async function fetchStooqDaily(symbol) {
-    // Prefer HTTPS to avoid mixed content.
-    const stooqUrl = `https://stooq.com/q/d/l/?s=${encodeURIComponent(symbol)}&i=d`;
+    const stooqUrl = `http://stooq.com/q/d/l/?s=${encodeURIComponent(symbol)}&i=d`;
     const proxyUrl = `https://r.jina.ai/${stooqUrl}`;
 
     const res = await fetch(proxyUrl, { cache: "no-store" });
@@ -787,24 +743,26 @@
       if (chartStatusEl) chartStatusEl.textContent = "Fetching price data…";
 
       const data = await fetchStooqDaily(symbol);
+
       const start = computeStartDate(range);
       const filtered = data.filter(x => new Date(x.date) >= start);
-
       if (filtered.length < 10) throw new Error("Not enough data for selected range.");
 
       const labels = filtered.map(x => x.date);
       const values = filtered.map(x => x.close);
 
-      renderChart({ labels, values, title: `${tickerVal.toUpperCase()} Close` });
+      renderChart({
+        labels,
+        values,
+        title: `${tickerVal.toUpperCase()} Close`
+      });
 
-      // allow chart to render before capture
-      await new Promise(r => setTimeout(r, 180));
+      await new Promise(r => setTimeout(r, 150));
       priceChartImageBytes = canvasToPngBytes(priceChartCanvas);
 
       const closes = values;
       const currentPrice = closes[closes.length - 1];
       const startPrice = closes[0];
-
       const rangeReturn = (startPrice && currentPrice) ? (currentPrice / startPrice) - 1 : null;
 
       const dailyRets = computeDailyReturns(closes);
@@ -832,647 +790,608 @@
 
   if (fetchChartBtn) fetchChartBtn.addEventListener("click", buildPriceChart);
 
-  // ============================================================
-  // Word export (sell-side layout)
-  // ============================================================
+  // =========================================================
+  // WORD EXPORT (docx)
+  // =========================================================
 
   function ensureLibs() {
     if (typeof docx === "undefined") throw new Error("docx library not loaded. Refresh the page.");
     if (typeof saveAs === "undefined") throw new Error("FileSaver library not loaded. Refresh the page.");
   }
 
-  // --- docx helpers (consistent typography) ---
-  function P(text, opts = {}) {
+  function validatePublishCore() {
+    const missing = [];
+    const core = isEquityMode() ? baseCoreIds.concat(equityCoreIds) : baseCoreIds;
+    core.forEach(id => {
+      const el = document.getElementById(id);
+      if (el && !isFilled(el)) missing.push(id);
+    });
+    return missing;
+  }
+
+  // ---- docx helpers
+  function run(text, opts = {}) {
+    return new docx.TextRun({
+      text: text ?? "",
+      font: opts.font ?? BRAND.fonts.body,
+      size: opts.size ?? 20,
+      bold: !!opts.bold,
+      italics: !!opts.italics,
+      color: opts.color ?? BRAND.colors.ink
+    });
+  }
+
+  function para(children, opts = {}) {
     return new docx.Paragraph({
-      children: [
-        new docx.TextRun({
-          text: text ?? "",
-          font: opts.font ?? BRAND.fonts.body,
-          size: opts.size ?? 20, // half-points (20 => 10pt)
-          bold: !!opts.bold,
-          italics: !!opts.italics,
-          color: opts.color ?? BRAND.colors.ink
-        })
-      ],
+      children: Array.isArray(children) ? children : [children],
       spacing: opts.spacing ?? { after: 140 },
-      alignment: opts.align
+      alignment: opts.align ?? undefined,
+      border: opts.border ?? undefined,
+      tabStops: opts.tabStops ?? undefined
     });
   }
 
-  function HR(spacingAfter = 160) {
-    return new docx.Paragraph({
-      border: { bottom: { color: BRAND.colors.border, space: 1, style: docx.BorderStyle.SINGLE, size: 4 } },
-      spacing: { after: spacingAfter }
-    });
+  function heading(text, size = 34, after = 160) {
+    return para(run(text, { font: BRAND.fonts.heading, size, bold: true }), { spacing: { after } });
   }
 
-  function linesToParas(text, style = {}) {
+  function subheading(text, size = 24, after = 120) {
+    return para(run(text, { font: BRAND.fonts.heading, size, bold: true }), { spacing: { after } });
+  }
+
+  function bodyLine(text, after = 140) {
+    return para(run(text, { font: BRAND.fonts.body, size: 20 }), { spacing: { after } });
+  }
+
+  function linesToParagraphs(text, spacingAfter = 140) {
     const lines = (text || "").split("\n");
     return lines.map(line => {
-      if (!line.trim()) return new docx.Paragraph({ text: "", spacing: { after: style.after ?? 140 } });
-      return new docx.Paragraph({
-        children: [
-          new docx.TextRun({
-            text: line,
-            font: style.font ?? BRAND.fonts.body,
-            size: style.size ?? 22,
-            color: style.color ?? BRAND.colors.ink,
-            bold: !!style.bold
-          })
-        ],
-        spacing: { after: style.after ?? 140 }
-      });
+      if (line.trim() === "") return para(run(""), { spacing: { after: spacingAfter } });
+      return bodyLine(line, spacingAfter);
     });
   }
 
-  function bulletLines(text, spacingAfter = 90, size = 20) {
+  function bulletLines(text, spacingAfter = 90) {
     const lines = (text || "").split("\n");
     const bullets = [];
     lines.forEach(line => {
       const t = line.replace(/^[-*•]\s*/, "").trim();
       if (!t) return;
       bullets.push(new docx.Paragraph({
-        children: [new docx.TextRun({ text: t, font: BRAND.fonts.body, size, color: BRAND.colors.ink })],
+        text: t,
         bullet: { level: 0 },
         spacing: { after: spacingAfter }
       }));
     });
-    return bullets.length ? bullets : [new docx.Paragraph({ text: "—", spacing: { after: spacingAfter } })];
+    return bullets.length ? bullets : [bodyLine("—", spacingAfter)];
   }
 
-  function shadedBox(children, fillHex, pad = 180, borderHex = BRAND.colors.border) {
+  function noBorderTable(rows, widthPct = 100) {
     return new docx.Table({
-      width: { size: 100, type: docx.WidthType.PERCENTAGE },
+      width: { size: widthPct, type: docx.WidthType.PERCENTAGE },
       borders: {
-        top: { style: docx.BorderStyle.SINGLE, size: 2, color: borderHex },
-        bottom: { style: docx.BorderStyle.SINGLE, size: 2, color: borderHex },
-        left: { style: docx.BorderStyle.SINGLE, size: 2, color: borderHex },
-        right: { style: docx.BorderStyle.SINGLE, size: 2, color: borderHex },
+        top: { style: docx.BorderStyle.NONE },
+        bottom: { style: docx.BorderStyle.NONE },
+        left: { style: docx.BorderStyle.NONE },
+        right: { style: docx.BorderStyle.NONE },
         insideHorizontal: { style: docx.BorderStyle.NONE },
         insideVertical: { style: docx.BorderStyle.NONE }
       },
-      rows: [
-        new docx.TableRow({
-          children: [
-            new docx.TableCell({
-              shading: { fill: fillHex },
-              margins: { top: pad, bottom: pad, left: pad, right: pad },
-              children
-            })
-          ]
-        })
-      ]
+      rows
     });
   }
 
-  function metaHeaderLine(left, right) {
+  function cell(children, opts = {}) {
+    return new docx.TableCell({
+      width: opts.width ? { size: opts.width, type: docx.WidthType.PERCENTAGE } : undefined,
+      shading: opts.shading ? { fill: opts.shading } : undefined,
+      margins: opts.margins ?? { top: 180, bottom: 180, left: 180, right: 180 },
+      borders: opts.borders ?? {
+        top: { style: docx.BorderStyle.NONE },
+        bottom: { style: docx.BorderStyle.NONE },
+        left: { style: docx.BorderStyle.NONE },
+        right: { style: docx.BorderStyle.NONE }
+      },
+      verticalAlign: opts.vAlign ?? docx.VerticalAlign.TOP,
+      children: Array.isArray(children) ? children : [children]
+    });
+  }
+
+  function thinRule(after = 160) {
     return new docx.Paragraph({
-      spacing: { after: 80 },
-      tabStops: [{ type: docx.TabStopType.RIGHT, position: 9000 }],
-      children: [
-        new docx.TextRun({ text: left, size: 16, font: BRAND.fonts.body, color: BRAND.colors.muted }),
-        new docx.TextRun({ text: "\t" + (right || ""), size: 16, font: BRAND.fonts.body, color: BRAND.colors.muted })
-      ]
+      border: { bottom: { color: BRAND.colors.border, space: 1, style: docx.BorderStyle.SINGLE, size: 2 } },
+      spacing: { after }
     });
   }
 
   function pageBreak() {
-    return new docx.Paragraph({ children: [new docx.PageBreak()] });
+    return para(new docx.PageBreak(), { spacing: { after: 0 } });
   }
 
-  function recommendationFromCRGRating(crgRating) {
-    const r = safeTrim(crgRating);
-    // Match your screenshot language more closely
-    if (r === "Buy") return "Accumulate";
-    if (r === "Hold") return "Neutral";
-    if (r === "Sell") return "Reduce";
-    return r || "—";
+  function ratingToDisplay(r) {
+    // Your UI is Buy/Hold/Sell. The reference screenshot uses “Neutral”.
+    // We map Hold -> Neutral for sell-side look, but keep Buy/Sell.
+    const x = safeTrim(r);
+    if (!x) return "—";
+    if (x.toLowerCase() === "hold") return "Neutral";
+    return x;
   }
 
-  function firstNonEmptyLine(text) {
-    const lines = (text || "").split("\n").map(x => x.trim()).filter(Boolean);
-    return lines[0] || "";
+  function splitIntoParagraphBlocks(text) {
+    const raw = (text || "").replace(/\r/g, "");
+    // split on blank lines (sell-side paragraphing)
+    const blocks = raw.split(/\n\s*\n/g).map(b => b.trim()).filter(Boolean);
+    return blocks;
   }
 
-  function firstParagraphBlock(text, maxChars = 650) {
-    const t = safeTrim(text);
-    if (!t) return "—";
-    const compact = t.replace(/\n+/g, " ").replace(/\s+/g, " ").trim();
-    return compact.length > maxChars ? compact.slice(0, maxChars - 1) + "…" : compact;
-  }
-
-  async function addImagesToAppendix(imageFiles) {
-    const list = Array.from(imageFiles || []);
-    if (!list.length) return [];
-
+  // ---- Images (appendix figures)
+  async function addImages(files) {
     const out = [];
+    const list = Array.from(files || []);
     for (let i = 0; i < list.length; i++) {
       const file = list[i];
       try {
-        const arrayBuffer = await file.arrayBuffer();
-        const fileNameWithoutExt = file.name.replace(/\.[^/.]+$/, "");
+        const buf = await file.arrayBuffer();
+        const cap = file.name.replace(/\.[^/.]+$/, "");
         out.push(
-          P(`Figure ${i + 1}: ${fileNameWithoutExt}`, { italics: true, size: 18, color: BRAND.colors.muted, spacing: { after: 90 } , font: BRAND.fonts.body }),
           new docx.Paragraph({
-            children: [
-              new docx.ImageRun({
-                data: arrayBuffer,
-                transformation: { width: 620, height: 360 }
-              })
-            ],
-            spacing: { after: 220 },
-            alignment: docx.AlignmentType.CENTER
+            children: [new docx.ImageRun({ data: buf, transformation: { width: 520, height: 340 } })],
+            alignment: docx.AlignmentType.CENTER,
+            spacing: { before: 140, after: 70 }
+          }),
+          new docx.Paragraph({
+            children: [run(`Figure ${i + 1}: ${cap}`, { size: 18, italics: true, color: BRAND.colors.muted })],
+            alignment: docx.AlignmentType.CENTER,
+            spacing: { after: 220 }
           })
         );
       } catch (e) {
-        out.push(P(`Figure ${i + 1}: (could not embed ${file.name})`, { size: 18, color: BRAND.colors.muted }));
+        console.error("Image error:", e);
       }
     }
     return out;
   }
 
-  // ----------------------------------------------------------
-  // Equity report cover page — “Initiating Coverage” format
-  // ----------------------------------------------------------
-  function equityCoverPage(payload) {
-    const {
-      title,
-      ticker,
-      crgRating,
-      targetPrice,
-      equityStats
-    } = payload;
+  // ---- Header / Footer (single source of truth)
+  function headerTable(noteType, isoDate) {
+    const leftText = `${BRAND.short} | ${noteType} | ${isoDate}`;
+    return noBorderTable([
+      new docx.TableRow({
+        children: [
+          cell(para(run(leftText, { size: 16, color: BRAND.colors.lightMuted } ), { spacing: { after: 0 } }), { width: 70, margins: { top: 80, bottom: 80, left: 0, right: 0 } }),
+          cell(para(run(BRAND.short, { size: 16, color: BRAND.colors.lightMuted }), { spacing: { after: 0 }, align: docx.AlignmentType.RIGHT }), { width: 30, margins: { top: 80, bottom: 80, left: 0, right: 0 } })
+        ]
+      })
+    ]);
+  }
 
-    const now = new Date();
-    const dateStr = `${now.getDate()} ${["January","February","March","April","May","June","July","August","September","October","November","December"][now.getMonth()]} ${now.getFullYear()}`;
+  function footerLine() {
+    return new docx.Paragraph({
+      border: { top: { color: BRAND.colors.border, space: 1, style: docx.BorderStyle.SINGLE, size: 2 } },
+      spacing: { before: 70, after: 0 }
+    });
+  }
 
-    const rec = recommendationFromCRGRating(crgRating);
-    const cp = Number.isFinite(equityStats?.currentPrice) ? equityStats.currentPrice : null;
-    const tp = safeNum(targetPrice);
+  function footerTable() {
+    return new docx.Paragraph({
+      children: [
+        run(BRAND.disclaimers.internal, { size: 14, italics: true, color: BRAND.colors.muted }),
+        new docx.TextRun({ text: "\t" }),
+        new docx.TextRun({
+          children: ["Page ", docx.PageNumber.CURRENT, " of ", docx.PageNumber.TOTAL_PAGES],
+          size: 14,
+          italics: true,
+          color: BRAND.colors.muted,
+          font: BRAND.fonts.body
+        })
+      ],
+      tabStops: [{ type: docx.TabStopType.RIGHT, position: 9000 }],
+      spacing: { after: 0 }
+    });
+  }
 
-    const headline = safeTrim(title) || firstNonEmptyLine(payload.analysis) || "—";
+  // ---- Equity page-1 masthead (matches your reference image)
+  function equityMasthead(dateLabel) {
+    // Left: CRG name + tagline. Right: Institutional equity research + date + initiating coverage (red)
+    return noBorderTable([
+      new docx.TableRow({
+        children: [
+          cell([
+            para(run(BRAND.name.toUpperCase(), { font: BRAND.fonts.heading, size: 28, bold: true }), { spacing: { after: 30 } }),
+            para(run(BRAND.tagline, { size: 16, color: BRAND.colors.muted }), { spacing: { after: 0 } })
+          ], { width: 68, margins: { top: 0, bottom: 0, left: 0, right: 0 } }),
+          cell([
+            para(run("INSTITUTIONAL EQUITY RESEARCH", { size: 16, bold: true, color: BRAND.colors.red }), { spacing: { after: 30 }, align: docx.AlignmentType.RIGHT }),
+            para(run(dateLabel, { size: 16, color: BRAND.colors.ink }), { spacing: { after: 20 }, align: docx.AlignmentType.RIGHT }),
+            para(run("Initiating coverage", { size: 16, bold: true, color: BRAND.colors.red }), { spacing: { after: 0 }, align: docx.AlignmentType.RIGHT })
+          ], { width: 32, margins: { top: 0, bottom: 0, left: 0, right: 0 } })
+        ]
+      })
+    ]);
+  }
 
-    // Top “institutional” header (like the screenshot)
-    const topRow = new docx.Table({
+  // ---- Key data sidebar (like the screenshot)
+  function equityKeyDataSidebar({ ticker, rating, currentPrice, targetPrice, rangeReturn, volAnn, miniChartBytes }) {
+    const rows = [];
+
+    // Box title
+    rows.push(para(run("Key data", { size: 18, bold: true, color: BRAND.colors.muted }), { spacing: { after: 120 } }));
+
+    const kv = (k, v) => para([
+      run(`${k}: `, { size: 18, bold: true }),
+      run(v, { size: 18 })
+    ], { spacing: { after: 90 } });
+
+    rows.push(kv("Ticker", naIfBlank(ticker)));
+    rows.push(kv("Recommendation", ratingToDisplay(rating)));
+    rows.push(kv("Current price", currentPrice));
+    rows.push(kv("Target price", targetPrice));
+
+    rows.push(para(run(" ", { size: 10 }), { spacing: { after: 60 } }));
+    rows.push(para(run("Price performance (range)", { size: 18, bold: true, color: BRAND.colors.muted }), { spacing: { after: 120 } }));
+    rows.push(kv("Return", rangeReturn));
+    rows.push(kv("Vol (ann.)", volAnn));
+
+    rows.push(para(run(" ", { size: 10 }), { spacing: { after: 60 } }));
+    rows.push(para(run("Chart", { size: 18, bold: true, color: BRAND.colors.muted }), { spacing: { after: 90 } }));
+
+    if (miniChartBytes) {
+      rows.push(
+        new docx.Paragraph({
+          children: [
+            new docx.ImageRun({
+              data: miniChartBytes,
+              transformation: { width: 170, height: 120 }
+            })
+          ],
+          spacing: { after: 0 }
+        })
+      );
+    } else {
+      rows.push(para(run("—", { size: 18, color: BRAND.colors.muted }), { spacing: { after: 0 } }));
+    }
+
+    // Wrap in shaded “sidebar card”
+    return new docx.Table({
       width: { size: 100, type: docx.WidthType.PERCENTAGE },
       borders: {
-        top: { style: docx.BorderStyle.NONE },
-        bottom: { style: docx.BorderStyle.NONE },
-        left: { style: docx.BorderStyle.NONE },
-        right: { style: docx.BorderStyle.NONE },
+        top: { style: docx.BorderStyle.SINGLE, size: 2, color: BRAND.colors.border },
+        bottom: { style: docx.BorderStyle.SINGLE, size: 2, color: BRAND.colors.border },
+        left: { style: docx.BorderStyle.SINGLE, size: 2, color: BRAND.colors.border },
+        right: { style: docx.BorderStyle.SINGLE, size: 2, color: BRAND.colors.border },
         insideHorizontal: { style: docx.BorderStyle.NONE },
         insideVertical: { style: docx.BorderStyle.NONE }
       },
       rows: [
         new docx.TableRow({
           children: [
-            new docx.TableCell({
-              width: { size: 55, type: docx.WidthType.PERCENTAGE },
-              margins: { top: 120, bottom: 60, left: 0, right: 0 },
-              children: [
-                new docx.Paragraph({
-                  children: [
-                    new docx.TextRun({ text: BRAND.name.toUpperCase(), font: BRAND.fonts.heading, size: 26, bold: true, color: BRAND.colors.ink })
-                  ],
-                  spacing: { after: 20 }
-                }),
-                new docx.Paragraph({
-                  children: [
-                    new docx.TextRun({ text: "Values that bind", font: BRAND.fonts.body, size: 16, color: BRAND.colors.muted })
-                  ],
-                  spacing: { after: 0 }
-                })
-              ]
-            }),
-            new docx.TableCell({
-              width: { size: 45, type: docx.WidthType.PERCENTAGE },
-              margins: { top: 120, bottom: 60, left: 0, right: 0 },
-              children: [
-                new docx.Paragraph({
-                  children: [
-                    new docx.TextRun({ text: "INSTITUTIONAL EQUITY RESEARCH", font: BRAND.fonts.body, size: 16, bold: true, color: BRAND.colors.red })
-                  ],
-                  alignment: docx.AlignmentType.RIGHT,
-                  spacing: { after: 20 }
-                }),
-                new docx.Paragraph({
-                  children: [
-                    new docx.TextRun({ text: dateStr, font: BRAND.fonts.body, size: 16, color: BRAND.colors.muted })
-                  ],
-                  alignment: docx.AlignmentType.RIGHT,
-                  spacing: { after: 20 }
-                }),
-                new docx.Paragraph({
-                  children: [
-                    new docx.TextRun({ text: "Initiating coverage", font: BRAND.fonts.body, size: 16, bold: true, color: BRAND.colors.red })
-                  ],
-                  alignment: docx.AlignmentType.RIGHT,
-                  spacing: { after: 0 }
-                })
-              ]
+            cell(rows, {
+              shading: BRAND.colors.rail,
+              margins: { top: 220, bottom: 220, left: 220, right: 220 }
             })
           ]
         })
       ]
     });
+  }
 
-    // Sidebar “Key data”
-    const keyDataLines = [];
+  // ---- Equity page 1 main column header (“MSFT Neutral”, “Current Price … Target price …”)
+  function equityMainHeader({ ticker, rating, currentPrice, targetPrice, title }) {
+    const tkr = safeTrim(ticker) || "—";
+    const rec = ratingToDisplay(rating);
 
-    keyDataLines.push(P("Key data", { bold: true, size: 22, font: BRAND.fonts.body, spacing: { after: 110 } }));
-    keyDataLines.push(P(`Ticker: ${safeTrim(ticker) || "—"}`, { size: 18, color: BRAND.colors.ink, spacing: { after: 70 } }));
-    keyDataLines.push(P(`Recommendation: ${rec || "—"}`, { size: 18, color: BRAND.colors.ink, spacing: { after: 70 } }));
-    keyDataLines.push(P(`Current price: ${cp === null ? "—" : cp.toFixed(2)}`, { size: 18, color: BRAND.colors.ink, spacing: { after: 70 } }));
-    keyDataLines.push(P(`Target price: ${tp === null ? "—" : tp.toFixed(2)}`, { size: 18, color: BRAND.colors.ink, spacing: { after: 70 } }));
+    const priceLine = [
+      run("Current Price: ", { size: 18, bold: true, color: BRAND.colors.muted }),
+      run(`${currentPrice}`, { size: 18, color: BRAND.colors.muted }),
+      run("    ", { size: 18 }),
+      run("Target price: ", { size: 18, bold: true, color: BRAND.colors.muted }),
+      run(`${targetPrice}`, { size: 18, color: BRAND.colors.muted })
+    ];
 
-    // Light “stats” block under key data (mirrors the “data rail” feel)
-    const rr = Number.isFinite(equityStats?.rangeReturn) ? equityStats.rangeReturn : null;
-    const vol = Number.isFinite(equityStats?.realisedVolAnn) ? equityStats.realisedVolAnn : null;
+    return [
+      // Ticker + rating
+      para([
+        run(tkr.toUpperCase(), { font: BRAND.fonts.heading, size: 44, bold: true }),
+        run("  ", { size: 10 }),
+        run(rec, { font: BRAND.fonts.body, size: 22, bold: true, color: BRAND.colors.ink })
+      ], { spacing: { after: 90 } }),
 
-    keyDataLines.push(new docx.Paragraph({ spacing: { after: 90 } }));
-    keyDataLines.push(P("Price performance (range)", { bold: true, size: 18, color: BRAND.colors.muted, spacing: { after: 70 } }));
-    keyDataLines.push(P(`Return: ${rr === null ? "—" : pct(rr)}`, { size: 18, spacing: { after: 60 } }));
-    keyDataLines.push(P(`Vol (ann.): ${vol === null ? "—" : pct(vol)}`, { size: 18, spacing: { after: 100 } }));
+      para(priceLine, { spacing: { after: 160 } }),
 
-    // Embed a mini chart if available
-    if (priceChartImageBytes) {
-      keyDataLines.push(P("Chart", { bold: true, size: 18, color: BRAND.colors.muted, spacing: { after: 60 } }));
-      keyDataLines.push(
-        new docx.Paragraph({
-          children: [
-            new docx.ImageRun({ data: priceChartImageBytes, transformation: { width: 250, height: 120 } })
-          ],
-          spacing: { after: 0 },
-          alignment: docx.AlignmentType.CENTER
-        })
-      );
-    }
+      // Headline (use Title as sell-side headline)
+      para(run(safeTrim(title) || "—", { font: BRAND.fonts.heading, size: 30, bold: true }), { spacing: { after: 120 } })
+    ];
+  }
 
-    const sidebar = shadedBox(keyDataLines, BRAND.colors.rail, 160);
-
-    // Main cover body (ticker header line + headline + thesis block)
-    const mainTop = [];
-
-    mainTop.push(
-      new docx.Paragraph({
-        children: [
-          new docx.TextRun({ text: (safeTrim(ticker) || "—").toUpperCase(), font: BRAND.fonts.heading, size: 40, bold: true, color: BRAND.colors.ink }),
-          new docx.TextRun({ text: "   ", size: 20 }),
-          new docx.TextRun({ text: rec || "—", font: BRAND.fonts.body, size: 22, bold: true, color: BRAND.colors.ink })
-        ],
-        spacing: { after: 90 }
-      })
-    );
-
-    mainTop.push(
-      new docx.Paragraph({
-        children: [
-          new docx.TextRun({ text: "Current Price: ", font: BRAND.fonts.body, size: 18, bold: true, color: BRAND.colors.muted }),
-          new docx.TextRun({ text: cp === null ? "—" : `Rs${cp.toFixed(0)}`, font: BRAND.fonts.body, size: 18, color: BRAND.colors.ink }),
-          new docx.TextRun({ text: "    ", size: 18 }),
-          new docx.TextRun({ text: "Target price: ", font: BRAND.fonts.body, size: 18, bold: true, color: BRAND.colors.muted }),
-          new docx.TextRun({ text: tp === null ? "—" : `Rs${tp.toFixed(0)}`, font: BRAND.fonts.body, size: 18, color: BRAND.colors.ink })
-        ],
-        spacing: { after: 120 }
-      })
-    );
-
-    mainTop.push(
-      new docx.Paragraph({
-        children: [
-          new docx.TextRun({ text: headline, font: BRAND.fonts.heading, size: 32, bold: true, color: BRAND.colors.ink })
-        ],
-        spacing: { after: 140 }
-      })
-    );
-
-    // Thesis text = first chunk of analysis (cover page should read like a short initiation thesis)
-    const thesis = firstParagraphBlock(payload.analysis, 900);
-    mainTop.push(...linesToParas(thesis, { font: BRAND.fonts.body, size: 22, after: 140 }));
-
-    // Cover layout: left sidebar + main body (like screenshot)
-    const coverGrid = new docx.Table({
-      width: { size: 100, type: docx.WidthType.PERCENTAGE },
+  // ---- Tear sheet page (fixed: proper density, chart size, no duplicate header)
+  function tearSheetStatsRow({ currentPrice, targetPrice, upside, volAnn }) {
+    const one = (label, value) => cell([
+      para(run(label, { size: 16, bold: true, color: BRAND.colors.muted }), { spacing: { after: 40 } }),
+      para(run(value, { size: 22, bold: true }), { spacing: { after: 0 } })
+    ], {
+      shading: "F3F4F6",
       borders: {
-        top: { style: docx.BorderStyle.NONE },
-        bottom: { style: docx.BorderStyle.NONE },
-        left: { style: docx.BorderStyle.NONE },
-        right: { style: docx.BorderStyle.NONE },
-        insideHorizontal: { style: docx.BorderStyle.NONE },
-        insideVertical: { style: docx.BorderStyle.SINGLE, color: BRAND.colors.border, size: 2 }
+        top: { style: docx.BorderStyle.SINGLE, size: 2, color: BRAND.colors.border },
+        bottom: { style: docx.BorderStyle.SINGLE, size: 2, color: BRAND.colors.border },
+        left: { style: docx.BorderStyle.SINGLE, size: 2, color: BRAND.colors.border },
+        right: { style: docx.BorderStyle.SINGLE, size: 2, color: BRAND.colors.border }
       },
+      margins: { top: 180, bottom: 180, left: 180, right: 180 },
+      width: 25
+    });
+
+    return new docx.Table({
+      width: { size: 100, type: docx.WidthType.PERCENTAGE },
       rows: [
         new docx.TableRow({
           children: [
-            new docx.TableCell({
-              width: { size: 28, type: docx.WidthType.PERCENTAGE },
-              margins: { top: 120, bottom: 120, left: 0, right: 240 },
-              children: [sidebar],
-              verticalAlign: docx.VerticalAlign.TOP
-            }),
-            new docx.TableCell({
-              width: { size: 72, type: docx.WidthType.PERCENTAGE },
-              margins: { top: 120, bottom: 120, left: 0, right: 0 },
-              children: mainTop,
-              verticalAlign: docx.VerticalAlign.TOP
-            })
+            one("Current price", currentPrice),
+            one("Target price", targetPrice),
+            one("Upside", upside),
+            one("Vol (ann.)", volAnn)
           ]
         })
       ]
     });
-
-    return [topRow, HR(120), coverGrid];
   }
 
-  // ----------------------------------------------------------
-  // Equity pages (post-cover)
-  // ----------------------------------------------------------
-  function equityBodyPages(payload) {
+  // ---- Build the institutional document (the part that matters most)
+  async function createInstitutionalDocument(payload) {
+    const {
+      noteType, title, topic,
+      authorLastName, authorFirstName, authorPhoneSafe,
+      coAuthors,
+      analysis, keyTakeaways, content, cordobaView,
+      imageFiles, dateTimeString,
+      ticker, valuationSummary, keyAssumptions, scenarioNotes, modelFiles, modelLink,
+      priceChartImageBytes,
+      targetPrice, equityStats,
+      crgRating
+    } = payload;
+
+    const nt = noteType || "Research Note";
     const now = new Date();
-    const cp = Number.isFinite(payload.equityStats?.currentPrice) ? payload.equityStats.currentPrice : null;
-    const tp = safeNum(payload.targetPrice);
+    const iso = formatDateShortISO(now);
+
+    // author line (kept simple; sell-side usually has analysts in the rail, but you can expand later)
+    const authorName = `${safeTrim(authorFirstName)} ${safeTrim(authorLastName)}`.trim() || "—";
+    const authorPhone = authorPhoneSafe ? authorPhoneSafe : "N/A";
+
+    // numbers
+    const cp = Number.isFinite(equityStats?.currentPrice) ? equityStats.currentPrice : null;
+    const tp = safeNum(targetPrice);
     const upside = (cp !== null && tp !== null && cp > 0) ? ((tp / cp) - 1) : null;
 
-    const out = [];
+    const displayCurrent = cp === null ? "—" : cp.toFixed(2);
+    const displayTarget = tp === null ? (safeTrim(targetPrice) || "—") : tp.toFixed(2);
+    const displayReturn = Number.isFinite(equityStats?.rangeReturn) ? pct(equityStats.rangeReturn) : "—";
+    const displayVol = Number.isFinite(equityStats?.realisedVolAnn) ? pct(equityStats.realisedVolAnn) : "—";
+    const displayUpside = upside === null ? "—" : pct(upside);
 
-    // Page 2: Investment thesis + in-brief rail (BlueMatrix-ish rhythm)
-    out.push(pageBreak());
-    out.push(metaHeaderLine(`${BRAND.short} | Equity Research | ${formatDateShortISO(now)}`, "Public Information"));
-    out.push(HR(120));
+    // Split analysis into paragraph blocks so page 1 is not a wall of text
+    const blocks = splitIntoParagraphBlocks(analysis);
+    const p1Blocks = blocks.slice(0, 3);
+    const restBlocks = blocks.slice(3);
 
-    const inBrief = shadedBox([
-      P("In brief", { bold: true, size: 20, spacing: { after: 90 } }),
-      ...bulletLines(payload.keyTakeaways || "", 80, 20)
-    ], BRAND.colors.callout, 160);
+    // Convert blocks to paragraphs
+    const p1Paras = p1Blocks.length
+      ? p1Blocks.flatMap(b => linesToParagraphs(b, 140)).concat([bodyLine(" ", 60)])
+      : [bodyLine("—")];
 
-    const left = [
-      P("Investment thesis", { bold: true, font: BRAND.fonts.heading, size: 30, spacing: { after: 140 } }),
-      ...linesToParas(payload.analysis || "—", { font: BRAND.fonts.body, size: 22, after: 140 })
-    ];
+    const restParas = restBlocks.length
+      ? restBlocks.flatMap(b => linesToParagraphs(b, 140))
+      : [];
 
-    const thesisGrid = new docx.Table({
-      width: { size: 100, type: docx.WidthType.PERCENTAGE },
-      borders: {
-        top: { style: docx.BorderStyle.NONE },
-        bottom: { style: docx.BorderStyle.NONE },
-        left: { style: docx.BorderStyle.NONE },
-        right: { style: docx.BorderStyle.NONE },
-        insideHorizontal: { style: docx.BorderStyle.NONE },
-        insideVertical: { style: docx.BorderStyle.SINGLE, color: BRAND.colors.border, size: 2 }
-      },
-      rows: [
-        new docx.TableRow({
-          children: [
-            new docx.TableCell({
-              width: { size: 68, type: docx.WidthType.PERCENTAGE },
-              margins: { top: 120, bottom: 120, left: 0, right: 240 },
-              children: left,
-              verticalAlign: docx.VerticalAlign.TOP
-            }),
-            new docx.TableCell({
-              width: { size: 32, type: docx.WidthType.PERCENTAGE },
-              margins: { top: 120, bottom: 120, left: 0, right: 0 },
-              children: [inBrief],
-              verticalAlign: docx.VerticalAlign.TOP
-            })
-          ]
-        })
-      ]
-    });
+    // Figures
+    const figures = await addImages(imageFiles);
 
-    out.push(thesisGrid);
+    // Attachments list
+    const attachedModelNames = (modelFiles && modelFiles.length)
+      ? Array.from(modelFiles).map(f => f.name)
+      : [];
 
-    // Page 3: Tear sheet (clean)
-    out.push(pageBreak());
-    out.push(metaHeaderLine(`${BRAND.short} | Equity Research | Tear sheet`, "Public Information"));
-    out.push(HR(120));
-    out.push(P("Tear sheet", { bold: true, font: BRAND.fonts.heading, size: 30, spacing: { after: 140 } }));
+    // =========================================================
+    // EQUITY RESEARCH FORMAT (proper sell-side look)
+    // =========================================================
+    let children = [];
 
-    // Small stats row
-    const statsCells = [
-      { k: "Current price", v: cp === null ? "—" : cp.toFixed(2) },
-      { k: "Target price", v: tp === null ? "—" : tp.toFixed(2) },
-      { k: "Upside", v: upside === null ? "—" : pct(upside) },
-      { k: "Vol (ann.)", v: Number.isFinite(payload.equityStats?.realisedVolAnn) ? pct(payload.equityStats.realisedVolAnn) : "—" }
-    ];
+    if (nt === "Equity Research") {
+      // ---- Page 1: Initiating coverage layout
+      children.push(
+        equityMasthead(dateTimeString.split(" ").slice(0, 3).join(" ")), // "19 January 2026" feel
+        thinRule(220)
+      );
 
-    const statsRow = new docx.Table({
-      width: { size: 100, type: docx.WidthType.PERCENTAGE },
-      rows: [
-        new docx.TableRow({
-          children: statsCells.map(c => new docx.TableCell({
-            width: { size: 25, type: docx.WidthType.PERCENTAGE },
-            margins: { top: 160, bottom: 160, left: 160, right: 160 },
-            shading: { fill: BRAND.colors.rail },
-            borders: {
-              top: { style: docx.BorderStyle.SINGLE, size: 2, color: BRAND.colors.border },
-              bottom: { style: docx.BorderStyle.SINGLE, size: 2, color: BRAND.colors.border },
-              left: { style: docx.BorderStyle.SINGLE, size: 2, color: BRAND.colors.border },
-              right: { style: docx.BorderStyle.SINGLE, size: 2, color: BRAND.colors.border }
-            },
+      const sidebar = equityKeyDataSidebar({
+        ticker: safeTrim(ticker),
+        rating: safeTrim(crgRating),
+        currentPrice: displayCurrent,
+        targetPrice: displayTarget,
+        rangeReturn: displayReturn,
+        volAnn: displayVol,
+        miniChartBytes: priceChartImageBytes // same bytes, just rendered smaller
+      });
+
+      const mainHeader = equityMainHeader({
+        ticker: safeTrim(ticker),
+        rating: safeTrim(crgRating),
+        currentPrice: displayCurrent,
+        targetPrice: displayTarget,
+        title: safeTrim(title)
+      });
+
+      // Main body opening (first 2–3 paragraph blocks)
+      const page1Layout = new docx.Table({
+        width: { size: 100, type: docx.WidthType.PERCENTAGE },
+        borders: {
+          top: { style: docx.BorderStyle.NONE },
+          bottom: { style: docx.BorderStyle.NONE },
+          left: { style: docx.BorderStyle.NONE },
+          right: { style: docx.BorderStyle.NONE },
+          insideHorizontal: { style: docx.BorderStyle.NONE },
+          insideVertical: { style: docx.BorderStyle.SINGLE, color: BRAND.colors.border, size: 2 }
+        },
+        rows: [
+          new docx.TableRow({
             children: [
-              P(c.k, { size: 16, color: BRAND.colors.muted, bold: true, spacing: { after: 40 } }),
-              P(c.v, { size: 24, bold: true, spacing: { after: 0 } })
+              cell([sidebar], { width: 24, margins: { top: 0, bottom: 0, left: 0, right: 220 } }),
+              cell([
+                ...mainHeader,
+                ...p1Paras
+              ], { width: 76, margins: { top: 0, bottom: 0, left: 220, right: 0 } })
             ]
-          }))
-        })
-      ]
-    });
+          })
+        ]
+      });
 
-    out.push(statsRow);
-
-    out.push(new docx.Paragraph({ spacing: { after: 120 } }));
-
-    if (priceChartImageBytes) {
-      out.push(
-        new docx.Paragraph({
-          children: [new docx.ImageRun({ data: priceChartImageBytes, transformation: { width: 620, height: 260 } })],
-          alignment: docx.AlignmentType.CENTER,
-          spacing: { after: 140 }
-        })
-      );
-    } else {
-      out.push(P("Chart not attached (fetch chart before export).", { size: 18, color: BRAND.colors.muted }));
-    }
-
-    // Valuation inputs
-    if (safeTrim(payload.valuationSummary)) {
-      out.push(P("Valuation", { bold: true, font: BRAND.fonts.heading, size: 28, spacing: { before: 160, after: 120 } }));
-      out.push(...linesToParas(payload.valuationSummary, { font: BRAND.fonts.body, size: 22, after: 140 }));
-    }
-
-    if (safeTrim(payload.keyAssumptions)) {
-      out.push(P("Key assumptions", { bold: true, font: BRAND.fonts.heading, size: 26, spacing: { before: 140, after: 90 } }));
-      out.push(...bulletLines(payload.keyAssumptions, 80, 20));
-    }
-
-    if (safeTrim(payload.scenarioNotes)) {
-      out.push(P("Scenario / sensitivities", { bold: true, font: BRAND.fonts.heading, size: 26, spacing: { before: 140, after: 90 } }));
-      out.push(...linesToParas(payload.scenarioNotes, { font: BRAND.fonts.body, size: 22, after: 140 }));
-    }
-
-    // Page 4+: Additional detail + Córdoba view
-    const extra = safeTrim(payload.content);
-    const cv = safeTrim(payload.cordobaView);
-
-    if (extra || cv) {
-      out.push(pageBreak());
-      out.push(metaHeaderLine(`${BRAND.short} | Equity Research | Detail`, "Public Information"));
-      out.push(HR(120));
-
-      if (extra) {
-        out.push(P("Company / industry detail", { bold: true, font: BRAND.fonts.heading, size: 28, spacing: { after: 120 } }));
-        out.push(...linesToParas(extra, { font: BRAND.fonts.body, size: 22, after: 140 }));
-      }
-
-      if (cv) {
-        out.push(P("The Cordoba View", { bold: true, font: BRAND.fonts.heading, size: 28, spacing: { before: 160, after: 120 } }));
-        out.push(...linesToParas(cv, { font: BRAND.fonts.body, size: 22, after: 140 }));
-      }
-    }
-
-    return out;
-  }
-
-  // ----------------------------------------------------------
-  // Non-equity: clean institutional template (kept strong)
-  // ----------------------------------------------------------
-  function nonEquityDocument(payload) {
-    const now = new Date();
-
-    const top = shadedBox([
-      new docx.Paragraph({
-        children: [
-          new docx.TextRun({ text: BRAND.short, font: BRAND.fonts.body, size: 20, bold: true, color: "FFFFFF" }),
-          new docx.TextRun({ text: "  ", size: 20 }),
-          new docx.TextRun({ text: (payload.noteType || "Research Note").toUpperCase(), font: BRAND.fonts.body, size: 18, bold: true, color: "FFFFFF" })
-        ],
-        spacing: { after: 40 }
-      }),
-      new docx.Paragraph({
-        children: [
-          new docx.TextRun({ text: safeTrim(payload.title) || "—", font: BRAND.fonts.heading, size: 34, bold: true, color: "FFFFFF" })
-        ],
-        spacing: { after: 30 }
-      }),
-      new docx.Paragraph({
-        children: [
-          new docx.TextRun({ text: safeTrim(payload.topic) || "—", font: BRAND.fonts.body, size: 18, color: "FFFFFF" })
-        ],
-        spacing: { after: 0 }
-      })
-    ], BRAND.colors.goldDark, 220, BRAND.colors.goldDark);
-
-    const authorLine = `${safeTrim(payload.authorFirstName)} ${safeTrim(payload.authorLastName)}`.trim() || "—";
-
-    const meta = shadedBox([
-      P("Author", { bold: true, size: 18, color: BRAND.colors.muted, spacing: { after: 60 } }),
-      P(authorLine, { bold: true, size: 22, spacing: { after: 60 } }),
-      P(`Phone: ${naIfBlank(payload.authorPhone)}`, { size: 18, color: BRAND.colors.muted, spacing: { after: 70 } }),
-      P(`Generated: ${formatDateTime(now)}`, { size: 16, color: BRAND.colors.muted, spacing: { after: 0 } })
-    ], BRAND.colors.rail, 160);
-
-    const page1 = new docx.Table({
-      width: { size: 100, type: docx.WidthType.PERCENTAGE },
-      borders: {
-        top: { style: docx.BorderStyle.NONE },
-        bottom: { style: docx.BorderStyle.NONE },
-        left: { style: docx.BorderStyle.NONE },
-        right: { style: docx.BorderStyle.NONE },
-        insideHorizontal: { style: docx.BorderStyle.NONE },
-        insideVertical: { style: docx.BorderStyle.SINGLE, color: BRAND.colors.border, size: 2 }
-      },
-      rows: [
-        new docx.TableRow({
-          children: [
-            new docx.TableCell({
-              width: { size: 70, type: docx.WidthType.PERCENTAGE },
-              margins: { top: 120, bottom: 120, left: 0, right: 240 },
-              children: [
-                P("Key takeaways", { bold: true, font: BRAND.fonts.heading, size: 28, spacing: { after: 90 } }),
-                ...bulletLines(payload.keyTakeaways || "", 90, 20),
-                new docx.Paragraph({ spacing: { after: 140 } }),
-                P("Analysis", { bold: true, font: BRAND.fonts.heading, size: 28, spacing: { after: 120 } }),
-                ...linesToParas(payload.analysis || "—", { font: BRAND.fonts.body, size: 22, after: 140 })
-              ],
-              verticalAlign: docx.VerticalAlign.TOP
-            }),
-            new docx.TableCell({
-              width: { size: 30, type: docx.WidthType.PERCENTAGE },
-              margins: { top: 120, bottom: 120, left: 0, right: 0 },
-              children: [meta],
-              verticalAlign: docx.VerticalAlign.TOP
-            })
-          ]
-        })
-      ]
-    });
-
-    const rest = [];
-    const extra = safeTrim(payload.content);
-    const cv = safeTrim(payload.cordobaView);
-
-    if (extra || cv) {
-      rest.push(pageBreak());
-      rest.push(metaHeaderLine(`${BRAND.short} | ${(payload.noteType || "Note")} | ${formatDateShortISO(now)}`, "Public Information"));
-      rest.push(HR(120));
-      if (extra) {
-        rest.push(P("Additional detail", { bold: true, font: BRAND.fonts.heading, size: 28, spacing: { after: 120 } }));
-        rest.push(...linesToParas(extra, { font: BRAND.fonts.body, size: 22, after: 140 }));
-      }
-      if (cv) {
-        rest.push(P("The Cordoba View", { bold: true, font: BRAND.fonts.heading, size: 28, spacing: { before: 160, after: 120 } }));
-        rest.push(...linesToParas(cv, { font: BRAND.fonts.body, size: 22, after: 140 }));
-      }
-    }
-
-    return [top, new docx.Paragraph({ spacing: { after: 120 } }), page1, ...rest];
-  }
-
-  // ----------------------------------------------------------
-  // Main builder — routes equity vs non-equity
-  // ----------------------------------------------------------
-  async function createInstitutionalDocument(payload) {
-    const now = new Date();
-
-    const sectionsChildren = [];
-
-    if (payload.noteType === "Equity Research") {
-      // Cover page (initiating coverage format)
-      sectionsChildren.push(...equityCoverPage(payload));
-
-      // Disclaimers under cover (like sell-side fine print)
-      sectionsChildren.push(
-        new docx.Paragraph({
-          children: [
-            new docx.TextRun({
-              text: BRAND.disclaimers.internal,
-              font: BRAND.fonts.body,
-              size: 14,
-              color: BRAND.colors.muted
-            })
-          ],
-          spacing: { before: 160, after: 0 }
-        })
+      children.push(
+        page1Layout,
+        // Footer-style note on page 1 (like your screenshot)
+        para(run(BRAND.disclaimers.internal, { size: 14, color: BRAND.colors.muted }), { spacing: { before: 220, after: 0 } }),
+        pageBreak()
       );
 
-      // Body pages
-      sectionsChildren.push(...equityBodyPages(payload));
+      // ---- Page 2: Tear sheet page (clean and dense)
+      children.push(
+        heading("Tear sheet", 34, 140),
+        thinRule(160),
+        tearSheetStatsRow({
+          currentPrice: displayCurrent,
+          targetPrice: displayTarget,
+          upside: displayUpside,
+          volAnn: displayVol
+        }),
+        para(run(" ", { size: 10 }), { spacing: { after: 120 } })
+      );
+
+      if (priceChartImageBytes) {
+        children.push(
+          new docx.Paragraph({
+            children: [
+              new docx.ImageRun({
+                data: priceChartImageBytes,
+                transformation: { width: 620, height: 210 } // tighter (fixes your oversized chart)
+              })
+            ],
+            spacing: { after: 160 },
+            alignment: docx.AlignmentType.CENTER
+          })
+        );
+      } else {
+        children.push(bodyLine("Chart not attached (fetch chart before export).", 160));
+      }
+
+      // Tear sheet continuation (Valuation + Assumptions inline, like sell-side)
+      if (safeTrim(valuationSummary)) {
+        children.push(
+          subheading("Valuation", 28, 110),
+          ...linesToParagraphs(valuationSummary, 140)
+        );
+      }
+      if (safeTrim(keyAssumptions)) {
+        children.push(
+          subheading("Key assumptions", 28, 110),
+          ...bulletLines(keyAssumptions, 90)
+        );
+      }
+
+      children.push(pageBreak());
+
+      // ---- Page 3+: Full report (no duplicated headers)
+      children.push(
+        heading("Investment thesis", 34, 140),
+        thinRule(180)
+      );
+
+      // Continue the analysis from where page 1 stopped
+      if (restParas.length) {
+        children.push(...restParas);
+      }
+
+      // Optional extra detail
+      if (safeTrim(content)) {
+        children.push(
+          subheading("Additional detail", 26, 110),
+          ...linesToParagraphs(content, 140)
+        );
+      }
+
+      // Scenario notes
+      if (safeTrim(scenarioNotes)) {
+        children.push(
+          subheading("Scenario / sensitivity notes", 26, 110),
+          ...linesToParagraphs(scenarioNotes, 140)
+        );
+      }
+
+      // Cordoba view
+      if (safeTrim(cordobaView)) {
+        children.push(
+          subheading("The Cordoba view", 26, 110),
+          ...linesToParagraphs(cordobaView, 140)
+        );
+      }
+
+      // Attachments (model)
+      if (safeTrim(modelLink) || attachedModelNames.length) {
+        children.push(subheading("Model and attachments", 26, 110));
+
+        if (safeTrim(modelLink)) {
+          children.push(bodyLine(`Model link: ${safeTrim(modelLink)}`, 120));
+        }
+
+        if (attachedModelNames.length) {
+          attachedModelNames.forEach(name => {
+            children.push(new docx.Paragraph({ text: name, bullet: { level: 0 }, spacing: { after: 70 } }));
+          });
+        } else {
+          children.push(bodyLine("No files uploaded.", 120));
+        }
+      }
+
+      // Figures section
+      if (figures.length) {
+        children.push(
+          subheading("Figures and charts", 26, 110),
+          ...figures
+        );
+      }
+
+      // Key takeaways (kept, but after the main body in equity format)
+      if (safeTrim(keyTakeaways)) {
+        children.push(
+          subheading("Key takeaways", 26, 110),
+          ...bulletLines(keyTakeaways, 90)
+        );
+      }
     } else {
-      sectionsChildren.push(...nonEquityDocument(payload));
+      // =========================================================
+      // NON-EQUITY (keep a clean institutional format)
+      // =========================================================
+      children.push(
+        heading(BRAND.name.toUpperCase(), 30, 40),
+        bodyLine(BRAND.tagline, 180),
+        thinRule(180),
+        heading(safeTrim(title) || "—", 34, 100),
+        bodyLine(safeTrim(topic) || "—", 160),
+        subheading("Key takeaways", 26, 110),
+        ...bulletLines(keyTakeaways, 90),
+        subheading("Analysis", 26, 110),
+        ...linesToParagraphs(analysis, 140)
+      );
+
+      if (safeTrim(content)) {
+        children.push(subheading("Additional detail", 26, 110), ...linesToParagraphs(content, 140));
+      }
+      if (safeTrim(cordobaView)) {
+        children.push(subheading("The Cordoba view", 26, 110), ...linesToParagraphs(cordobaView, 140));
+      }
+      if (figures.length) {
+        children.push(subheading("Figures and charts", 26, 110), ...figures);
+      }
     }
 
-    // Figures appendix (always last if present)
-    const figs = await addImagesToAppendix(payload.imageFiles);
-    if (figs.length) {
-      sectionsChildren.push(pageBreak());
-      sectionsChildren.push(metaHeaderLine(`${BRAND.short} | Appendix | Figures`, "Public Information"));
-      sectionsChildren.push(HR(120));
-      sectionsChildren.push(P("Figures and charts", { bold: true, font: BRAND.fonts.heading, size: 28, spacing: { after: 120 } }));
-      sectionsChildren.push(...figs);
-    }
-
-    // Construct document with consistent headers/footers
+    // Document
     const doc = new docx.Document({
       styles: {
         default: {
@@ -1492,35 +1411,20 @@
         headers: {
           default: new docx.Header({
             children: [
-              metaHeaderLine(`${BRAND.short} | ${payload.noteType || "Research"} | ${formatDateShortISO(now)}`, BRAND.short)
+              headerTable(nt, iso),
+              thinRule(0)
             ]
           })
         },
         footers: {
           default: new docx.Footer({
             children: [
-              new docx.Paragraph({
-                border: { top: { color: BRAND.colors.border, space: 1, style: docx.BorderStyle.SINGLE, size: 2 } },
-                spacing: { after: 0 }
-              }),
-              new docx.Paragraph({
-                children: [
-                  new docx.TextRun({ text: BRAND.disclaimers.publicInfo, size: 14, italics: true, color: BRAND.colors.muted }),
-                  new docx.TextRun({ text: "\t" }),
-                  new docx.TextRun({
-                    children: ["Page ", docx.PageNumber.CURRENT, " of ", docx.PageNumber.TOTAL_PAGES],
-                    size: 14,
-                    italics: true,
-                    color: BRAND.colors.muted
-                  })
-                ],
-                tabStops: [{ type: docx.TabStopType.RIGHT, position: 9000 }],
-                spacing: { before: 70, after: 0 }
-              })
+              footerLine(),
+              footerTable()
             ]
           })
         },
-        children: sectionsChildren
+        children
       }]
     });
 
@@ -1528,20 +1432,7 @@
   }
 
   // ------------------------------
-  // Validation
-  // ------------------------------
-  function validatePublishCore() {
-    const missing = [];
-    const core = isEquityMode() ? baseCoreIds.concat(equityCoreIds) : baseCoreIds;
-    core.forEach(id => {
-      const el = document.getElementById(id);
-      if (el && !isFilled(el)) missing.push(id);
-    });
-    return missing;
-  }
-
-  // ------------------------------
-  // Submit (Generate Word)
+  // Submit / Export
   // ------------------------------
   const form = document.getElementById("researchForm");
   if (form) form.noValidate = true;
@@ -1576,7 +1467,7 @@
 
         const authorLastName = safeTrim($("#authorLastName")?.value);
         const authorFirstName = safeTrim($("#authorFirstName")?.value);
-        const authorPhone = safeTrim($("#authorPhone")?.value);
+        const authorPhoneSafe = naIfBlank(safeTrim($("#authorPhone")?.value));
 
         const analysis = $("#analysis")?.value || "";
         const keyTakeaways = $("#keyTakeaways")?.value || "";
@@ -1595,22 +1486,25 @@
         const targetPrice = $("#targetPrice") ? $("#targetPrice").value : "";
         const crgRating = $("#crgRating") ? $("#crgRating").value : "";
 
+        const now = new Date();
+        const dateTimeString = formatDateTime(now);
+
         const coAuthors = [];
         $$(".coauthor-entry").forEach(entry => {
           const lastName = safeTrim($(".coauthor-lastname", entry)?.value);
           const firstName = safeTrim($(".coauthor-firstname", entry)?.value);
           const phone = safeTrim($(".coauthor-phone", entry)?.value);
           if (lastName || firstName) {
-            coAuthors.push({ lastName, firstName, phone: naIfBlank(phone) });
+            coAuthors.push({ lastName: lastName || "", firstName: firstName || "", phone: naIfBlank(phone) });
           }
         });
 
         const doc = await createInstitutionalDocument({
           noteType, title, topic,
-          authorLastName, authorFirstName, authorPhone,
+          authorLastName, authorFirstName, authorPhoneSafe,
           coAuthors,
           analysis, keyTakeaways, content, cordobaView,
-          imageFiles,
+          imageFiles, dateTimeString,
           ticker, valuationSummary, keyAssumptions, scenarioNotes, modelFiles, modelLink,
           priceChartImageBytes,
           targetPrice,
@@ -1618,11 +1512,11 @@
           crgRating
         });
 
-        const now = new Date();
-        const fileName =
-          `${(title || "crg_note").replace(/[^a-z0-9]/gi, "_").toLowerCase()}_${(noteType || "note").replace(/\s+/g, "_").toLowerCase()}_${formatDateShortISO(now)}.docx`;
-
         const blob = await docx.Packer.toBlob(doc);
+
+        const fileName =
+          `${(title || "research_note").replace(/[^a-z0-9]/gi, "_").toLowerCase()}_${(noteType || "note").replace(/\s+/g, "_").toLowerCase()}_${formatDateShortISO(now)}.docx`;
+
         saveAs(blob, fileName);
 
         showMsg("success", `✓ Document "${fileName}" generated successfully.`);
@@ -1639,8 +1533,43 @@
   }
 
   // ------------------------------
-  // Init / restore
+  // Draft restore
   // ------------------------------
+  function applyDraft(draft) {
+    if (!draft) return;
+    DRAFT_FIELDS.forEach(id => {
+      const el = document.getElementById(id);
+      if (!el) return;
+      if (typeof draft[id] === "string") el.value = draft[id];
+    });
+
+    if (Array.isArray(draft.__coAuthors) && draft.__coAuthors.length) {
+      if (coAuthorsList) {
+        coAuthorsList.innerHTML = "";
+        draft.__coAuthors.forEach(ca => {
+          const node = createCoauthorNode();
+          $(".coauthor-lastname", node).value = ca.lastName || "";
+          $(".coauthor-firstname", node).value = ca.firstName || "";
+          $(".coauthor-country", node).value = ca.cc || "44";
+          $(".coauthor-phone-local", node).value = ca.local ? formatNationalLoose(ca.local) : "";
+          wireCoauthorPhone(node);
+          const hidden = $(".coauthor-phone", node);
+          if (hidden) hidden.value = ca.phone || hidden.value || "";
+          coAuthorsList.appendChild(node);
+        });
+      }
+    }
+
+    if (draft.__chartRange && $("#chartRange")) $("#chartRange").value = draft.__chartRange;
+
+    if (draft.__equityStats) {
+      equityStats = draft.__equityStats;
+      paintEquityStats();
+    }
+
+    syncPrimaryPhone();
+  }
+
   function init() {
     syncPrimaryPhone();
     updateAttachmentSummary();
@@ -1659,3 +1588,4 @@
 
   window.addEventListener("DOMContentLoaded", init);
 })();
+```
