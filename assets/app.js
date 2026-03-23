@@ -1,47 +1,49 @@
 /* =========================================================
    Cordoba Research Group — Research Documentation Tool (RDT)
-   app.js (Final branded edition)
+   app.js (Final GS-inspired branded edition)
    ---------------------------------------------------------
-   Includes:
-   ✅ Autosave
-   ✅ Co-author management
-   ✅ Equity tear sheet support
-   ✅ Top action button wiring
-   ✅ Live document preview
-   ✅ Cordoba-branded Word export
-   ✅ Goldman-style cover treatment adapted to Cordoba
-   ✅ Equity note keeps tear sheet / valuation / figures flow
-   ✅ Supports projected financials block for equity research
+   What changed in this version:
+   ✅ Cordoba-branded cover now follows the Goldman-style structure much more closely:
+      - clean white top band
+      - logo on left / date on right
+      - full-width navy title banner underneath
+      - large research title treatment
+   ✅ Equity notes use the same branded theme while keeping:
+      - tear sheet
+      - valuation
+      - assumptions
+      - scenario notes
+      - projected financials
+      - figures / charts
+   ✅ If the projected financials field is missing in the HTML, this script injects it into the equity section automatically
+   ✅ Keeps autosave, preview sync, chart fetch, and Word export
    ---------------------------------------------------------
-   IMPORTANT:
-   Put your logo file here:
+   Required asset:
    assets/cordoba-logo.png
    ========================================================= */
 
 (() => {
   "use strict";
 
-  console.log("RDT final branded app.js loaded");
+  console.log("RDT final GS-inspired app.js loaded");
 
   const BRAND = {
     name: "Cordoba Research Group",
     short: "CRG",
-    version: "RDT v3.0.0",
+    version: "RDT v3.1.0",
     tagline: "Values that bind",
-    logoPath: "assets/cordoba-logo",
+    logoPath: "assets/cordoba-logo.png",
     colors: {
-      gold: "9A690F",
-      goldDark: "7F560C",
-      goldLight: "C8922A",
+      gold: "B8842B",
+      goldDark: "8A6118",
       navy: "173D73",
-      navyDark: "102D56",
+      navyDark: "112E55",
       ink: "111827",
       muted: "6B7280",
-      lightMuted: "9CA3AF",
-      border: "D1D5DB",
+      lightMuted: "BFC6CF",
+      border: "D9DEE5",
       rail: "F3F4F6",
       cream: "F8F4EC",
-      callout: "F5EFE2",
       white: "FFFFFF",
       red: "B91C1C"
     },
@@ -224,9 +226,38 @@
   }
 
   // ------------------------------
+  // Inject missing equity field if absent
+  // ------------------------------
+  function ensureProjectedFinancialsField() {
+    const equitySection = document.getElementById("equitySection");
+    if (!equitySection) return;
+    if (document.getElementById("projectedFinancials")) return;
+
+    const subpanels = equitySection.querySelectorAll(".xp-subpanel");
+    const valuationPanel = subpanels[subpanels.length - 1];
+    const targetPanelBody = valuationPanel?.querySelector(".xp-subpanel-body") || equitySection;
+
+    const label = document.createElement("label");
+    label.setAttribute("for", "projectedFinancials");
+    label.textContent = "Projected Financials (optional)";
+
+    const ta = document.createElement("textarea");
+    ta.id = "projectedFinancials";
+    ta.placeholder = "Use one row per line. Separate columns with |, e.g.\nYear | Revenue | EBITDA | EPS\n2026E | 2.4bn | 980m | 3.12\n2027E | 2.7bn | 1.05bn | 3.48";
+
+    const help = document.createElement("div");
+    help.className = "help-text";
+    help.textContent = "Tip: use | to separate columns. The first line will be treated as the header row in the Word document.";
+
+    targetPanelBody.appendChild(label);
+    targetPanelBody.appendChild(ta);
+    targetPanelBody.appendChild(help);
+  }
+
+  // ------------------------------
   // Draft persistence
   // ------------------------------
-  const DRAFT_KEY = "crg_rdt_draft_v30";
+  const DRAFT_KEY = "crg_rdt_draft_v31";
 
   const DRAFT_FIELDS = [
     "noteType","title","topic",
@@ -1019,6 +1050,13 @@
     return para(new docx.PageBreak(), { spacing: { after: 0 } });
   }
 
+  function ratingToDisplay(r) {
+    const x = safeTrim(r);
+    if (!x) return "—";
+    if (x.toLowerCase() === "hold") return "Neutral";
+    return x;
+  }
+
   function splitIntoParagraphBlocks(text) {
     const raw = (text || "").replace(/\r/g, "");
     return raw.split(/\n\s*\n/g).map(b => b.trim()).filter(Boolean);
@@ -1055,7 +1093,7 @@
     const rows = toSimpleRows(text);
     if (!rows.length) return null;
 
-    const parsed = rows.map(r => r.split("|").map(x => x.trim()).filter(Boolean));
+    const parsed = rows.map(r => r.split("|").map(x => x.trim()));
     const valid = parsed.filter(r => r.length >= 2);
     if (!valid.length) return null;
 
@@ -1063,7 +1101,7 @@
     const width = Math.floor(100 / maxCols);
 
     const tableRows = valid.map((row, idx) => new docx.TableRow({
-      children: row.map((col, colIdx) => cell(
+      children: row.map((col) => cell(
         para(run(col, {
           size: 18,
           bold: idx === 0,
@@ -1135,52 +1173,41 @@
     });
   }
 
-  async function buildBrandedMacroCover({
-    logoBytes,
-    dateLabel,
-    title,
-    noteType,
-    subtitle
-  }) {
-    const blocks = [];
+  function gsLikeTopBand(logoBytes, dateLabel) {
+    const logoBlock = logoBytes
+      ? [
+          new docx.Paragraph({
+            children: [
+              new docx.ImageRun({
+                data: logoBytes,
+                transformation: { width: 235, height: 94 }
+              })
+            ],
+            spacing: { after: 0 }
+          })
+        ]
+      : [
+          para(run(BRAND.name, {
+            font: BRAND.fonts.heading,
+            size: 34,
+            bold: true,
+            color: BRAND.colors.gold
+          }), { spacing: { after: 0 } })
+        ];
 
-    const leftChildren = [];
-    if (logoBytes) {
-      leftChildren.push(
-        new docx.Paragraph({
-          children: [
-            new docx.ImageRun({
-              data: logoBytes,
-              transformation: { width: 250, height: 100 }
-            })
-          ],
-          spacing: { after: 0 }
-        })
-      );
-    } else {
-      leftChildren.push(
-        para(run(BRAND.name, {
-          font: BRAND.fonts.heading,
-          size: 34,
-          bold: true,
-          color: BRAND.colors.gold
-        }), { spacing: { after: 0 } })
-      );
-    }
-
-    const topTable = new docx.Table({
+    return new docx.Table({
       width: { size: 100, type: docx.WidthType.PERCENTAGE },
       rows: [
         new docx.TableRow({
           children: [
-            cell(leftChildren, {
-              width: 60,
+            cell(logoBlock, {
+              width: 58,
               shading: BRAND.colors.white,
-              margins: { top: 140, bottom: 140, left: 80, right: 80 }
+              margins: { top: 220, bottom: 220, left: 140, right: 140 }
             }),
             cell([
               para(run(dateLabel, {
-                size: 18,
+                size: 20,
                 bold: true,
                 color: BRAND.colors.navy
               }), {
@@ -1188,9 +1215,9 @@
                 align: docx.AlignmentType.RIGHT
               })
             ], {
-              width: 40,
+              width: 42,
               shading: BRAND.colors.white,
-              margins: { top: 140, bottom: 140, left: 80, right: 80 }
+              margins: { top: 220, bottom: 220, left: 140, right: 140 }
             })
           ]
         })
@@ -1204,32 +1231,36 @@
         insideVertical: { style: docx.BorderStyle.NONE }
       }
     });
+  }
 
-    blocks.push(topTable);
-
-    const heroCell = cell([
-      para(run(noteType || "Research Note", {
-        size: 24,
-        bold: true,
-        color: BRAND.colors.white
-      }), { spacing: { after: 120 } }),
-      para(run(title || "Untitled Note", {
-        font: BRAND.fonts.heading,
-        size: 48,
-        color: BRAND.colors.white
-      }), { spacing: { after: 120 } }),
-      para(run(subtitle || "", {
-        size: 20,
-        color: BRAND.colors.white
-      }), { spacing: { after: 0 } })
-    ], {
-      shading: BRAND.colors.navy,
-      margins: { top: 360, bottom: 360, left: 360, right: 360 }
-    });
-
-    blocks.push(new docx.Table({
+  function gsLikeHeroBand(kicker, title, subtitle) {
+    return new docx.Table({
       width: { size: 100, type: docx.WidthType.PERCENTAGE },
-      rows: [new docx.TableRow({ children: [heroCell] })],
+      rows: [
+        new docx.TableRow({
+          children: [
+            cell([
+              para(run(kicker, {
+                size: 24,
+                bold: true,
+                color: BRAND.colors.white
+              }), { spacing: { after: 120 } }),
+              para(run(title, {
+                font: "Arial Narrow",
+                size: 52,
+                color: BRAND.colors.white
+              }), { spacing: { after: 110 } }),
+              para(run(subtitle || "", {
+                size: 20,
+                color: BRAND.colors.white
+              }), { spacing: { after: 0 } })
+            ], {
+              shading: BRAND.colors.navy,
+              margins: { top: 320, bottom: 320, left: 320, right: 320 }
+            })
+          ]
+        })
+      ],
       borders: {
         top: { style: docx.BorderStyle.NONE },
         bottom: { style: docx.BorderStyle.NONE },
@@ -1238,9 +1269,7 @@
         insideHorizontal: { style: docx.BorderStyle.NONE },
         insideVertical: { style: docx.BorderStyle.NONE }
       }
-    }));
-
-    return blocks;
+    });
   }
 
   async function createInstitutionalDocument(payload) {
@@ -1258,7 +1287,6 @@
     const now = new Date();
     const iso = formatDateShortISO(now);
     const longDate = formatDateLong(now);
-
     const authorName = `${safeTrim(authorFirstName)} ${safeTrim(authorLastName)}`.trim() || "—";
     const logoBytes = await fetchAssetBytes(BRAND.logoPath);
 
@@ -1272,16 +1300,16 @@
     const displayVol = Number.isFinite(equityStats?.realisedVolAnn) ? pct(equityStats.realisedVolAnn) : "—";
     const displayUpside = upside === null ? "—" : pct(upside);
 
-    const blocks = splitIntoParagraphBlocks(analysis);
-    const p1Blocks = blocks.slice(0, 3);
-    const restBlocks = blocks.slice(3);
+    const analysisBlocks = splitIntoParagraphBlocks(analysis);
+    const pageOneBlocks = analysisBlocks.slice(0, 3);
+    const remainingBlocks = analysisBlocks.slice(3);
 
-    const p1Paras = p1Blocks.length
-      ? p1Blocks.flatMap(b => linesToParagraphs(b, 140)).concat([bodyLine(" ", 60)])
+    const pageOneParas = pageOneBlocks.length
+      ? pageOneBlocks.flatMap(b => linesToParagraphs(b, 140)).concat([bodyLine(" ", 60)])
       : [bodyLine("—")];
 
-    const restParas = restBlocks.length
-      ? restBlocks.flatMap(b => linesToParagraphs(b, 140))
+    const remainingParas = remainingBlocks.length
+      ? remainingBlocks.flatMap(b => linesToParagraphs(b, 140))
       : [];
 
     const figures = await addImages(imageFiles);
@@ -1293,82 +1321,59 @@
     let children = [];
 
     if (nt === "Equity Research") {
-      // Page 1 - branded masthead with Cordoba logo / GS-inspired structure
-      const mastheadLeft = [];
-      if (logoBytes) {
-        mastheadLeft.push(
-          new docx.Paragraph({
-            children: [
-              new docx.ImageRun({
-                data: logoBytes,
-                transformation: { width: 220, height: 88 }
-              })
-            ],
-            spacing: { after: 0 }
-          })
-        );
-      } else {
-        mastheadLeft.push(
-          para(run(BRAND.name, {
-            font: BRAND.fonts.heading,
-            size: 34,
-            bold: true,
-            color: BRAND.colors.gold
-          }), { spacing: { after: 0 } })
-        );
-      }
-
+      // COVER
       children.push(
-        new docx.Table({
-          width: { size: 100, type: docx.WidthType.PERCENTAGE },
-          rows: [
-            new docx.TableRow({
-              children: [
-                cell(mastheadLeft, { width: 56, shading: BRAND.colors.white, margins: { top: 140, bottom: 140, left: 40, right: 40 } }),
-                cell([
-                  para(run(longDate, { size: 18, bold: true, color: BRAND.colors.navy }), {
-                    spacing: { after: 0 },
-                    align: docx.AlignmentType.RIGHT
-                  })
-                ], { width: 44, shading: BRAND.colors.white, margins: { top: 140, bottom: 140, left: 40, right: 40 } })
-              ]
-            })
-          ],
-          borders: {
-            top: { style: docx.BorderStyle.NONE },
-            bottom: { style: docx.BorderStyle.NONE },
-            left: { style: docx.BorderStyle.NONE },
-            right: { style: docx.BorderStyle.NONE },
-            insideHorizontal: { style: docx.BorderStyle.NONE },
-            insideVertical: { style: docx.BorderStyle.NONE }
-          }
-        })
+        gsLikeTopBand(logoBytes, longDate),
+        gsLikeHeroBand(
+          "Cordoba Research Group | Equity Research",
+          safeTrim(title) || "Untitled Equity Note",
+          `${safeTrim(ticker) || "—"} | ${ratingToDisplay(crgRating)} | ${authorName}`
+        ),
+        pageBreak()
       );
 
+      // PAGE 2 — GS-like note body with side analyst block
+      const leftColumn = [
+        ...pageOneParas
+      ];
+
+      const analystCard = [
+        para(run(authorName, { size: 22, bold: true, color: BRAND.colors.navy }), { spacing: { after: 40 } }),
+        para(run(authorPhoneSafe || "", { size: 18, color: BRAND.colors.ink }), { spacing: { after: 20 } }),
+        para(run(`${BRAND.name}`, { size: 18, color: BRAND.colors.ink }), { spacing: { after: 140 } }),
+        para(run("Ticker", { size: 18, bold: true, color: BRAND.colors.muted }), { spacing: { after: 20 } }),
+        para(run(safeTrim(ticker) || "—", { size: 18 }), { spacing: { after: 100 } }),
+        para(run("Rating", { size: 18, bold: true, color: BRAND.colors.muted }), { spacing: { after: 20 } }),
+        para(run(ratingToDisplay(crgRating), { size: 18 }), { spacing: { after: 100 } }),
+        para(run("Current price", { size: 18, bold: true, color: BRAND.colors.muted }), { spacing: { after: 20 } }),
+        para(run(displayCurrent, { size: 18 }), { spacing: { after: 100 } }),
+        para(run("Target price", { size: 18, bold: true, color: BRAND.colors.muted }), { spacing: { after: 20 } }),
+        para(run(displayTarget, { size: 18 }), { spacing: { after: 100 } }),
+        para(run("Upside", { size: 18, bold: true, color: BRAND.colors.muted }), { spacing: { after: 20 } }),
+        para(run(displayUpside, { size: 18 }), { spacing: { after: 100 } }),
+        para(run("Vol (ann.)", { size: 18, bold: true, color: BRAND.colors.muted }), { spacing: { after: 20 } }),
+        para(run(displayVol, { size: 18 }), { spacing: { after: 0 } })
+      ];
+
       children.push(
+        heading(safeTrim(title) || "—", 36, 80, BRAND.colors.navy),
+        bodyLine(safeTrim(topic) || "—", 120),
         new docx.Table({
           width: { size: 100, type: docx.WidthType.PERCENTAGE },
           rows: [
             new docx.TableRow({
               children: [
-                cell([
-                  para(run("Cordoba Research Group | Equity Research", {
-                    size: 20,
-                    bold: true,
-                    color: BRAND.colors.white
-                  }), { spacing: { after: 110 } }),
-                  para(run(safeTrim(title) || "Untitled Equity Note", {
-                    font: BRAND.fonts.heading,
-                    size: 46,
-                    color: BRAND.colors.white
-                  }), { spacing: { after: 100 } }),
-                  para(run(`Ticker: ${safeTrim(ticker) || "—"} | Rating: ${ratingToDisplay(crgRating)} | Analyst: ${authorName}`, {
-                    size: 18,
-                    color: BRAND.colors.white
-                  }), { spacing: { after: 0 } })
-                ], {
-                  shading: BRAND.colors.navy,
-                  margins: { top: 320, bottom: 320, left: 320, right: 320 }
+                cell(leftColumn, { width: 68, margins: { top: 0, bottom: 0, left: 0, right: 260 } }),
+                cell(analystCard, {
+                  width: 32,
+                  margins: { top: 0, bottom: 0, left: 140, right: 0 },
+                  shading: "FAFAFA",
+                  borders: {
+                    top: { style: docx.BorderStyle.NONE },
+                    bottom: { style: docx.BorderStyle.NONE },
+                    left: { style: docx.BorderStyle.NONE },
+                    right: { style: docx.BorderStyle.NONE }
+                  }
                 })
               ]
             })
@@ -1382,73 +1387,61 @@
             insideVertical: { style: docx.BorderStyle.NONE }
           }
         }),
-        para(run(" ", { size: 8 }), { spacing: { after: 120 } })
+        pageBreak()
       );
 
-      const sidebar = equityKeyDataSidebar({
-        ticker: safeTrim(ticker),
-        rating: safeTrim(crgRating),
-        currentPrice: displayCurrent,
-        targetPrice: displayTarget,
-        rangeReturn: displayReturn,
-        volAnn: displayVol,
-        miniChartBytes: priceChartImageBytes
-      });
-
-      const mainHeader = [
-        para(run(safeTrim(topic) || "Equity Research", {
-          size: 20,
-          bold: true,
-          color: BRAND.colors.navy
-        }), { spacing: { after: 90 } }),
-        para([
-          run((safeTrim(ticker) || "—").toUpperCase(), { font: BRAND.fonts.heading, size: 42, bold: true }),
-          run("  ", { size: 10 }),
-          run(ratingToDisplay(crgRating), { size: 22, bold: true, color: BRAND.colors.navy })
-        ], { spacing: { after: 90 } }),
-        para([
-          run("Current Price: ", { size: 18, bold: true, color: BRAND.colors.muted }),
-          run(displayCurrent, { size: 18, color: BRAND.colors.muted }),
-          run("    ", { size: 18 }),
-          run("Target Price: ", { size: 18, bold: true, color: BRAND.colors.muted }),
-          run(displayTarget, { size: 18, color: BRAND.colors.muted })
-        ], { spacing: { after: 150 } }),
-        ...p1Paras
-      ];
-
+      // PAGE 3 — tear sheet
       children.push(
+        heading("Tear Sheet", 34, 120, BRAND.colors.navy),
+        thinRule(160),
         new docx.Table({
           width: { size: 100, type: docx.WidthType.PERCENTAGE },
           rows: [
             new docx.TableRow({
               children: [
-                cell([sidebar], { width: 25, margins: { top: 0, bottom: 0, left: 0, right: 220 } }),
-                cell(mainHeader, { width: 75, margins: { top: 0, bottom: 0, left: 220, right: 0 } })
+                cell([para(run("Current price", { size: 16, bold: true, color: BRAND.colors.muted }), { spacing: { after: 30 } }),
+                      para(run(displayCurrent, { size: 22, bold: true }), { spacing: { after: 0 } })], {
+                  width: 25, shading: BRAND.colors.cream,
+                  borders: {
+                    top: { style: docx.BorderStyle.SINGLE, size: 1, color: BRAND.colors.border },
+                    bottom: { style: docx.BorderStyle.SINGLE, size: 1, color: BRAND.colors.border },
+                    left: { style: docx.BorderStyle.SINGLE, size: 1, color: BRAND.colors.border },
+                    right: { style: docx.BorderStyle.SINGLE, size: 1, color: BRAND.colors.border }
+                  }
+                }),
+                cell([para(run("Target price", { size: 16, bold: true, color: BRAND.colors.muted }), { spacing: { after: 30 } }),
+                      para(run(displayTarget, { size: 22, bold: true }), { spacing: { after: 0 } })], {
+                  width: 25, shading: BRAND.colors.cream,
+                  borders: {
+                    top: { style: docx.BorderStyle.SINGLE, size: 1, color: BRAND.colors.border },
+                    bottom: { style: docx.BorderStyle.SINGLE, size: 1, color: BRAND.colors.border },
+                    left: { style: docx.BorderStyle.SINGLE, size: 1, color: BRAND.colors.border },
+                    right: { style: docx.BorderStyle.SINGLE, size: 1, color: BRAND.colors.border }
+                  }
+                }),
+                cell([para(run("Upside", { size: 16, bold: true, color: BRAND.colors.muted }), { spacing: { after: 30 } }),
+                      para(run(displayUpside, { size: 22, bold: true }), { spacing: { after: 0 } })], {
+                  width: 25, shading: BRAND.colors.cream,
+                  borders: {
+                    top: { style: docx.BorderStyle.SINGLE, size: 1, color: BRAND.colors.border },
+                    bottom: { style: docx.BorderStyle.SINGLE, size: 1, color: BRAND.colors.border },
+                    left: { style: docx.BorderStyle.SINGLE, size: 1, color: BRAND.colors.border },
+                    right: { style: docx.BorderStyle.SINGLE, size: 1, color: BRAND.colors.border }
+                  }
+                }),
+                cell([para(run("Vol (ann.)", { size: 16, bold: true, color: BRAND.colors.muted }), { spacing: { after: 30 } }),
+                      para(run(displayVol, { size: 22, bold: true }), { spacing: { after: 0 } })], {
+                  width: 25, shading: BRAND.colors.cream,
+                  borders: {
+                    top: { style: docx.BorderStyle.SINGLE, size: 1, color: BRAND.colors.border },
+                    bottom: { style: docx.BorderStyle.SINGLE, size: 1, color: BRAND.colors.border },
+                    left: { style: docx.BorderStyle.SINGLE, size: 1, color: BRAND.colors.border },
+                    right: { style: docx.BorderStyle.SINGLE, size: 1, color: BRAND.colors.border }
+                  }
+                })
               ]
             })
-          ],
-          borders: {
-            top: { style: docx.BorderStyle.NONE },
-            bottom: { style: docx.BorderStyle.NONE },
-            left: { style: docx.BorderStyle.NONE },
-            right: { style: docx.BorderStyle.NONE },
-            insideHorizontal: { style: docx.BorderStyle.NONE },
-            insideVertical: { style: docx.BorderStyle.SINGLE, color: BRAND.colors.border, size: 2 }
-          }
-        }),
-        para(run(BRAND.disclaimers.internal, { size: 14, color: BRAND.colors.muted }), { spacing: { before: 180, after: 0 } }),
-        pageBreak()
-      );
-
-      // Page 2 - tear sheet
-      children.push(
-        heading("Tear Sheet", 34, 120, BRAND.colors.navy),
-        thinRule(160),
-        tearSheetStatsRow({
-          currentPrice: displayCurrent,
-          targetPrice: displayTarget,
-          upside: displayUpside,
-          volAnn: displayVol
+          ]
         }),
         para(run(" ", { size: 10 }), { spacing: { after: 100 } })
       );
@@ -1482,9 +1475,13 @@
 
       children.push(pageBreak());
 
-      // Page 3+
-      children.push(heading("Investment Thesis", 34, 140, BRAND.colors.navy), thinRule(180));
-      if (restParas.length) children.push(...restParas);
+      // PAGE 4+
+      children.push(
+        heading("Investment Thesis", 34, 140, BRAND.colors.navy),
+        thinRule(180)
+      );
+
+      if (remainingParas.length) children.push(...remainingParas);
       if (safeTrim(content)) children.push(subheading("Additional Detail", 26, 110, BRAND.colors.navy), ...linesToParagraphs(content, 140));
       if (safeTrim(scenarioNotes)) children.push(subheading("Scenario / Sensitivity Notes", 26, 110, BRAND.colors.navy), ...linesToParagraphs(scenarioNotes, 140));
       if (safeTrim(cordobaView)) children.push(subheading("The Cordoba View", 26, 110, BRAND.colors.navy), ...linesToParagraphs(cordobaView, 140));
@@ -1504,19 +1501,16 @@
       if (figures.length) children.push(subheading("Figures and Charts", 26, 110, BRAND.colors.navy), ...figures);
       if (safeTrim(keyTakeaways)) children.push(subheading("Key Takeaways", 26, 110, BRAND.colors.navy), ...bulletLines(keyTakeaways, 90));
     } else {
-      // Non-equity branded note
-      const coverBlocks = await buildBrandedMacroCover({
-        logoBytes,
-        dateLabel: longDate,
-        title: safeTrim(title) || "Untitled research note",
-        noteType: nt,
-        subtitle: safeTrim(topic) || `${authorName}`
-      });
-
-      children.push(...coverBlocks, pageBreak());
-
+      // NON-EQUITY — much closer to GS research structure
       children.push(
-        heading(safeTrim(title) || "—", 34, 90, BRAND.colors.navy),
+        gsLikeTopBand(logoBytes, longDate),
+        gsLikeHeroBand(
+          nt,
+          safeTrim(title) || "Untitled research note",
+          safeTrim(topic) || ""
+        ),
+        pageBreak(),
+        heading(safeTrim(title) || "—", 34, 80, BRAND.colors.navy),
         bodyLine(safeTrim(topic) || "—", 120),
         para([
           run("Author: ", { size: 18, bold: true, color: BRAND.colors.muted }),
@@ -1613,7 +1607,6 @@
         const cordobaView = $("#cordobaView")?.value || "";
 
         const imageFiles = $("#imageUpload")?.files || [];
-
         const ticker = $("#ticker")?.value || "";
         const valuationSummary = $("#valuationSummary")?.value || "";
         const keyAssumptions = $("#keyAssumptions")?.value || "";
@@ -1621,12 +1614,9 @@
         const modelFiles = $("#modelFiles")?.files || null;
         const modelLink = $("#modelLink")?.value || "";
         const projectedFinancials = $("#projectedFinancials")?.value || "";
-
         const targetPrice = $("#targetPrice")?.value || "";
         const crgRating = $("#crgRating")?.value || "";
-
-        const now = new Date();
-        const dateTimeString = formatDateTime(now);
+        const dateTimeString = formatDateTime(new Date());
 
         const doc = await createInstitutionalDocument({
           noteType, title, topic,
@@ -1643,7 +1633,7 @@
 
         const blob = await docx.Packer.toBlob(doc);
         const fileName =
-          `${(title || "research_note").replace(/[^a-z0-9]/gi, "_").toLowerCase()}_${(noteType || "note").replace(/\s+/g, "_").toLowerCase()}_${formatDateShortISO(now)}.docx`;
+          `${(title || "research_note").replace(/[^a-z0-9]/gi, "_").toLowerCase()}_${(noteType || "note").replace(/\s+/g, "_").toLowerCase()}_${formatDateShortISO(new Date())}.docx`;
 
         saveAs(blob, fileName);
         showMsg("success", `✓ Document "${fileName}" generated successfully.`);
@@ -1848,9 +1838,7 @@
     const topic = safe(topicEl?.value, "—");
     const author = [firstEl?.value, lastEl?.value].map(v => (v || "").trim()).filter(Boolean).join(" ") || "—";
 
-    const now = new Date();
-    const dateLabel = formatDateLong(now);
-
+    const dateLabel = formatDateLong(new Date());
     const currentPriceText = document.getElementById("currentPrice")?.textContent?.trim() || "—";
     const rangeReturnText = document.getElementById("rangeReturn")?.textContent?.trim() || "—";
     const realisedVolText = document.getElementById("realisedVol")?.textContent?.trim() || "—";
@@ -1879,7 +1867,7 @@
 
     if (previewMode) previewMode.textContent = noteType;
     if (draftStatusMirror && draftStatusLive) draftStatusMirror.textContent = draftStatusLive.textContent || "—";
-    if (headerLeft) headerLeft.textContent = `CRG | ${noteType} | ${dateLabel}`;
+    if (headerLeft) headerLeft.textContent = `CRG | ${noteType} | ${formatDateShortISO(new Date())}`;
     if (!previewBody) return;
 
     previewBody.innerHTML = noteType === "Equity Research"
@@ -1890,6 +1878,8 @@
   let previewSyncInterval = null;
 
   function init() {
+    ensureProjectedFinancialsField();
+
     syncPrimaryPhone();
     updateAttachmentSummary();
     updateCompletionMeter();
