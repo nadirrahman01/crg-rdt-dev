@@ -1,24 +1,18 @@
-```javascript
 /* =========================================================
    Cordoba Research Group — Research Documentation Tool (RDT)
-   app.js (Institutional v2.1 — Equity Research formatted properly)
+   app.js (Institutional v2.2 — Classic XP UI skin, export logic preserved)
    ---------------------------------------------------------
-   Key fixes vs your current export:
-   ✅ Equity Research output now follows a true sell-side “initiating coverage” layout:
-      - Masthead (CRG left, Institutional Equity Research + date + Initiating coverage right)
-      - Page 1: Key data sidebar (ticker, rating, current/target, return, vol + small chart)
-              + Main column (company/ticker + rating + headline + opening paragraphs)
-      - Page 2: Tear sheet page (stats row + large chart) — no duplicated headers
-      - Page 3+: Full report sections (Investment thesis continuation, Valuation, Assumptions, Risks/Scenario, Cordoba View, Figures)
-   ✅ Removed “double header” issue (no in-body header lines; only document header)
-   ✅ Better spacing + sizing so it looks like your reference image
-   ✅ Backwards-compatible with your HTML IDs/classes
+   Key notes:
+   ✅ UI can be reskinned freely without breaking export flow
+   ✅ Equity Research output still follows the institutional layout
+   ✅ Autosave, charting, email helper, completion meter all preserved
+   ✅ Backwards-compatible with existing HTML IDs/classes
    ========================================================= */
 
 (() => {
   "use strict";
 
-  console.log("RDT institutional app.js loaded (v2.1)");
+  console.log("RDT classic-xp app.js loaded (v2.2)");
 
   // ------------------------------
   // Brand (Córdoba)
@@ -26,7 +20,7 @@
   const BRAND = {
     name: "Cordoba Research Group",
     short: "CRG",
-    version: "RDT v2.1.0",
+    version: "RDT v2.2.0",
     tagline: "Values that bind",
     colors: {
       gold: "9A690F",
@@ -151,7 +145,7 @@
   // ------------------------------
   // Draft persistence (autosave)
   // ------------------------------
-  const DRAFT_KEY = "crg_rdt_draft_v21";
+  const DRAFT_KEY = "crg_rdt_draft_v22";
 
   const DRAFT_FIELDS = [
     "noteType","title","topic",
@@ -170,7 +164,6 @@
       draft[id] = el.value ?? "";
     });
 
-    // coauthors
     const coAuthors = $$(".coauthor-entry").map(entry => ({
       lastName: safeTrim($(".coauthor-lastname", entry)?.value),
       firstName: safeTrim($(".coauthor-firstname", entry)?.value),
@@ -180,11 +173,8 @@
     })).filter(x => x.lastName || x.firstName || x.phone || x.local);
 
     draft.__coAuthors = coAuthors;
-
-    // chart settings + stats
     draft.__chartRange = $("#chartRange")?.value || "";
     draft.__equityStats = equityStats || null;
-
     draft.__savedAt = new Date().toISOString();
     return draft;
   }
@@ -664,19 +654,26 @@
           data: values,
           pointRadius: 0,
           borderWidth: 2,
-          tension: 0.18
+          tension: 0.12
         }]
       },
       options: {
         responsive: true,
         maintainAspectRatio: false,
+        animation: false,
         plugins: {
           legend: { display: false },
           tooltip: { intersect: false, mode: "index" }
         },
         scales: {
-          x: { ticks: { maxTicksLimit: 6 } },
-          y: { ticks: { maxTicksLimit: 6 } }
+          x: {
+            ticks: { maxTicksLimit: 6, color: "#374151" },
+            grid: { color: "rgba(148,163,184,.22)" }
+          },
+          y: {
+            ticks: { maxTicksLimit: 6, color: "#374151" },
+            grid: { color: "rgba(148,163,184,.22)" }
+          }
         }
       }
     });
@@ -809,7 +806,6 @@
     return missing;
   }
 
-  // ---- docx helpers
   function run(text, opts = {}) {
     return new docx.TextRun({
       text: text ?? "",
@@ -909,8 +905,6 @@
   }
 
   function ratingToDisplay(r) {
-    // Your UI is Buy/Hold/Sell. The reference screenshot uses “Neutral”.
-    // We map Hold -> Neutral for sell-side look, but keep Buy/Sell.
     const x = safeTrim(r);
     if (!x) return "—";
     if (x.toLowerCase() === "hold") return "Neutral";
@@ -919,12 +913,10 @@
 
   function splitIntoParagraphBlocks(text) {
     const raw = (text || "").replace(/\r/g, "");
-    // split on blank lines (sell-side paragraphing)
     const blocks = raw.split(/\n\s*\n/g).map(b => b.trim()).filter(Boolean);
     return blocks;
   }
 
-  // ---- Images (appendix figures)
   async function addImages(files) {
     const out = [];
     const list = Array.from(files || []);
@@ -952,7 +944,6 @@
     return out;
   }
 
-  // ---- Header / Footer (single source of truth)
   function headerTable(noteType, isoDate) {
     const leftText = `${BRAND.short} | ${noteType} | ${isoDate}`;
     return noBorderTable([
@@ -990,9 +981,7 @@
     });
   }
 
-  // ---- Equity page-1 masthead (matches your reference image)
   function equityMasthead(dateLabel) {
-    // Left: CRG name + tagline. Right: Institutional equity research + date + initiating coverage (red)
     return noBorderTable([
       new docx.TableRow({
         children: [
@@ -1010,11 +999,9 @@
     ]);
   }
 
-  // ---- Key data sidebar (like the screenshot)
   function equityKeyDataSidebar({ ticker, rating, currentPrice, targetPrice, rangeReturn, volAnn, miniChartBytes }) {
     const rows = [];
 
-    // Box title
     rows.push(para(run("Key data", { size: 18, bold: true, color: BRAND.colors.muted }), { spacing: { after: 120 } }));
 
     const kv = (k, v) => para([
@@ -1051,7 +1038,6 @@
       rows.push(para(run("—", { size: 18, color: BRAND.colors.muted }), { spacing: { after: 0 } }));
     }
 
-    // Wrap in shaded “sidebar card”
     return new docx.Table({
       width: { size: 100, type: docx.WidthType.PERCENTAGE },
       borders: {
@@ -1075,7 +1061,6 @@
     });
   }
 
-  // ---- Equity page 1 main column header (“MSFT Neutral”, “Current Price … Target price …”)
   function equityMainHeader({ ticker, rating, currentPrice, targetPrice, title }) {
     const tkr = safeTrim(ticker) || "—";
     const rec = ratingToDisplay(rating);
@@ -1089,7 +1074,6 @@
     ];
 
     return [
-      // Ticker + rating
       para([
         run(tkr.toUpperCase(), { font: BRAND.fonts.heading, size: 44, bold: true }),
         run("  ", { size: 10 }),
@@ -1097,13 +1081,10 @@
       ], { spacing: { after: 90 } }),
 
       para(priceLine, { spacing: { after: 160 } }),
-
-      // Headline (use Title as sell-side headline)
       para(run(safeTrim(title) || "—", { font: BRAND.fonts.heading, size: 30, bold: true }), { spacing: { after: 120 } })
     ];
   }
 
-  // ---- Tear sheet page (fixed: proper density, chart size, no duplicate header)
   function tearSheetStatsRow({ currentPrice, targetPrice, upside, volAnn }) {
     const one = (label, value) => cell([
       para(run(label, { size: 16, bold: true, color: BRAND.colors.muted }), { spacing: { after: 40 } }),
@@ -1135,7 +1116,6 @@
     });
   }
 
-  // ---- Build the institutional document (the part that matters most)
   async function createInstitutionalDocument(payload) {
     const {
       noteType, title, topic,
@@ -1153,11 +1133,9 @@
     const now = new Date();
     const iso = formatDateShortISO(now);
 
-    // author line (kept simple; sell-side usually has analysts in the rail, but you can expand later)
     const authorName = `${safeTrim(authorFirstName)} ${safeTrim(authorLastName)}`.trim() || "—";
     const authorPhone = authorPhoneSafe ? authorPhoneSafe : "N/A";
 
-    // numbers
     const cp = Number.isFinite(equityStats?.currentPrice) ? equityStats.currentPrice : null;
     const tp = safeNum(targetPrice);
     const upside = (cp !== null && tp !== null && cp > 0) ? ((tp / cp) - 1) : null;
@@ -1168,12 +1146,10 @@
     const displayVol = Number.isFinite(equityStats?.realisedVolAnn) ? pct(equityStats.realisedVolAnn) : "—";
     const displayUpside = upside === null ? "—" : pct(upside);
 
-    // Split analysis into paragraph blocks so page 1 is not a wall of text
     const blocks = splitIntoParagraphBlocks(analysis);
     const p1Blocks = blocks.slice(0, 3);
     const restBlocks = blocks.slice(3);
 
-    // Convert blocks to paragraphs
     const p1Paras = p1Blocks.length
       ? p1Blocks.flatMap(b => linesToParagraphs(b, 140)).concat([bodyLine(" ", 60)])
       : [bodyLine("—")];
@@ -1182,23 +1158,17 @@
       ? restBlocks.flatMap(b => linesToParagraphs(b, 140))
       : [];
 
-    // Figures
     const figures = await addImages(imageFiles);
 
-    // Attachments list
     const attachedModelNames = (modelFiles && modelFiles.length)
       ? Array.from(modelFiles).map(f => f.name)
       : [];
 
-    // =========================================================
-    // EQUITY RESEARCH FORMAT (proper sell-side look)
-    // =========================================================
     let children = [];
 
     if (nt === "Equity Research") {
-      // ---- Page 1: Initiating coverage layout
       children.push(
-        equityMasthead(dateTimeString.split(" ").slice(0, 3).join(" ")), // "19 January 2026" feel
+        equityMasthead(dateTimeString.split(" ").slice(0, 3).join(" ")),
         thinRule(220)
       );
 
@@ -1209,7 +1179,7 @@
         targetPrice: displayTarget,
         rangeReturn: displayReturn,
         volAnn: displayVol,
-        miniChartBytes: priceChartImageBytes // same bytes, just rendered smaller
+        miniChartBytes: priceChartImageBytes
       });
 
       const mainHeader = equityMainHeader({
@@ -1220,7 +1190,6 @@
         title: safeTrim(title)
       });
 
-      // Main body opening (first 2–3 paragraph blocks)
       const page1Layout = new docx.Table({
         width: { size: 100, type: docx.WidthType.PERCENTAGE },
         borders: {
@@ -1246,12 +1215,10 @@
 
       children.push(
         page1Layout,
-        // Footer-style note on page 1 (like your screenshot)
         para(run(BRAND.disclaimers.internal, { size: 14, color: BRAND.colors.muted }), { spacing: { before: 220, after: 0 } }),
         pageBreak()
       );
 
-      // ---- Page 2: Tear sheet page (clean and dense)
       children.push(
         heading("Tear sheet", 34, 140),
         thinRule(160),
@@ -1270,7 +1237,7 @@
             children: [
               new docx.ImageRun({
                 data: priceChartImageBytes,
-                transformation: { width: 620, height: 210 } // tighter (fixes your oversized chart)
+                transformation: { width: 620, height: 210 }
               })
             ],
             spacing: { after: 160 },
@@ -1281,7 +1248,6 @@
         children.push(bodyLine("Chart not attached (fetch chart before export).", 160));
       }
 
-      // Tear sheet continuation (Valuation + Assumptions inline, like sell-side)
       if (safeTrim(valuationSummary)) {
         children.push(
           subheading("Valuation", 28, 110),
@@ -1297,18 +1263,15 @@
 
       children.push(pageBreak());
 
-      // ---- Page 3+: Full report (no duplicated headers)
       children.push(
         heading("Investment thesis", 34, 140),
         thinRule(180)
       );
 
-      // Continue the analysis from where page 1 stopped
       if (restParas.length) {
         children.push(...restParas);
       }
 
-      // Optional extra detail
       if (safeTrim(content)) {
         children.push(
           subheading("Additional detail", 26, 110),
@@ -1316,7 +1279,6 @@
         );
       }
 
-      // Scenario notes
       if (safeTrim(scenarioNotes)) {
         children.push(
           subheading("Scenario / sensitivity notes", 26, 110),
@@ -1324,7 +1286,6 @@
         );
       }
 
-      // Cordoba view
       if (safeTrim(cordobaView)) {
         children.push(
           subheading("The Cordoba view", 26, 110),
@@ -1332,7 +1293,6 @@
         );
       }
 
-      // Attachments (model)
       if (safeTrim(modelLink) || attachedModelNames.length) {
         children.push(subheading("Model and attachments", 26, 110));
 
@@ -1349,7 +1309,6 @@
         }
       }
 
-      // Figures section
       if (figures.length) {
         children.push(
           subheading("Figures and charts", 26, 110),
@@ -1357,7 +1316,6 @@
         );
       }
 
-      // Key takeaways (kept, but after the main body in equity format)
       if (safeTrim(keyTakeaways)) {
         children.push(
           subheading("Key takeaways", 26, 110),
@@ -1365,9 +1323,6 @@
         );
       }
     } else {
-      // =========================================================
-      // NON-EQUITY (keep a clean institutional format)
-      // =========================================================
       children.push(
         heading(BRAND.name.toUpperCase(), 30, 40),
         bodyLine(BRAND.tagline, 180),
@@ -1391,7 +1346,6 @@
       }
     }
 
-    // Document
     const doc = new docx.Document({
       styles: {
         default: {
@@ -1588,4 +1542,3 @@
 
   window.addEventListener("DOMContentLoaded", init);
 })();
-```
