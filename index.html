@@ -14,67 +14,58 @@
 
 <body>
   <div class="app-shell">
+    <!-- Top header -->
     <div class="topbar">
       <div class="topbar-left">
-        <div class="brand-stack">
-          <div class="brand-title">Cordoba Research Group — Research Documentation Tool</div>
-        </div>
+        <div class="brand-title">Cordoba Research Group — Research Documentation Tool</div>
       </div>
-
       <div class="topbar-right">
-        <div class="status-pill">Draft: <span id="draftStatus" style="margin-left:4px;">—</span></div>
-        <div class="status-pill">Completion: <span id="completionText" style="margin-left:4px;">—</span></div>
+        <div class="status-inline">Draft: <span id="draftStatus">—</span></div>
+        <div class="status-inline">Completion: <span id="completionText">—</span></div>
       </div>
     </div>
 
-    <div class="shell-body shell-body--single">
-      <div class="main-pane">
-        <div class="container">
-<div class="hero">
-  <div>
-    <div class="hero-title">Research Note Builder</div>
-    <div class="hero-subtitle">Institutional drafting workspace with classic desktop layout.</div>
-  </div>
+    <!-- Small subheader -->
+    <div class="subbar">
+      <div>
+        <div class="subbar-title">Cordoba Research Group</div>
+        <div class="subbar-subtitle">Institutional drafting workspace & export</div>
+      </div>
+      <div class="subbar-actions">
+        <button type="button" id="emailToCrgBtnTop" class="btn btn-secondary">Email to CRG</button>
+        <button type="button" id="resetFormBtnTop" class="btn btn-secondary">Reset</button>
+      </div>
+    </div>
 
-  <div class="institutional-footer" style="text-align:center;">
-    <div style="font-size:11px;color:#1f1f1f;font-weight:700;">Internal Use</div>
-    <div style="font-size:11px;color:#4c4c4c;margin-top:4px;">Cordoba Research Group</div>
-  </div>
-</div>
+    <div class="shell-body">
+      <!-- LEFT COLUMN -->
+      <aside class="sidebar">
+        <form id="researchForm" novalidate>
+          <div class="xp-panel">
+            <div class="xp-panel-head">Document Setup</div>
+            <div class="xp-panel-body">
+              <label for="noteType">Note Type</label>
+              <select id="noteType" required>
+                <option value="">Select…</option>
+                <option value="Macro Research">Macro Research</option>
+                <option value="Fixed Income Research">Fixed Income Research</option>
+                <option value="Commodity Insights">Commodity Insights</option>
+                <option value="Equity Research">Equity Research</option>
+                <option value="General Note">General Note</option>
+              </select>
 
-          <div class="progress-wrap" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
-            <div class="progress-label">Publish readiness</div>
-            <div class="progress-bar">
-              <div id="completionBar" class="progress-fill"></div>
+              <label for="title">Title</label>
+              <input id="title" type="text" placeholder="e.g. Rebalancing Act: How Policy Shifts Are Rewriting Trade" required />
+
+              <label for="topic">Topic</label>
+              <input id="topic" type="text" placeholder="e.g. Global Macro · Rates · Policy · Equity Strategy" required />
             </div>
           </div>
 
-          <div id="message" class="message" style="display:none;"></div>
-
-          <form id="researchForm" novalidate>
-            <label for="noteType">Note Type</label>
-            <select id="noteType" required>
-              <option value="">Select…</option>
-              <option value="Macro Research">Macro Research</option>
-              <option value="Fixed Income Research">Fixed Income Research</option>
-              <option value="Commodity Insights">Commodity Insights</option>
-              <option value="Equity Research">Equity Research</option>
-              <option value="General Note">General Note</option>
-            </select>
-
-            <label for="title">Title</label>
-            <input id="title" type="text" placeholder="e.g. Rebalancing Act: How Policy Shifts Are Rewriting Trade" required />
-
-            <label for="topic">Topic</label>
-            <input id="topic" type="text" placeholder="e.g. Global Macro · Rates · Policy · Equity Strategy" required />
-
-            <div class="panel">
-              <div class="panel-head">
-                <div class="panel-title">Author Details</div>
-                <div class="panel-muted">Shown on the cover and header</div>
-              </div>
-
-              <label for="authorLastName" style="margin-top:10px;">Last Name</label>
+          <div class="xp-panel">
+            <div class="xp-panel-head">Author Details</div>
+            <div class="xp-panel-body">
+              <label for="authorLastName">Last Name</label>
               <input id="authorLastName" type="text" placeholder="RAHMAN" autocomplete="family-name" required />
 
               <label for="authorFirstName">First Name</label>
@@ -102,7 +93,6 @@
                   <option value="995">🇬🇪 +995</option>
                   <option value="">Other</option>
                 </select>
-
                 <input
                   id="authorPhoneNational"
                   class="phone-number"
@@ -112,115 +102,140 @@
                   placeholder="e.g. 7400 123 456"
                 />
               </div>
-
               <input id="authorPhone" type="text" style="display:none;" />
             </div>
+          </div>
 
-            <div class="panel">
-              <div class="panel-head">
-                <div class="panel-title">Co-authors</div>
-                <button type="button" class="btn btn-secondary" id="addCoAuthor">Add co-author</button>
-              </div>
-
-              <div id="coAuthorsList" style="margin-bottom:10px;"></div>
+          <div class="xp-panel">
+            <div class="xp-panel-head xp-panel-head-with-action">
+              <span>Co-authors</span>
+              <button type="button" class="btn btn-secondary btn-xs" id="addCoAuthor">Add co-author</button>
             </div>
+            <div class="xp-panel-body">
+              <div id="coAuthorsList"></div>
+            </div>
+          </div>
 
-            <label for="keyTakeaways">Key Takeaways (bullets)</label>
-            <textarea
-              id="keyTakeaways"
-              placeholder="- One line per takeaway&#10;- Keep it tight and investor-facing"
-              required
-            ></textarea>
+          <div class="xp-panel">
+            <div class="xp-panel-head">Content</div>
+            <div class="xp-panel-body">
+              <label for="keyTakeaways">Key Takeaways (bullets)</label>
+              <textarea
+                id="keyTakeaways"
+                placeholder="- One line per takeaway&#10;- Keep it tight and investor-facing"
+                required
+              ></textarea>
 
-            <label for="analysis">Analysis</label>
-            <textarea
-              id="analysis"
-              placeholder="Write the main body. Use short paragraphs. Mention Figure numbers inline if needed."
-              required
-            ></textarea>
+              <label for="analysis">Analysis</label>
+              <textarea
+                id="analysis"
+                placeholder="Write the main body. Use short paragraphs. Mention Figure numbers inline if needed."
+                required
+              ></textarea>
 
-            <label for="content">Additional Detail (optional)</label>
-            <textarea
-              id="content"
-              placeholder="Extra context, background, longer-form detail. Optional."
-            ></textarea>
+              <label for="content">Additional Detail (optional)</label>
+              <textarea
+                id="content"
+                placeholder="Extra context, background, longer-form detail. Optional."
+              ></textarea>
 
-            <label for="cordobaView">The Cordoba View (optional but recommended)</label>
-            <textarea
-              id="cordobaView"
-              placeholder="What we think at Cordoba. Your differentiated view and positioning."
-            ></textarea>
+              <label for="cordobaView">The Cordoba View (optional but recommended)</label>
+              <textarea
+                id="cordobaView"
+                placeholder="What we think at Cordoba. Your differentiated view and positioning."
+              ></textarea>
+            </div>
+          </div>
 
-            <div class="panel">
-              <div class="panel-head">
-                <div class="panel-title">Figures & Charts</div>
-                <div class="panel-muted">Images append to the export</div>
-              </div>
-
-              <label for="imageUpload" style="margin-top:10px;">Upload images</label>
+          <div class="xp-panel">
+            <div class="xp-panel-head">Figures & Charts</div>
+            <div class="xp-panel-body">
+              <label for="imageUpload">Upload images</label>
               <input id="imageUpload" type="file" accept="image/*" multiple />
               <div class="help-text">Tip: name files clearly, e.g. “Figure 1 - Yield Curve.png”.</div>
             </div>
+          </div>
 
-            <div id="equitySection" class="equity-section" style="display:none;">
-              <div class="equity-header">
-                <div class="equity-title">Equity Tear Sheet</div>
-                <div class="equity-subtitle">Recommended for a full sell-side style output</div>
+          <div class="xp-panel">
+            <div class="xp-panel-head">Workflow note</div>
+            <div class="xp-panel-body">
+              <div class="plain-note">
+                If you reference a chart or figure in your write-up, mention it as “Figure X”.
+                Images are appended at the end of the Word export.
               </div>
+            </div>
+          </div>
 
-              <label for="ticker" style="margin-top:0;">Ticker (Stooq)</label>
-              <input id="ticker" type="text" placeholder="e.g. AAPL or aapl.us or bp.uk" />
-              <div class="ticker-microtext">
-                Data source: Stooq via proxy
-                <span class="ticker-dot">·</span>
-                Use <a class="ticker-link" href="https://stooq.com/" target="_blank" rel="noopener">stooq.com</a> format (e.g. <b>aapl.us</b>).
+          <div class="action-row">
+            <button type="submit" class="btn btn-primary">Generate Word Document</button>
+            <button type="button" id="emailToCrgBtn" class="btn btn-secondary">Email to CRG</button>
+            <button type="button" id="resetFormBtn" class="btn btn-secondary">Reset</button>
+          </div>
+        </form>
+      </aside>
+
+      <!-- RIGHT COLUMN -->
+      <main class="workspace">
+        <div id="message" class="message" style="display:none;"></div>
+
+        <div class="xp-panel">
+          <div class="xp-panel-head">Summary</div>
+          <div class="xp-panel-body">
+            <div class="summary-grid">
+              <div class="summary-card">
+                <div class="summary-label">Publish readiness</div>
+                <div class="progress-bar">
+                  <div id="completionBar" class="progress-fill"></div>
+                </div>
               </div>
-
-              <div class="rating-row">
-                <label class="rating-label" for="crgRating" style="margin-top:0;">
-                  CRG Rating (required for Equity)
-                  <span class="info-badge" tabindex="0" aria-label="Rating info">i</span>
-                  <span class="info-pop">
-                    <b>CRG Rating</b> is a house view signal.
-                    <br><br>
-                    <b>Buy</b>: upside skewed, catalysts exist, risks understood.
-                    <br>
-                    <b>Hold</b>: fairly priced / balanced risks.
-                    <br>
-                    <b>Sell</b>: downside skewed, valuation stretched or thesis impaired.
-                  </span>
-                </label>
-                <select id="crgRating" class="crg-rating-select">
-                  <option value="">Select…</option>
-                  <option value="Buy">Buy</option>
-                  <option value="Hold">Hold</option>
-                  <option value="Sell">Sell</option>
-                </select>
+              <div class="summary-card">
+                <div class="summary-label">Draft status</div>
+                <div class="summary-value" id="draftStatusMirror">—</div>
               </div>
+            </div>
+          </div>
+        </div>
 
-              <label for="targetPrice">Target Price (optional)</label>
-              <input id="targetPrice" type="text" placeholder="e.g. 210" />
-
-              <div class="chart-panel">
-                <div class="chart-head">
-                  <div class="chart-title">Price Chart</div>
-                  <div class="chart-actions">
-                    <select id="chartRange" class="chart-range" aria-label="Chart range">
-                      <option value="6mo">6M</option>
-                      <option value="1y" selected>1Y</option>
-                      <option value="2y">2Y</option>
-                      <option value="5y">5Y</option>
-                    </select>
-                    <button type="button" id="fetchPriceChart" class="btn btn-secondary">Fetch chart</button>
-                  </div>
+        <div id="equitySection" class="xp-panel" style="display:none;">
+          <div class="xp-panel-head">Equity Tear Sheet</div>
+          <div class="xp-panel-body">
+            <div class="workspace-grid-two">
+              <div>
+                <label for="ticker">Ticker (Stooq)</label>
+                <input id="ticker" type="text" placeholder="e.g. AAPL or aapl.us or bp.uk" />
+                <div class="ticker-microtext">
+                  Data source: Stooq via proxy · Use
+                  <a class="ticker-link" href="https://stooq.com/" target="_blank" rel="noopener">stooq.com</a>
+                  format (e.g. <b>aapl.us</b>).
                 </div>
 
-                <div class="chart-wrap" style="height:260px;">
-                  <canvas id="priceChart"></canvas>
+                <div class="rating-row">
+                  <label class="rating-label" for="crgRating">
+                    CRG Rating (required for Equity)
+                    <span class="info-badge" tabindex="0" aria-label="Rating info">i</span>
+                    <span class="info-pop">
+                      <b>CRG Rating</b> is a house view signal.
+                      <br><br>
+                      <b>Buy</b>: upside skewed, catalysts exist, risks understood.
+                      <br>
+                      <b>Hold</b>: fairly priced / balanced risks.
+                      <br>
+                      <b>Sell</b>: downside skewed, valuation stretched or thesis impaired.
+                    </span>
+                  </label>
+                  <select id="crgRating" class="crg-rating-select">
+                    <option value="">Select…</option>
+                    <option value="Buy">Buy</option>
+                    <option value="Hold">Hold</option>
+                    <option value="Sell">Sell</option>
+                  </select>
                 </div>
 
-                <div class="help-text" id="chartStatus" style="margin-top:8px;"></div>
+                <label for="targetPrice">Target Price (optional)</label>
+                <input id="targetPrice" type="text" placeholder="e.g. 210" />
+              </div>
 
+              <div>
                 <div class="metrics-grid">
                   <div class="metric-card">
                     <div class="metric-label">Current price</div>
@@ -240,14 +255,33 @@
                   </div>
                 </div>
               </div>
+            </div>
 
-              <div class="panel">
-                <div class="panel-head">
-                  <div class="panel-title">Valuation & Model</div>
-                  <div class="panel-muted">Used in tear sheet appendix</div>
+            <div class="xp-subpanel">
+              <div class="xp-subpanel-head">Price Chart</div>
+              <div class="xp-subpanel-body">
+                <div class="chart-actions">
+                  <select id="chartRange" class="chart-range" aria-label="Chart range">
+                    <option value="6mo">6M</option>
+                    <option value="1y" selected>1Y</option>
+                    <option value="2y">2Y</option>
+                    <option value="5y">5Y</option>
+                  </select>
+                  <button type="button" id="fetchPriceChart" class="btn btn-secondary">Fetch chart</button>
                 </div>
 
-                <label for="valuationSummary" style="margin-top:10px;">Valuation Summary (optional)</label>
+                <div class="chart-wrap" style="height:260px;">
+                  <canvas id="priceChart"></canvas>
+                </div>
+
+                <div class="help-text" id="chartStatus" style="margin-top:8px;"></div>
+              </div>
+            </div>
+
+            <div class="xp-subpanel">
+              <div class="xp-subpanel-head">Valuation & Model</div>
+              <div class="xp-subpanel-body">
+                <label for="valuationSummary">Valuation Summary (optional)</label>
                 <textarea id="valuationSummary" placeholder="e.g. DCF implies fair value; key debate is margin durability."></textarea>
 
                 <label for="keyAssumptions">Key Assumptions (optional bullets)</label>
@@ -268,26 +302,119 @@
                 </div>
               </div>
             </div>
+          </div>
+        </div>
 
-            <div class="tool-info" style="margin-top:10px;padding:10px;">
-              <div style="font-size:12px;font-weight:700;margin-bottom:4px;">Workflow note</div>
-              <div style="font-size:11px;color:#333;">
-                If you reference a chart or figure in your write-up, mention it as “Figure X”.
-                Images are appended at the end of the Word export.
+        <div class="xp-panel">
+          <div class="xp-panel-head">Live Detail</div>
+          <div class="xp-panel-body detail-body">
+            <div class="detail-title" id="liveTitle">Document preview</div>
+
+            <div class="detail-meta-grid">
+              <div class="detail-meta-item">
+                <div class="detail-meta-label">Note Type</div>
+                <div class="detail-meta-value" id="previewNoteType">—</div>
+              </div>
+              <div class="detail-meta-item">
+                <div class="detail-meta-label">Topic</div>
+                <div class="detail-meta-value" id="previewTopic">—</div>
+              </div>
+              <div class="detail-meta-item">
+                <div class="detail-meta-label">Author</div>
+                <div class="detail-meta-value" id="previewAuthor">—</div>
+              </div>
+              <div class="detail-meta-item">
+                <div class="detail-meta-label">Status</div>
+                <div class="detail-meta-value">Draft</div>
               </div>
             </div>
 
-            <div class="form-actions">
-              <button type="submit" class="btn btn-primary">Generate Word Document</button>
-              <button type="button" id="emailToCrgBtn" class="btn btn-secondary">Email to CRG</button>
-              <button type="button" id="resetFormBtn" class="btn btn-secondary">Reset</button>
+            <div class="detail-section">
+              <div class="detail-section-title">Key Takeaways</div>
+              <div class="detail-copy" id="previewTakeaways">Your key takeaways will appear here as you draft.</div>
             </div>
-          </form>
+
+            <div class="detail-section">
+              <div class="detail-section-title">Analysis</div>
+              <div class="detail-copy detail-copy-large" id="previewAnalysis">Your analysis preview will appear here.</div>
+            </div>
+
+            <div class="detail-section">
+              <div class="detail-section-title">Cordoba View</div>
+              <div class="detail-copy" id="previewCordobaView">Your Cordoba view will appear here.</div>
+            </div>
+          </div>
         </div>
-      </div>
+      </main>
     </div>
   </div>
 
   <script src="assets/app.js"></script>
+  <script>
+    (function () {
+      const ids = {
+        title: document.getElementById("title"),
+        noteType: document.getElementById("noteType"),
+        topic: document.getElementById("topic"),
+        authorFirstName: document.getElementById("authorFirstName"),
+        authorLastName: document.getElementById("authorLastName"),
+        keyTakeaways: document.getElementById("keyTakeaways"),
+        analysis: document.getElementById("analysis"),
+        cordobaView: document.getElementById("cordobaView"),
+        draftStatus: document.getElementById("draftStatus"),
+        draftStatusMirror: document.getElementById("draftStatusMirror"),
+        liveTitle: document.getElementById("liveTitle"),
+        previewNoteType: document.getElementById("previewNoteType"),
+        previewTopic: document.getElementById("previewTopic"),
+        previewAuthor: document.getElementById("previewAuthor"),
+        previewTakeaways: document.getElementById("previewTakeaways"),
+        previewAnalysis: document.getElementById("previewAnalysis"),
+        previewCordobaView: document.getElementById("previewCordobaView"),
+        emailToCrgBtnTop: document.getElementById("emailToCrgBtnTop"),
+        resetFormBtnTop: document.getElementById("resetFormBtnTop"),
+        emailToCrgBtn: document.getElementById("emailToCrgBtn"),
+        resetFormBtn: document.getElementById("resetFormBtn")
+      };
+
+      function cleanText(value, fallback) {
+        const v = (value || "").trim();
+        return v || fallback;
+      }
+
+      function syncPreview() {
+        if (ids.liveTitle) ids.liveTitle.textContent = cleanText(ids.title?.value, "Document preview");
+        if (ids.previewNoteType) ids.previewNoteType.textContent = cleanText(ids.noteType?.value, "—");
+        if (ids.previewTopic) ids.previewTopic.textContent = cleanText(ids.topic?.value, "—");
+        if (ids.previewAuthor) {
+          const fullName = [ids.authorFirstName?.value, ids.authorLastName?.value].map(v => (v || "").trim()).filter(Boolean).join(" ");
+          ids.previewAuthor.textContent = fullName || "—";
+        }
+        if (ids.previewTakeaways) ids.previewTakeaways.textContent = cleanText(ids.keyTakeaways?.value, "Your key takeaways will appear here as you draft.");
+        if (ids.previewAnalysis) ids.previewAnalysis.textContent = cleanText(ids.analysis?.value, "Your analysis preview will appear here.");
+        if (ids.previewCordobaView) ids.previewCordobaView.textContent = cleanText(ids.cordobaView?.value, "Your Cordoba view will appear here.");
+        if (ids.draftStatusMirror && ids.draftStatus) ids.draftStatusMirror.textContent = ids.draftStatus.textContent || "—";
+      }
+
+      ["input", "change", "keyup"].forEach(evt => {
+        document.addEventListener(evt, syncPreview, { passive: true });
+      });
+
+      const mirrorTimer = setInterval(() => {
+        if (ids.draftStatusMirror && ids.draftStatus) {
+          ids.draftStatusMirror.textContent = ids.draftStatus.textContent || "—";
+        }
+      }, 400);
+
+      if (ids.emailToCrgBtnTop && ids.emailToCrgBtn) {
+        ids.emailToCrgBtnTop.addEventListener("click", () => ids.emailToCrgBtn.click());
+      }
+      if (ids.resetFormBtnTop && ids.resetFormBtn) {
+        ids.resetFormBtnTop.addEventListener("click", () => ids.resetFormBtn.click());
+      }
+
+      syncPreview();
+      window.addEventListener("beforeunload", () => clearInterval(mirrorTimer));
+    })();
+  </script>
 </body>
 </html>
