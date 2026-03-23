@@ -1,21 +1,23 @@
 /* =========================================================
    Cordoba Research Group — Research Documentation Tool (RDT)
-   app.js (Institutional v2.2 — Classic XP UI skin, export logic preserved)
+   app.js (Institutional v2.2 — Workspace layout edition)
    ---------------------------------------------------------
-   Key notes:
-   ✅ UI can be reskinned freely without breaking export flow
-   ✅ Equity Research output still follows the institutional layout
-   ✅ Autosave, charting, email helper, completion meter all preserved
-   ✅ Backwards-compatible with existing HTML IDs/classes
+   Includes:
+   ✅ Existing export logic
+   ✅ Autosave
+   ✅ Co-author management
+   ✅ Equity tear sheet support
+   ✅ Top action button wiring
+   ✅ Live workspace preview sync
    ========================================================= */
 
 (() => {
   "use strict";
 
-  console.log("RDT classic-xp app.js loaded (v2.2)");
+  console.log("RDT workspace app.js loaded (v2.2)");
 
   // ------------------------------
-  // Brand (Córdoba)
+  // Brand (Cordoba)
   // ------------------------------
   const BRAND = {
     name: "Cordoba Research Group",
@@ -103,7 +105,6 @@
     return `${y}-${m}-${d}`;
   }
 
-  // Mailto helper (CRLF safe)
   function buildMailto(to, cc, subject, body) {
     const crlfBody = (body || "").replace(/\n/g, "\r\n");
     const parts = [];
@@ -122,7 +123,6 @@
     return "";
   }
 
-  // Phone formatting
   function formatNationalLoose(rawDigits) {
     const d = digitsOnly(rawDigits);
     if (!d) return "";
@@ -143,7 +143,7 @@
   }
 
   // ------------------------------
-  // Draft persistence (autosave)
+  // Draft persistence
   // ------------------------------
   const DRAFT_KEY = "crg_rdt_draft_v22";
 
@@ -324,14 +324,12 @@
     div.innerHTML = `
       <input type="text" placeholder="Last Name" class="coauthor-lastname" autocomplete="family-name">
       <input type="text" placeholder="First Name" class="coauthor-firstname" autocomplete="given-name">
-
       <div class="phone-row phone-row--compact">
         <select class="phone-country coauthor-country" aria-label="Country code">
           ${countryOptionsHtml}
         </select>
         <input type="text" placeholder="Phone number" class="phone-number coauthor-phone-local" inputmode="numeric" autocomplete="tel-national">
       </div>
-
       <input type="text" class="coauthor-phone" style="display:none;">
       <button type="button" class="remove-coauthor" data-remove-id="${coAuthorCount}">Remove</button>
     `;
@@ -353,6 +351,7 @@
       coAuthorsList.appendChild(createCoauthorNode());
       updateCompletionMeter();
       scheduleDraftSave();
+      syncWorkspacePreview();
     });
 
     document.addEventListener("click", (e) => {
@@ -363,6 +362,7 @@
       if (node) node.remove();
       updateCompletionMeter();
       scheduleDraftSave();
+      syncWorkspacePreview();
     });
   }
 
@@ -386,6 +386,7 @@
       toggleEquitySection();
       updateCompletionMeter();
       scheduleDraftSave();
+      syncWorkspacePreview();
     });
     toggleEquitySection();
   }
@@ -434,6 +435,7 @@
       if (t.closest && t.closest("#researchForm")) {
         updateCompletionMeter();
         scheduleDraftSave();
+        syncWorkspacePreview();
       }
     }, { passive: true });
   });
@@ -475,6 +477,7 @@
       updateAttachmentSummary();
       updateCompletionMeter();
       scheduleDraftSave();
+      syncWorkspacePreview();
     });
   }
 
@@ -518,6 +521,7 @@
       showMsg("", "");
       clearDraft();
       setDraftStatus("");
+      syncWorkspacePreview();
     });
   }
 
@@ -572,7 +576,20 @@
   }
 
   // ------------------------------
-  // Price chart + stats (Stooq via r.jina.ai)
+  // Top button wiring
+  // ------------------------------
+  const emailToCrgBtnTop = document.getElementById("emailToCrgBtnTop");
+  if (emailToCrgBtnTop && emailToCrgBtn) {
+    emailToCrgBtnTop.addEventListener("click", () => emailToCrgBtn.click());
+  }
+
+  const resetFormBtnTop = document.getElementById("resetFormBtnTop");
+  if (resetFormBtnTop && resetBtn) {
+    resetFormBtnTop.addEventListener("click", () => resetBtn.click());
+  }
+
+  // ------------------------------
+  // Price chart + stats
   // ------------------------------
   let priceChart = null;
   let priceChartImageBytes = null;
@@ -725,6 +742,7 @@
       paintEquityStats();
       updateCompletionMeter();
       scheduleDraftSave();
+      syncWorkspacePreview();
     });
   }
 
@@ -775,6 +793,7 @@
 
       if (chartStatusEl) chartStatusEl.textContent = `✓ Chart ready (${range.toUpperCase()})`;
       scheduleDraftSave();
+      syncWorkspacePreview();
     } catch (e) {
       priceChartImageBytes = null;
       equityStats = { currentPrice: null, realisedVolAnn: null, rangeReturn: null, startPrice: null };
@@ -949,7 +968,7 @@
     return noBorderTable([
       new docx.TableRow({
         children: [
-          cell(para(run(leftText, { size: 16, color: BRAND.colors.lightMuted } ), { spacing: { after: 0 } }), { width: 70, margins: { top: 80, bottom: 80, left: 0, right: 0 } }),
+          cell(para(run(leftText, { size: 16, color: BRAND.colors.lightMuted }), { spacing: { after: 0 } }), { width: 70, margins: { top: 80, bottom: 80, left: 0, right: 0 } }),
           cell(para(run(BRAND.short, { size: 16, color: BRAND.colors.lightMuted }), { spacing: { after: 0 }, align: docx.AlignmentType.RIGHT }), { width: 30, margins: { top: 80, bottom: 80, left: 0, right: 0 } })
         ]
       })
@@ -1079,7 +1098,6 @@
         run("  ", { size: 10 }),
         run(rec, { font: BRAND.fonts.body, size: 22, bold: true, color: BRAND.colors.ink })
       ], { spacing: { after: 90 } }),
-
       para(priceLine, { spacing: { after: 160 } }),
       para(run(safeTrim(title) || "—", { font: BRAND.fonts.heading, size: 30, bold: true }), { spacing: { after: 120 } })
     ];
@@ -1132,9 +1150,6 @@
     const nt = noteType || "Research Note";
     const now = new Date();
     const iso = formatDateShortISO(now);
-
-    const authorName = `${safeTrim(authorFirstName)} ${safeTrim(authorLastName)}`.trim() || "—";
-    const authorPhone = authorPhoneSafe ? authorPhoneSafe : "N/A";
 
     const cp = Number.isFinite(equityStats?.currentPrice) ? equityStats.currentPrice : null;
     const tp = safeNum(targetPrice);
@@ -1204,10 +1219,7 @@
           new docx.TableRow({
             children: [
               cell([sidebar], { width: 24, margins: { top: 0, bottom: 0, left: 0, right: 220 } }),
-              cell([
-                ...mainHeader,
-                ...p1Paras
-              ], { width: 76, margins: { top: 0, bottom: 0, left: 220, right: 0 } })
+              cell([...mainHeader, ...p1Paras], { width: 76, margins: { top: 0, bottom: 0, left: 220, right: 0 } })
             ]
           })
         ]
@@ -1249,57 +1261,23 @@
       }
 
       if (safeTrim(valuationSummary)) {
-        children.push(
-          subheading("Valuation", 28, 110),
-          ...linesToParagraphs(valuationSummary, 140)
-        );
+        children.push(subheading("Valuation", 28, 110), ...linesToParagraphs(valuationSummary, 140));
       }
       if (safeTrim(keyAssumptions)) {
-        children.push(
-          subheading("Key assumptions", 28, 110),
-          ...bulletLines(keyAssumptions, 90)
-        );
+        children.push(subheading("Key assumptions", 28, 110), ...bulletLines(keyAssumptions, 90));
       }
 
       children.push(pageBreak());
+      children.push(heading("Investment thesis", 34, 140), thinRule(180));
 
-      children.push(
-        heading("Investment thesis", 34, 140),
-        thinRule(180)
-      );
-
-      if (restParas.length) {
-        children.push(...restParas);
-      }
-
-      if (safeTrim(content)) {
-        children.push(
-          subheading("Additional detail", 26, 110),
-          ...linesToParagraphs(content, 140)
-        );
-      }
-
-      if (safeTrim(scenarioNotes)) {
-        children.push(
-          subheading("Scenario / sensitivity notes", 26, 110),
-          ...linesToParagraphs(scenarioNotes, 140)
-        );
-      }
-
-      if (safeTrim(cordobaView)) {
-        children.push(
-          subheading("The Cordoba view", 26, 110),
-          ...linesToParagraphs(cordobaView, 140)
-        );
-      }
+      if (restParas.length) children.push(...restParas);
+      if (safeTrim(content)) children.push(subheading("Additional detail", 26, 110), ...linesToParagraphs(content, 140));
+      if (safeTrim(scenarioNotes)) children.push(subheading("Scenario / sensitivity notes", 26, 110), ...linesToParagraphs(scenarioNotes, 140));
+      if (safeTrim(cordobaView)) children.push(subheading("The Cordoba view", 26, 110), ...linesToParagraphs(cordobaView, 140));
 
       if (safeTrim(modelLink) || attachedModelNames.length) {
         children.push(subheading("Model and attachments", 26, 110));
-
-        if (safeTrim(modelLink)) {
-          children.push(bodyLine(`Model link: ${safeTrim(modelLink)}`, 120));
-        }
-
+        if (safeTrim(modelLink)) children.push(bodyLine(`Model link: ${safeTrim(modelLink)}`, 120));
         if (attachedModelNames.length) {
           attachedModelNames.forEach(name => {
             children.push(new docx.Paragraph({ text: name, bullet: { level: 0 }, spacing: { after: 70 } }));
@@ -1309,19 +1287,8 @@
         }
       }
 
-      if (figures.length) {
-        children.push(
-          subheading("Figures and charts", 26, 110),
-          ...figures
-        );
-      }
-
-      if (safeTrim(keyTakeaways)) {
-        children.push(
-          subheading("Key takeaways", 26, 110),
-          ...bulletLines(keyTakeaways, 90)
-        );
-      }
+      if (figures.length) children.push(subheading("Figures and charts", 26, 110), ...figures);
+      if (safeTrim(keyTakeaways)) children.push(subheading("Key takeaways", 26, 110), ...bulletLines(keyTakeaways, 90));
     } else {
       children.push(
         heading(BRAND.name.toUpperCase(), 30, 40),
@@ -1335,18 +1302,12 @@
         ...linesToParagraphs(analysis, 140)
       );
 
-      if (safeTrim(content)) {
-        children.push(subheading("Additional detail", 26, 110), ...linesToParagraphs(content, 140));
-      }
-      if (safeTrim(cordobaView)) {
-        children.push(subheading("The Cordoba view", 26, 110), ...linesToParagraphs(cordobaView, 140));
-      }
-      if (figures.length) {
-        children.push(subheading("Figures and charts", 26, 110), ...figures);
-      }
+      if (safeTrim(content)) children.push(subheading("Additional detail", 26, 110), ...linesToParagraphs(content, 140));
+      if (safeTrim(cordobaView)) children.push(subheading("The Cordoba view", 26, 110), ...linesToParagraphs(cordobaView, 140));
+      if (figures.length) children.push(subheading("Figures and charts", 26, 110), ...figures);
     }
 
-    const doc = new docx.Document({
+    return new docx.Document({
       styles: {
         default: {
           document: {
@@ -1381,8 +1342,6 @@
         children
       }]
     });
-
-    return doc;
   }
 
   // ------------------------------
@@ -1430,15 +1389,15 @@
 
         const imageFiles = $("#imageUpload")?.files || [];
 
-        const ticker = $("#ticker") ? $("#ticker").value : "";
-        const valuationSummary = $("#valuationSummary") ? $("#valuationSummary").value : "";
-        const keyAssumptions = $("#keyAssumptions") ? $("#keyAssumptions").value : "";
-        const scenarioNotes = $("#scenarioNotes") ? $("#scenarioNotes").value : "";
-        const modelFiles = $("#modelFiles") ? $("#modelFiles").files : null;
-        const modelLink = $("#modelLink") ? $("#modelLink").value : "";
+        const ticker = $("#ticker")?.value || "";
+        const valuationSummary = $("#valuationSummary")?.value || "";
+        const keyAssumptions = $("#keyAssumptions")?.value || "";
+        const scenarioNotes = $("#scenarioNotes")?.value || "";
+        const modelFiles = $("#modelFiles")?.files || null;
+        const modelLink = $("#modelLink")?.value || "";
 
-        const targetPrice = $("#targetPrice") ? $("#targetPrice").value : "";
-        const crgRating = $("#crgRating") ? $("#crgRating").value : "";
+        const targetPrice = $("#targetPrice")?.value || "";
+        const crgRating = $("#crgRating")?.value || "";
 
         const now = new Date();
         const dateTimeString = formatDateTime(now);
@@ -1475,6 +1434,7 @@
 
         showMsg("success", `✓ Document "${fileName}" generated successfully.`);
         saveDraftNow();
+        syncWorkspacePreview();
       } catch (error) {
         console.error(error);
         showMsg("error", `✗ Error: ${error.message}`);
@@ -1524,6 +1484,69 @@
     syncPrimaryPhone();
   }
 
+  // ------------------------------
+  // Workspace preview sync
+  // ------------------------------
+  function syncWorkspacePreview() {
+    const titleEl = document.getElementById("title");
+    const topicEl = document.getElementById("topic");
+    const noteTypeElLocal = document.getElementById("noteType");
+    const firstEl = document.getElementById("authorFirstName");
+    const lastEl = document.getElementById("authorLastName");
+    const takeawaysEl = document.getElementById("keyTakeaways");
+    const analysisEl = document.getElementById("analysis");
+    const cordobaViewEl = document.getElementById("cordobaView");
+
+    const liveTitle = document.getElementById("liveTitle");
+    const previewNoteType = document.getElementById("previewNoteType");
+    const previewTopic = document.getElementById("previewTopic");
+    const previewAuthor = document.getElementById("previewAuthor");
+    const previewTakeaways = document.getElementById("previewTakeaways");
+    const previewAnalysis = document.getElementById("previewAnalysis");
+    const previewCordobaView = document.getElementById("previewCordobaView");
+    const draftStatusMirror = document.getElementById("draftStatusMirror");
+    const draftStatusLive = document.getElementById("draftStatus");
+
+    const safe = (v, fallback) => {
+      const s = (v || "").trim();
+      return s || fallback;
+    };
+
+    if (liveTitle) liveTitle.textContent = safe(titleEl?.value, "Document preview");
+    if (previewNoteType) previewNoteType.textContent = safe(noteTypeElLocal?.value, "—");
+    if (previewTopic) previewTopic.textContent = safe(topicEl?.value, "—");
+
+    if (previewAuthor) {
+      const fullName = [firstEl?.value, lastEl?.value].map(v => (v || "").trim()).filter(Boolean).join(" ");
+      previewAuthor.textContent = fullName || "—";
+    }
+
+    if (previewTakeaways) {
+      previewTakeaways.textContent = safe(takeawaysEl?.value, "Your key takeaways will appear here as you draft.");
+    }
+
+    if (previewAnalysis) {
+      previewAnalysis.textContent = safe(analysisEl?.value, "Your analysis preview will appear here.");
+    }
+
+    if (previewCordobaView) {
+      previewCordobaView.textContent = safe(cordobaViewEl?.value, "Your Cordoba view will appear here.");
+    }
+
+    if (draftStatusMirror && draftStatusLive) {
+      draftStatusMirror.textContent = draftStatusLive.textContent || "—";
+    }
+  }
+
+  ["input","change","keyup"].forEach(evt => {
+    document.addEventListener(evt, syncWorkspacePreview, { passive: true });
+  });
+
+  let previewSyncInterval = null;
+
+  // ------------------------------
+  // Init
+  // ------------------------------
   function init() {
     syncPrimaryPhone();
     updateAttachmentSummary();
@@ -1538,7 +1561,16 @@
     } else {
       setDraftStatus("");
     }
+
+    syncWorkspacePreview();
+
+    if (!previewSyncInterval) {
+      previewSyncInterval = setInterval(syncWorkspacePreview, 500);
+    }
   }
 
   window.addEventListener("DOMContentLoaded", init);
+  window.addEventListener("beforeunload", () => {
+    if (previewSyncInterval) clearInterval(previewSyncInterval);
+  });
 })();
