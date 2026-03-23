@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>Cordoba Research Group — RDT</title>
+  <title>Cordoba Research Group — Research Documentation Tool</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
 
   <link rel="stylesheet" href="assets/styles.css" />
@@ -11,10 +11,8 @@
   <script src="https://cdn.jsdelivr.net/npm/docx@8.5.0/build/index.umd.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/file-saver@2.0.5/dist/FileSaver.min.js"></script>
 </head>
-
 <body>
   <div class="app-shell">
-    <!-- Top header -->
     <div class="topbar">
       <div class="topbar-left">
         <div class="brand-title">Cordoba Research Group — Research Documentation Tool</div>
@@ -25,7 +23,6 @@
       </div>
     </div>
 
-    <!-- Small subheader -->
     <div class="subbar">
       <div>
         <div class="subbar-title">Cordoba Research Group</div>
@@ -38,7 +35,6 @@
     </div>
 
     <div class="shell-body">
-      <!-- LEFT COLUMN -->
       <aside class="sidebar">
         <form id="researchForm" novalidate>
           <div class="xp-panel">
@@ -174,23 +170,28 @@
         </form>
       </aside>
 
-      <!-- RIGHT COLUMN -->
       <main class="workspace">
         <div id="message" class="message" style="display:none;"></div>
 
-        <div class="xp-panel">
-          <div class="xp-panel-head">Summary</div>
+        <div class="xp-panel workspace-top-panel">
+          <div class="xp-panel-head">Document Status</div>
           <div class="xp-panel-body">
-            <div class="summary-grid">
-              <div class="summary-card">
-                <div class="summary-label">Publish readiness</div>
+            <div class="workspace-status-grid">
+              <div class="workspace-status-card">
+                <div class="workspace-status-label">Publish readiness</div>
                 <div class="progress-bar">
                   <div id="completionBar" class="progress-fill"></div>
                 </div>
               </div>
-              <div class="summary-card">
-                <div class="summary-label">Draft status</div>
-                <div class="summary-value" id="draftStatusMirror">—</div>
+
+              <div class="workspace-status-card">
+                <div class="workspace-status-label">Draft status</div>
+                <div class="workspace-status-value" id="draftStatusMirror">—</div>
+              </div>
+
+              <div class="workspace-status-card">
+                <div class="workspace-status-label">Mode</div>
+                <div class="workspace-status-value" id="previewMode">General Note</div>
               </div>
             </div>
           </div>
@@ -305,43 +306,27 @@
           </div>
         </div>
 
-        <div class="xp-panel">
-          <div class="xp-panel-head">Live Detail</div>
-          <div class="xp-panel-body detail-body">
-            <div class="detail-title" id="liveTitle">Document preview</div>
+        <div class="xp-panel preview-panel">
+          <div class="xp-panel-head">Live Document Preview</div>
+          <div class="xp-panel-body preview-shell">
+            <div class="page-preview-wrap">
+              <div class="page-preview" id="docPreviewPage">
+                <div class="doc-header-row">
+                  <div class="doc-header-left" id="docHeaderLeft">CRG | Research Note | —</div>
+                  <div class="doc-header-right">CRG</div>
+                </div>
 
-            <div class="detail-meta-grid">
-              <div class="detail-meta-item">
-                <div class="detail-meta-label">Note Type</div>
-                <div class="detail-meta-value" id="previewNoteType">—</div>
-              </div>
-              <div class="detail-meta-item">
-                <div class="detail-meta-label">Topic</div>
-                <div class="detail-meta-value" id="previewTopic">—</div>
-              </div>
-              <div class="detail-meta-item">
-                <div class="detail-meta-label">Author</div>
-                <div class="detail-meta-value" id="previewAuthor">—</div>
-              </div>
-              <div class="detail-meta-item">
-                <div class="detail-meta-label">Status</div>
-                <div class="detail-meta-value">Draft</div>
-              </div>
-            </div>
+                <div class="doc-rule"></div>
 
-            <div class="detail-section">
-              <div class="detail-section-title">Key Takeaways</div>
-              <div class="detail-copy" id="previewTakeaways">Your key takeaways will appear here as you draft.</div>
-            </div>
+                <div class="doc-preview-body" id="docPreviewBody"></div>
 
-            <div class="detail-section">
-              <div class="detail-section-title">Analysis</div>
-              <div class="detail-copy detail-copy-large" id="previewAnalysis">Your analysis preview will appear here.</div>
-            </div>
-
-            <div class="detail-section">
-              <div class="detail-section-title">Cordoba View</div>
-              <div class="detail-copy" id="previewCordobaView">Your Cordoba view will appear here.</div>
+                <div class="doc-footer">
+                  <div class="doc-footer-line"></div>
+                  <div class="doc-footer-meta">
+                    Internal use only. Outputs are draft research documentation generated from user inputs and third-party market data.
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
         </div>
@@ -350,71 +335,5 @@
   </div>
 
   <script src="assets/app.js"></script>
-  <script>
-    (function () {
-      const ids = {
-        title: document.getElementById("title"),
-        noteType: document.getElementById("noteType"),
-        topic: document.getElementById("topic"),
-        authorFirstName: document.getElementById("authorFirstName"),
-        authorLastName: document.getElementById("authorLastName"),
-        keyTakeaways: document.getElementById("keyTakeaways"),
-        analysis: document.getElementById("analysis"),
-        cordobaView: document.getElementById("cordobaView"),
-        draftStatus: document.getElementById("draftStatus"),
-        draftStatusMirror: document.getElementById("draftStatusMirror"),
-        liveTitle: document.getElementById("liveTitle"),
-        previewNoteType: document.getElementById("previewNoteType"),
-        previewTopic: document.getElementById("previewTopic"),
-        previewAuthor: document.getElementById("previewAuthor"),
-        previewTakeaways: document.getElementById("previewTakeaways"),
-        previewAnalysis: document.getElementById("previewAnalysis"),
-        previewCordobaView: document.getElementById("previewCordobaView"),
-        emailToCrgBtnTop: document.getElementById("emailToCrgBtnTop"),
-        resetFormBtnTop: document.getElementById("resetFormBtnTop"),
-        emailToCrgBtn: document.getElementById("emailToCrgBtn"),
-        resetFormBtn: document.getElementById("resetFormBtn")
-      };
-
-      function cleanText(value, fallback) {
-        const v = (value || "").trim();
-        return v || fallback;
-      }
-
-      function syncPreview() {
-        if (ids.liveTitle) ids.liveTitle.textContent = cleanText(ids.title?.value, "Document preview");
-        if (ids.previewNoteType) ids.previewNoteType.textContent = cleanText(ids.noteType?.value, "—");
-        if (ids.previewTopic) ids.previewTopic.textContent = cleanText(ids.topic?.value, "—");
-        if (ids.previewAuthor) {
-          const fullName = [ids.authorFirstName?.value, ids.authorLastName?.value].map(v => (v || "").trim()).filter(Boolean).join(" ");
-          ids.previewAuthor.textContent = fullName || "—";
-        }
-        if (ids.previewTakeaways) ids.previewTakeaways.textContent = cleanText(ids.keyTakeaways?.value, "Your key takeaways will appear here as you draft.");
-        if (ids.previewAnalysis) ids.previewAnalysis.textContent = cleanText(ids.analysis?.value, "Your analysis preview will appear here.");
-        if (ids.previewCordobaView) ids.previewCordobaView.textContent = cleanText(ids.cordobaView?.value, "Your Cordoba view will appear here.");
-        if (ids.draftStatusMirror && ids.draftStatus) ids.draftStatusMirror.textContent = ids.draftStatus.textContent || "—";
-      }
-
-      ["input", "change", "keyup"].forEach(evt => {
-        document.addEventListener(evt, syncPreview, { passive: true });
-      });
-
-      const mirrorTimer = setInterval(() => {
-        if (ids.draftStatusMirror && ids.draftStatus) {
-          ids.draftStatusMirror.textContent = ids.draftStatus.textContent || "—";
-        }
-      }, 400);
-
-      if (ids.emailToCrgBtnTop && ids.emailToCrgBtn) {
-        ids.emailToCrgBtnTop.addEventListener("click", () => ids.emailToCrgBtn.click());
-      }
-      if (ids.resetFormBtnTop && ids.resetFormBtn) {
-        ids.resetFormBtnTop.addEventListener("click", () => ids.resetFormBtn.click());
-      }
-
-      syncPreview();
-      window.addEventListener("beforeunload", () => clearInterval(mirrorTimer));
-    })();
-  </script>
 </body>
 </html>
