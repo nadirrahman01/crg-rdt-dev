@@ -1,23 +1,48 @@
+/* =========================================================
+   Cordoba Research Group — Research Documentation Tool (RDT)
+   app.js (Final branded edition)
+   ---------------------------------------------------------
+   Includes:
+   ✅ Autosave
+   ✅ Co-author management
+   ✅ Equity tear sheet support
+   ✅ Top action button wiring
+   ✅ Live document preview
+   ✅ Cordoba-branded Word export
+   ✅ Goldman-style cover treatment adapted to Cordoba
+   ✅ Equity note keeps tear sheet / valuation / figures flow
+   ✅ Supports projected financials block for equity research
+   ---------------------------------------------------------
+   IMPORTANT:
+   Put your logo file here:
+   assets/cordoba-logo.png
+   ========================================================= */
+
 (() => {
   "use strict";
 
-  console.log("RDT final app.js loaded");
+  console.log("RDT final branded app.js loaded");
 
   const BRAND = {
     name: "Cordoba Research Group",
     short: "CRG",
-    version: "RDT v2.3.0",
+    version: "RDT v3.0.0",
     tagline: "Values that bind",
+    logoPath: "assets/cordoba-logo",
     colors: {
       gold: "9A690F",
-      goldDark: "845F0F",
-      cream: "FFF7F0",
-      ink: "0B0E14",
+      goldDark: "7F560C",
+      goldLight: "C8922A",
+      navy: "173D73",
+      navyDark: "102D56",
+      ink: "111827",
       muted: "6B7280",
       lightMuted: "9CA3AF",
-      border: "E5E7EB",
+      border: "D1D5DB",
       rail: "F3F4F6",
-      callout: "F6F1E8",
+      cream: "F8F4EC",
+      callout: "F5EFE2",
+      white: "FFFFFF",
       red: "B91C1C"
     },
     fonts: {
@@ -26,11 +51,13 @@
     },
     disclaimers: {
       internal:
-        "Internal use only. Outputs are draft research documentation generated from user inputs and third-party market data. Verify all figures, tickers, and assumptions before circulation.",
-      publicInfo: "Public Information"
+        "Internal use only. Outputs are draft research documentation generated from user inputs and third-party market data. Verify all figures, tickers, assumptions and model outputs before circulation."
     }
   };
 
+  // ------------------------------
+  // Utilities
+  // ------------------------------
   const $ = (sel, root = document) => root.querySelector(sel);
   const $$ = (sel, root = document) => Array.from(root.querySelectorAll(sel));
   const safeTrim = (v) => (v ?? "").toString().trim();
@@ -79,6 +106,14 @@
     return `${day} ${month} ${year} ${hours}:${minutes} ${ampm}`;
   }
 
+  function formatDateLong(date) {
+    const months = [
+      "January","February","March","April","May","June",
+      "July","August","September","October","November","December"
+    ];
+    return `${date.getDate()} ${months[date.getMonth()]} ${date.getFullYear()}`;
+  }
+
   function formatDateShortISO(date) {
     const y = date.getFullYear();
     const m = String(date.getMonth() + 1).padStart(2, "0");
@@ -123,7 +158,75 @@
     return `${cc}-${nn}`;
   }
 
-  const DRAFT_KEY = "crg_rdt_draft_v23";
+  function escapePreviewHtml(str) {
+    return (str || "")
+      .replaceAll("&", "&amp;")
+      .replaceAll("<", "&lt;")
+      .replaceAll(">", "&gt;")
+      .replaceAll('"', "&quot;")
+      .replaceAll("'", "&#039;");
+  }
+
+  function toParagraphs(text) {
+    const raw = safeTrim(text);
+    if (!raw) return [];
+    return raw.split(/\n\s*\n/g).map(x => x.trim()).filter(Boolean);
+  }
+
+  function toBulletItems(text) {
+    const raw = safeTrim(text);
+    if (!raw) return [];
+    return raw
+      .split("\n")
+      .map(x => x.replace(/^[-*•]\s*/, "").trim())
+      .filter(Boolean);
+  }
+
+  function toSimpleRows(text) {
+    const raw = safeTrim(text);
+    if (!raw) return [];
+    return raw.split("\n").map(x => x.trim()).filter(Boolean);
+  }
+
+  function previewParagraphsHtml(text, fallback = "") {
+    const blocks = toParagraphs(text);
+    if (!blocks.length) {
+      return `<div class="doc-paragraph doc-empty">${escapePreviewHtml(fallback)}</div>`;
+    }
+    return blocks.map(block => `<div class="doc-paragraph">${escapePreviewHtml(block)}</div>`).join("");
+  }
+
+  function previewBulletsHtml(text, fallback = "") {
+    const items = toBulletItems(text);
+    if (!items.length) {
+      return `<div class="doc-paragraph doc-empty">${escapePreviewHtml(fallback)}</div>`;
+    }
+    return `<ul class="doc-bullets">${items.map(item => `<li>${escapePreviewHtml(item)}</li>`).join("")}</ul>`;
+  }
+
+  function previewSimpleRowsHtml(text, fallback = "") {
+    const rows = toSimpleRows(text);
+    if (!rows.length) {
+      return `<div class="doc-paragraph doc-empty">${escapePreviewHtml(fallback)}</div>`;
+    }
+    return rows.map(r => `<div class="doc-paragraph">${escapePreviewHtml(r)}</div>`).join("");
+  }
+
+  async function fetchAssetBytes(path) {
+    try {
+      const res = await fetch(path, { cache: "no-store" });
+      if (!res.ok) return null;
+      const buf = await res.arrayBuffer();
+      return new Uint8Array(buf);
+    } catch {
+      return null;
+    }
+  }
+
+  // ------------------------------
+  // Draft persistence
+  // ------------------------------
+  const DRAFT_KEY = "crg_rdt_draft_v30";
 
   const DRAFT_FIELDS = [
     "noteType","title","topic",
@@ -131,7 +234,8 @@
     "authorPhoneCountry","authorPhoneNational",
     "analysis","keyTakeaways","content","cordobaView",
     "ticker","crgRating","targetPrice",
-    "modelLink","valuationSummary","keyAssumptions","scenarioNotes"
+    "modelLink","valuationSummary","keyAssumptions","scenarioNotes",
+    "projectedFinancials"
   ];
 
   function snapshotDraft() {
@@ -193,6 +297,9 @@
     try { localStorage.removeItem(DRAFT_KEY); } catch (_) {}
   }
 
+  // ------------------------------
+  // Phone wiring
+  // ------------------------------
   const authorPhoneCountryEl = document.getElementById("authorPhoneCountry");
   const authorPhoneNationalEl = document.getElementById("authorPhoneNational");
   const authorPhoneHiddenEl = document.getElementById("authorPhone");
@@ -237,6 +344,9 @@
     });
   }
 
+  // ------------------------------
+  // Co-authors
+  // ------------------------------
   let coAuthorCount = 0;
   const addCoAuthorBtn = document.getElementById("addCoAuthor");
   const coAuthorsList = document.getElementById("coAuthorsList");
@@ -362,6 +472,9 @@
     });
   }
 
+  // ------------------------------
+  // Equity section
+  // ------------------------------
   const noteTypeEl = document.getElementById("noteType");
   const equitySectionEl = document.getElementById("equitySection");
 
@@ -384,6 +497,9 @@
     toggleEquitySection();
   }
 
+  // ------------------------------
+  // Completion meter
+  // ------------------------------
   const completionTextEl = document.getElementById("completionText");
   const completionBarEl = document.getElementById("completionBar");
 
@@ -423,6 +539,9 @@
     }, { passive: true });
   });
 
+  // ------------------------------
+  // Attachment summary
+  // ------------------------------
   const modelFilesEl = document.getElementById("modelFiles");
   const attachSummaryHeadEl = document.getElementById("attachmentSummaryHead");
   const attachSummaryListEl = document.getElementById("attachmentSummaryList");
@@ -461,6 +580,9 @@
     });
   }
 
+  // ------------------------------
+  // Reset
+  // ------------------------------
   const resetBtn = document.getElementById("resetFormBtn");
   const formEl = document.getElementById("researchForm");
 
@@ -502,6 +624,9 @@
     });
   }
 
+  // ------------------------------
+  // Email buttons
+  // ------------------------------
   const emailToCrgBtn = document.getElementById("emailToCrgBtn");
 
   function buildCrgEmailPayload() {
@@ -544,8 +669,7 @@
   if (emailToCrgBtn) {
     emailToCrgBtn.addEventListener("click", () => {
       const { subject, body, cc } = buildCrgEmailPayload();
-      const to = "research@cordobarg.com";
-      window.location.href = buildMailto(to, cc, subject, body);
+      window.location.href = buildMailto("research@cordobarg.com", cc, subject, body);
     });
   }
 
@@ -559,6 +683,9 @@
     resetFormBtnTop.addEventListener("click", () => resetBtn.click());
   }
 
+  // ------------------------------
+  // Price chart + stats
+  // ------------------------------
   let priceChart = null;
   let priceChartImageBytes = null;
 
@@ -772,8 +899,13 @@
     }
   }
 
-  if (fetchChartBtn) fetchChartBtn.addEventListener("click", buildPriceChart);
+  if (fetchChartBtn) {
+    fetchChartBtn.addEventListener("click", buildPriceChart);
+  }
 
+  // ------------------------------
+  // Word export helpers
+  // ------------------------------
   function ensureLibs() {
     if (typeof docx === "undefined") throw new Error("docx library not loaded. Refresh the page.");
     if (typeof saveAs === "undefined") throw new Error("FileSaver library not loaded. Refresh the page.");
@@ -810,12 +942,12 @@
     });
   }
 
-  function heading(text, size = 34, after = 160) {
-    return para(run(text, { font: BRAND.fonts.heading, size, bold: true }), { spacing: { after } });
+  function heading(text, size = 34, after = 160, color = BRAND.colors.ink) {
+    return para(run(text, { font: BRAND.fonts.heading, size, bold: true, color }), { spacing: { after } });
   }
 
-  function subheading(text, size = 24, after = 120) {
-    return para(run(text, { font: BRAND.fonts.heading, size, bold: true }), { spacing: { after } });
+  function subheading(text, size = 24, after = 120, color = BRAND.colors.ink) {
+    return para(run(text, { font: BRAND.fonts.heading, size, bold: true, color }), { spacing: { after } });
   }
 
   function bodyLine(text, after = 140) {
@@ -887,13 +1019,6 @@
     return para(new docx.PageBreak(), { spacing: { after: 0 } });
   }
 
-  function ratingToDisplay(r) {
-    const x = safeTrim(r);
-    if (!x) return "—";
-    if (x.toLowerCase() === "hold") return "Neutral";
-    return x;
-  }
-
   function splitIntoParagraphBlocks(text) {
     const raw = (text || "").replace(/\r/g, "");
     return raw.split(/\n\s*\n/g).map(b => b.trim()).filter(Boolean);
@@ -924,6 +1049,44 @@
       }
     }
     return out;
+  }
+
+  function buildProjectedFinancialsTable(text) {
+    const rows = toSimpleRows(text);
+    if (!rows.length) return null;
+
+    const parsed = rows.map(r => r.split("|").map(x => x.trim()).filter(Boolean));
+    const valid = parsed.filter(r => r.length >= 2);
+    if (!valid.length) return null;
+
+    const maxCols = Math.max(...valid.map(r => r.length));
+    const width = Math.floor(100 / maxCols);
+
+    const tableRows = valid.map((row, idx) => new docx.TableRow({
+      children: row.map((col, colIdx) => cell(
+        para(run(col, {
+          size: 18,
+          bold: idx === 0,
+          color: idx === 0 ? BRAND.colors.navy : BRAND.colors.ink
+        }), { spacing: { after: 0 } }),
+        {
+          width,
+          shading: idx === 0 ? BRAND.colors.cream : undefined,
+          borders: {
+            top: { style: docx.BorderStyle.SINGLE, size: 1, color: BRAND.colors.border },
+            bottom: { style: docx.BorderStyle.SINGLE, size: 1, color: BRAND.colors.border },
+            left: { style: docx.BorderStyle.SINGLE, size: 1, color: BRAND.colors.border },
+            right: { style: docx.BorderStyle.SINGLE, size: 1, color: BRAND.colors.border }
+          },
+          margins: { top: 120, bottom: 120, left: 120, right: 120 }
+        }
+      ))
+    }));
+
+    return new docx.Table({
+      width: { size: 100, type: docx.WidthType.PERCENTAGE },
+      rows: tableRows
+    });
   }
 
   function headerTable(noteType, isoDate) {
@@ -972,145 +1135,112 @@
     });
   }
 
-  function equityMasthead(dateLabel) {
-    return noBorderTable([
-      new docx.TableRow({
-        children: [
-          cell([
-            para(run(BRAND.name.toUpperCase(), { font: BRAND.fonts.heading, size: 28, bold: true }), { spacing: { after: 30 } }),
-            para(run(BRAND.tagline, { size: 16, color: BRAND.colors.muted }), { spacing: { after: 0 } })
-          ], { width: 68, margins: { top: 0, bottom: 0, left: 0, right: 0 } }),
-          cell([
-            para(run("INSTITUTIONAL EQUITY RESEARCH", { size: 16, bold: true, color: BRAND.colors.red }), {
-              spacing: { after: 30 },
-              align: docx.AlignmentType.RIGHT
-            }),
-            para(run(dateLabel, { size: 16, color: BRAND.colors.ink }), {
-              spacing: { after: 20 },
-              align: docx.AlignmentType.RIGHT
-            }),
-            para(run("Initiating coverage", { size: 16, bold: true, color: BRAND.colors.red }), {
-              spacing: { after: 0 },
-              align: docx.AlignmentType.RIGHT
-            })
-          ], { width: 32, margins: { top: 0, bottom: 0, left: 0, right: 0 } })
-        ]
-      })
-    ]);
-  }
+  async function buildBrandedMacroCover({
+    logoBytes,
+    dateLabel,
+    title,
+    noteType,
+    subtitle
+  }) {
+    const blocks = [];
 
-  function equityKeyDataSidebar({ ticker, rating, currentPrice, targetPrice, rangeReturn, volAnn, miniChartBytes }) {
-    const rows = [];
-
-    rows.push(para(run("Key data", { size: 18, bold: true, color: BRAND.colors.muted }), { spacing: { after: 120 } }));
-
-    const kv = (k, v) => para([
-      run(`${k}: `, { size: 18, bold: true }),
-      run(v, { size: 18 })
-    ], { spacing: { after: 90 } });
-
-    rows.push(kv("Ticker", naIfBlank(ticker)));
-    rows.push(kv("Recommendation", ratingToDisplay(rating)));
-    rows.push(kv("Current price", currentPrice));
-    rows.push(kv("Target price", targetPrice));
-    rows.push(para(run(" ", { size: 10 }), { spacing: { after: 60 } }));
-    rows.push(para(run("Price performance (range)", { size: 18, bold: true, color: BRAND.colors.muted }), { spacing: { after: 120 } }));
-    rows.push(kv("Return", rangeReturn));
-    rows.push(kv("Vol (ann.)", volAnn));
-    rows.push(para(run(" ", { size: 10 }), { spacing: { after: 60 } }));
-    rows.push(para(run("Chart", { size: 18, bold: true, color: BRAND.colors.muted }), { spacing: { after: 90 } }));
-
-    if (miniChartBytes) {
-      rows.push(
+    const leftChildren = [];
+    if (logoBytes) {
+      leftChildren.push(
         new docx.Paragraph({
           children: [
             new docx.ImageRun({
-              data: miniChartBytes,
-              transformation: { width: 170, height: 120 }
+              data: logoBytes,
+              transformation: { width: 250, height: 100 }
             })
           ],
           spacing: { after: 0 }
         })
       );
     } else {
-      rows.push(para(run("—", { size: 18, color: BRAND.colors.muted }), { spacing: { after: 0 } }));
+      leftChildren.push(
+        para(run(BRAND.name, {
+          font: BRAND.fonts.heading,
+          size: 34,
+          bold: true,
+          color: BRAND.colors.gold
+        }), { spacing: { after: 0 } })
+      );
     }
 
-    return new docx.Table({
+    const topTable = new docx.Table({
       width: { size: 100, type: docx.WidthType.PERCENTAGE },
-      borders: {
-        top: { style: docx.BorderStyle.SINGLE, size: 2, color: BRAND.colors.border },
-        bottom: { style: docx.BorderStyle.SINGLE, size: 2, color: BRAND.colors.border },
-        left: { style: docx.BorderStyle.SINGLE, size: 2, color: BRAND.colors.border },
-        right: { style: docx.BorderStyle.SINGLE, size: 2, color: BRAND.colors.border },
-        insideHorizontal: { style: docx.BorderStyle.NONE },
-        insideVertical: { style: docx.BorderStyle.NONE }
-      },
       rows: [
         new docx.TableRow({
           children: [
-            cell(rows, {
-              shading: BRAND.colors.rail,
-              margins: { top: 220, bottom: 220, left: 220, right: 220 }
+            cell(leftChildren, {
+              width: 60,
+              shading: BRAND.colors.white,
+              margins: { top: 140, bottom: 140, left: 80, right: 80 }
+            }),
+            cell([
+              para(run(dateLabel, {
+                size: 18,
+                bold: true,
+                color: BRAND.colors.navy
+              }), {
+                spacing: { after: 0 },
+                align: docx.AlignmentType.RIGHT
+              })
+            ], {
+              width: 40,
+              shading: BRAND.colors.white,
+              margins: { top: 140, bottom: 140, left: 80, right: 80 }
             })
           ]
         })
-      ]
-    });
-  }
-
-  function equityMainHeader({ ticker, rating, currentPrice, targetPrice, title }) {
-    const tkr = safeTrim(ticker) || "—";
-    const rec = ratingToDisplay(rating);
-
-    const priceLine = [
-      run("Current Price: ", { size: 18, bold: true, color: BRAND.colors.muted }),
-      run(`${currentPrice}`, { size: 18, color: BRAND.colors.muted }),
-      run("    ", { size: 18 }),
-      run("Target price: ", { size: 18, bold: true, color: BRAND.colors.muted }),
-      run(`${targetPrice}`, { size: 18, color: BRAND.colors.muted })
-    ];
-
-    return [
-      para([
-        run(tkr.toUpperCase(), { font: BRAND.fonts.heading, size: 44, bold: true }),
-        run("  ", { size: 10 }),
-        run(rec, { font: BRAND.fonts.body, size: 22, bold: true, color: BRAND.colors.ink })
-      ], { spacing: { after: 90 } }),
-      para(priceLine, { spacing: { after: 160 } }),
-      para(run(safeTrim(title) || "—", { font: BRAND.fonts.heading, size: 30, bold: true }), { spacing: { after: 120 } })
-    ];
-  }
-
-  function tearSheetStatsRow({ currentPrice, targetPrice, upside, volAnn }) {
-    const one = (label, value) => cell([
-      para(run(label, { size: 16, bold: true, color: BRAND.colors.muted }), { spacing: { after: 40 } }),
-      para(run(value, { size: 22, bold: true }), { spacing: { after: 0 } })
-    ], {
-      shading: "F3F4F6",
+      ],
       borders: {
-        top: { style: docx.BorderStyle.SINGLE, size: 2, color: BRAND.colors.border },
-        bottom: { style: docx.BorderStyle.SINGLE, size: 2, color: BRAND.colors.border },
-        left: { style: docx.BorderStyle.SINGLE, size: 2, color: BRAND.colors.border },
-        right: { style: docx.BorderStyle.SINGLE, size: 2, color: BRAND.colors.border }
-      },
-      margins: { top: 180, bottom: 180, left: 180, right: 180 },
-      width: 25
+        top: { style: docx.BorderStyle.NONE },
+        bottom: { style: docx.BorderStyle.NONE },
+        left: { style: docx.BorderStyle.NONE },
+        right: { style: docx.BorderStyle.NONE },
+        insideHorizontal: { style: docx.BorderStyle.NONE },
+        insideVertical: { style: docx.BorderStyle.NONE }
+      }
     });
 
-    return new docx.Table({
-      width: { size: 100, type: docx.WidthType.PERCENTAGE },
-      rows: [
-        new docx.TableRow({
-          children: [
-            one("Current price", currentPrice),
-            one("Target price", targetPrice),
-            one("Upside", upside),
-            one("Vol (ann.)", volAnn)
-          ]
-        })
-      ]
+    blocks.push(topTable);
+
+    const heroCell = cell([
+      para(run(noteType || "Research Note", {
+        size: 24,
+        bold: true,
+        color: BRAND.colors.white
+      }), { spacing: { after: 120 } }),
+      para(run(title || "Untitled Note", {
+        font: BRAND.fonts.heading,
+        size: 48,
+        color: BRAND.colors.white
+      }), { spacing: { after: 120 } }),
+      para(run(subtitle || "", {
+        size: 20,
+        color: BRAND.colors.white
+      }), { spacing: { after: 0 } })
+    ], {
+      shading: BRAND.colors.navy,
+      margins: { top: 360, bottom: 360, left: 360, right: 360 }
     });
+
+    blocks.push(new docx.Table({
+      width: { size: 100, type: docx.WidthType.PERCENTAGE },
+      rows: [new docx.TableRow({ children: [heroCell] })],
+      borders: {
+        top: { style: docx.BorderStyle.NONE },
+        bottom: { style: docx.BorderStyle.NONE },
+        left: { style: docx.BorderStyle.NONE },
+        right: { style: docx.BorderStyle.NONE },
+        insideHorizontal: { style: docx.BorderStyle.NONE },
+        insideVertical: { style: docx.BorderStyle.NONE }
+      }
+    }));
+
+    return blocks;
   }
 
   async function createInstitutionalDocument(payload) {
@@ -1120,12 +1250,17 @@
       analysis, keyTakeaways, content, cordobaView,
       imageFiles, dateTimeString,
       ticker, valuationSummary, keyAssumptions, scenarioNotes, modelFiles, modelLink,
-      priceChartImageBytes, targetPrice, equityStats, crgRating
+      priceChartImageBytes, targetPrice, equityStats, crgRating,
+      projectedFinancials
     } = payload;
 
     const nt = noteType || "Research Note";
     const now = new Date();
     const iso = formatDateShortISO(now);
+    const longDate = formatDateLong(now);
+
+    const authorName = `${safeTrim(authorFirstName)} ${safeTrim(authorLastName)}`.trim() || "—";
+    const logoBytes = await fetchAssetBytes(BRAND.logoPath);
 
     const cp = Number.isFinite(equityStats?.currentPrice) ? equityStats.currentPrice : null;
     const tp = safeNum(targetPrice);
@@ -1150,15 +1285,105 @@
       : [];
 
     const figures = await addImages(imageFiles);
-
     const attachedModelNames = (modelFiles && modelFiles.length)
       ? Array.from(modelFiles).map(f => f.name)
       : [];
+    const projectedFinancialsTable = buildProjectedFinancialsTable(projectedFinancials);
 
     let children = [];
 
     if (nt === "Equity Research") {
-      children.push(equityMasthead(dateTimeString.split(" ").slice(0, 3).join(" ")), thinRule(220));
+      // Page 1 - branded masthead with Cordoba logo / GS-inspired structure
+      const mastheadLeft = [];
+      if (logoBytes) {
+        mastheadLeft.push(
+          new docx.Paragraph({
+            children: [
+              new docx.ImageRun({
+                data: logoBytes,
+                transformation: { width: 220, height: 88 }
+              })
+            ],
+            spacing: { after: 0 }
+          })
+        );
+      } else {
+        mastheadLeft.push(
+          para(run(BRAND.name, {
+            font: BRAND.fonts.heading,
+            size: 34,
+            bold: true,
+            color: BRAND.colors.gold
+          }), { spacing: { after: 0 } })
+        );
+      }
+
+      children.push(
+        new docx.Table({
+          width: { size: 100, type: docx.WidthType.PERCENTAGE },
+          rows: [
+            new docx.TableRow({
+              children: [
+                cell(mastheadLeft, { width: 56, shading: BRAND.colors.white, margins: { top: 140, bottom: 140, left: 40, right: 40 } }),
+                cell([
+                  para(run(longDate, { size: 18, bold: true, color: BRAND.colors.navy }), {
+                    spacing: { after: 0 },
+                    align: docx.AlignmentType.RIGHT
+                  })
+                ], { width: 44, shading: BRAND.colors.white, margins: { top: 140, bottom: 140, left: 40, right: 40 } })
+              ]
+            })
+          ],
+          borders: {
+            top: { style: docx.BorderStyle.NONE },
+            bottom: { style: docx.BorderStyle.NONE },
+            left: { style: docx.BorderStyle.NONE },
+            right: { style: docx.BorderStyle.NONE },
+            insideHorizontal: { style: docx.BorderStyle.NONE },
+            insideVertical: { style: docx.BorderStyle.NONE }
+          }
+        })
+      );
+
+      children.push(
+        new docx.Table({
+          width: { size: 100, type: docx.WidthType.PERCENTAGE },
+          rows: [
+            new docx.TableRow({
+              children: [
+                cell([
+                  para(run("Cordoba Research Group | Equity Research", {
+                    size: 20,
+                    bold: true,
+                    color: BRAND.colors.white
+                  }), { spacing: { after: 110 } }),
+                  para(run(safeTrim(title) || "Untitled Equity Note", {
+                    font: BRAND.fonts.heading,
+                    size: 46,
+                    color: BRAND.colors.white
+                  }), { spacing: { after: 100 } }),
+                  para(run(`Ticker: ${safeTrim(ticker) || "—"} | Rating: ${ratingToDisplay(crgRating)} | Analyst: ${authorName}`, {
+                    size: 18,
+                    color: BRAND.colors.white
+                  }), { spacing: { after: 0 } })
+                ], {
+                  shading: BRAND.colors.navy,
+                  margins: { top: 320, bottom: 320, left: 320, right: 320 }
+                })
+              ]
+            })
+          ],
+          borders: {
+            top: { style: docx.BorderStyle.NONE },
+            bottom: { style: docx.BorderStyle.NONE },
+            left: { style: docx.BorderStyle.NONE },
+            right: { style: docx.BorderStyle.NONE },
+            insideHorizontal: { style: docx.BorderStyle.NONE },
+            insideVertical: { style: docx.BorderStyle.NONE }
+          }
+        }),
+        para(run(" ", { size: 8 }), { spacing: { after: 120 } })
+      );
 
       const sidebar = equityKeyDataSidebar({
         ticker: safeTrim(ticker),
@@ -1170,39 +1395,54 @@
         miniChartBytes: priceChartImageBytes
       });
 
-      const mainHeader = equityMainHeader({
-        ticker: safeTrim(ticker),
-        rating: safeTrim(crgRating),
-        currentPrice: displayCurrent,
-        targetPrice: displayTarget,
-        title: safeTrim(title)
-      });
-
-      const page1Layout = new docx.Table({
-        width: { size: 100, type: docx.WidthType.PERCENTAGE },
-        borders: {
-          top: { style: docx.BorderStyle.NONE },
-          bottom: { style: docx.BorderStyle.NONE },
-          left: { style: docx.BorderStyle.NONE },
-          right: { style: docx.BorderStyle.NONE },
-          insideHorizontal: { style: docx.BorderStyle.NONE },
-          insideVertical: { style: docx.BorderStyle.SINGLE, color: BRAND.colors.border, size: 2 }
-        },
-        rows: [
-          new docx.TableRow({
-            children: [
-              cell([sidebar], { width: 24, margins: { top: 0, bottom: 0, left: 0, right: 220 } }),
-              cell([...mainHeader, ...p1Paras], { width: 76, margins: { top: 0, bottom: 0, left: 220, right: 0 } })
-            ]
-          })
-        ]
-      });
+      const mainHeader = [
+        para(run(safeTrim(topic) || "Equity Research", {
+          size: 20,
+          bold: true,
+          color: BRAND.colors.navy
+        }), { spacing: { after: 90 } }),
+        para([
+          run((safeTrim(ticker) || "—").toUpperCase(), { font: BRAND.fonts.heading, size: 42, bold: true }),
+          run("  ", { size: 10 }),
+          run(ratingToDisplay(crgRating), { size: 22, bold: true, color: BRAND.colors.navy })
+        ], { spacing: { after: 90 } }),
+        para([
+          run("Current Price: ", { size: 18, bold: true, color: BRAND.colors.muted }),
+          run(displayCurrent, { size: 18, color: BRAND.colors.muted }),
+          run("    ", { size: 18 }),
+          run("Target Price: ", { size: 18, bold: true, color: BRAND.colors.muted }),
+          run(displayTarget, { size: 18, color: BRAND.colors.muted })
+        ], { spacing: { after: 150 } }),
+        ...p1Paras
+      ];
 
       children.push(
-        page1Layout,
-        para(run(BRAND.disclaimers.internal, { size: 14, color: BRAND.colors.muted }), { spacing: { before: 220, after: 0 } }),
-        pageBreak(),
-        heading("Tear sheet", 34, 140),
+        new docx.Table({
+          width: { size: 100, type: docx.WidthType.PERCENTAGE },
+          rows: [
+            new docx.TableRow({
+              children: [
+                cell([sidebar], { width: 25, margins: { top: 0, bottom: 0, left: 0, right: 220 } }),
+                cell(mainHeader, { width: 75, margins: { top: 0, bottom: 0, left: 220, right: 0 } })
+              ]
+            })
+          ],
+          borders: {
+            top: { style: docx.BorderStyle.NONE },
+            bottom: { style: docx.BorderStyle.NONE },
+            left: { style: docx.BorderStyle.NONE },
+            right: { style: docx.BorderStyle.NONE },
+            insideHorizontal: { style: docx.BorderStyle.NONE },
+            insideVertical: { style: docx.BorderStyle.SINGLE, color: BRAND.colors.border, size: 2 }
+          }
+        }),
+        para(run(BRAND.disclaimers.internal, { size: 14, color: BRAND.colors.muted }), { spacing: { before: 180, after: 0 } }),
+        pageBreak()
+      );
+
+      // Page 2 - tear sheet
+      children.push(
+        heading("Tear Sheet", 34, 120, BRAND.colors.navy),
         thinRule(160),
         tearSheetStatsRow({
           currentPrice: displayCurrent,
@@ -1210,7 +1450,7 @@
           upside: displayUpside,
           volAnn: displayVol
         }),
-        para(run(" ", { size: 10 }), { spacing: { after: 120 } })
+        para(run(" ", { size: 10 }), { spacing: { after: 100 } })
       );
 
       if (priceChartImageBytes) {
@@ -1231,21 +1471,26 @@
       }
 
       if (safeTrim(valuationSummary)) {
-        children.push(subheading("Valuation", 28, 110), ...linesToParagraphs(valuationSummary, 140));
+        children.push(subheading("Valuation", 28, 110, BRAND.colors.navy), ...linesToParagraphs(valuationSummary, 140));
       }
       if (safeTrim(keyAssumptions)) {
-        children.push(subheading("Key assumptions", 28, 110), ...bulletLines(keyAssumptions, 90));
+        children.push(subheading("Key Assumptions", 28, 110, BRAND.colors.navy), ...bulletLines(keyAssumptions, 90));
+      }
+      if (projectedFinancialsTable) {
+        children.push(subheading("Projected Financials", 28, 110, BRAND.colors.navy), projectedFinancialsTable);
       }
 
-      children.push(pageBreak(), heading("Investment thesis", 34, 140), thinRule(180));
+      children.push(pageBreak());
 
+      // Page 3+
+      children.push(heading("Investment Thesis", 34, 140, BRAND.colors.navy), thinRule(180));
       if (restParas.length) children.push(...restParas);
-      if (safeTrim(content)) children.push(subheading("Additional detail", 26, 110), ...linesToParagraphs(content, 140));
-      if (safeTrim(scenarioNotes)) children.push(subheading("Scenario / sensitivity notes", 26, 110), ...linesToParagraphs(scenarioNotes, 140));
-      if (safeTrim(cordobaView)) children.push(subheading("The Cordoba view", 26, 110), ...linesToParagraphs(cordobaView, 140));
+      if (safeTrim(content)) children.push(subheading("Additional Detail", 26, 110, BRAND.colors.navy), ...linesToParagraphs(content, 140));
+      if (safeTrim(scenarioNotes)) children.push(subheading("Scenario / Sensitivity Notes", 26, 110, BRAND.colors.navy), ...linesToParagraphs(scenarioNotes, 140));
+      if (safeTrim(cordobaView)) children.push(subheading("The Cordoba View", 26, 110, BRAND.colors.navy), ...linesToParagraphs(cordobaView, 140));
 
       if (safeTrim(modelLink) || attachedModelNames.length) {
-        children.push(subheading("Model and attachments", 26, 110));
+        children.push(subheading("Model and Attachments", 26, 110, BRAND.colors.navy));
         if (safeTrim(modelLink)) children.push(bodyLine(`Model link: ${safeTrim(modelLink)}`, 120));
         if (attachedModelNames.length) {
           attachedModelNames.forEach(name => {
@@ -1256,24 +1501,42 @@
         }
       }
 
-      if (figures.length) children.push(subheading("Figures and charts", 26, 110), ...figures);
-      if (safeTrim(keyTakeaways)) children.push(subheading("Key takeaways", 26, 110), ...bulletLines(keyTakeaways, 90));
+      if (figures.length) children.push(subheading("Figures and Charts", 26, 110, BRAND.colors.navy), ...figures);
+      if (safeTrim(keyTakeaways)) children.push(subheading("Key Takeaways", 26, 110, BRAND.colors.navy), ...bulletLines(keyTakeaways, 90));
     } else {
+      // Non-equity branded note
+      const coverBlocks = await buildBrandedMacroCover({
+        logoBytes,
+        dateLabel: longDate,
+        title: safeTrim(title) || "Untitled research note",
+        noteType: nt,
+        subtitle: safeTrim(topic) || `${authorName}`
+      });
+
+      children.push(...coverBlocks, pageBreak());
+
       children.push(
-        heading(BRAND.name.toUpperCase(), 30, 40),
-        bodyLine(BRAND.tagline, 180),
-        thinRule(180),
-        heading(safeTrim(title) || "—", 34, 100),
-        bodyLine(safeTrim(topic) || "—", 160),
-        subheading("Key takeaways", 26, 110),
+        heading(safeTrim(title) || "—", 34, 90, BRAND.colors.navy),
+        bodyLine(safeTrim(topic) || "—", 120),
+        para([
+          run("Author: ", { size: 18, bold: true, color: BRAND.colors.muted }),
+          run(authorName, { size: 18, color: BRAND.colors.muted })
+        ], { spacing: { after: 160 } }),
+        subheading("Key Takeaways", 26, 110, BRAND.colors.navy),
         ...bulletLines(keyTakeaways, 90),
-        subheading("Analysis", 26, 110),
+        subheading("Analysis", 26, 110, BRAND.colors.navy),
         ...linesToParagraphs(analysis, 140)
       );
 
-      if (safeTrim(content)) children.push(subheading("Additional detail", 26, 110), ...linesToParagraphs(content, 140));
-      if (safeTrim(cordobaView)) children.push(subheading("The Cordoba view", 26, 110), ...linesToParagraphs(cordobaView, 140));
-      if (figures.length) children.push(subheading("Figures and charts", 26, 110), ...figures);
+      if (safeTrim(content)) {
+        children.push(subheading("Additional Detail", 26, 110, BRAND.colors.navy), ...linesToParagraphs(content, 140));
+      }
+      if (safeTrim(cordobaView)) {
+        children.push(subheading("The Cordoba View", 26, 110, BRAND.colors.navy), ...linesToParagraphs(cordobaView, 140));
+      }
+      if (figures.length) {
+        children.push(subheading("Figures and Charts", 26, 110, BRAND.colors.navy), ...figures);
+      }
     }
 
     return new docx.Document({
@@ -1307,6 +1570,9 @@
     });
   }
 
+  // ------------------------------
+  // Submit / Export
+  // ------------------------------
   const form = document.getElementById("researchForm");
   if (form) form.noValidate = true;
 
@@ -1354,6 +1620,7 @@
         const scenarioNotes = $("#scenarioNotes")?.value || "";
         const modelFiles = $("#modelFiles")?.files || null;
         const modelLink = $("#modelLink")?.value || "";
+        const projectedFinancials = $("#projectedFinancials")?.value || "";
 
         const targetPrice = $("#targetPrice")?.value || "";
         const crgRating = $("#crgRating")?.value || "";
@@ -1370,7 +1637,8 @@
           priceChartImageBytes,
           targetPrice,
           equityStats,
-          crgRating
+          crgRating,
+          projectedFinancials
         });
 
         const blob = await docx.Packer.toBlob(doc);
@@ -1392,6 +1660,9 @@
     });
   }
 
+  // ------------------------------
+  // Draft restore
+  // ------------------------------
   function applyDraft(draft) {
     if (!draft) return;
 
@@ -1428,42 +1699,9 @@
     syncPrimaryPhone();
   }
 
-  function escapePreviewHtml(str) {
-    return (str || "")
-      .replaceAll("&", "&amp;")
-      .replaceAll("<", "&lt;")
-      .replaceAll(">", "&gt;")
-      .replaceAll('"', "&quot;")
-      .replaceAll("'", "&#039;");
-  }
-
-  function toParagraphs(text) {
-    const raw = safeTrim(text);
-    if (!raw) return [];
-    return raw.split(/\n\s*\n/g).map(x => x.trim()).filter(Boolean);
-  }
-
-  function toBulletItems(text) {
-    const raw = safeTrim(text);
-    if (!raw) return [];
-    return raw
-      .split("\n")
-      .map(x => x.replace(/^[-*•]\s*/, "").trim())
-      .filter(Boolean);
-  }
-
-  function previewParagraphsHtml(text, fallback = "") {
-    const blocks = toParagraphs(text);
-    if (!blocks.length) return `<div class="doc-paragraph doc-empty">${escapePreviewHtml(fallback)}</div>`;
-    return blocks.map(block => `<div class="doc-paragraph">${escapePreviewHtml(block)}</div>`).join("");
-  }
-
-  function previewBulletsHtml(text, fallback = "") {
-    const items = toBulletItems(text);
-    if (!items.length) return `<div class="doc-paragraph doc-empty">${escapePreviewHtml(fallback)}</div>`;
-    return `<ul class="doc-bullets">${items.map(item => `<li>${escapePreviewHtml(item)}</li>`).join("")}</ul>`;
-  }
-
+  // ------------------------------
+  // Live preview
+  // ------------------------------
   function previewEquityHtml(data) {
     const ratingDisplay = !data.crgRating ? "—" : (data.crgRating.toLowerCase() === "hold" ? "Neutral" : data.crgRating);
     const title = data.title || "Untitled equity note";
@@ -1530,6 +1768,11 @@
       </div>
 
       <div class="doc-section">
+        <div class="doc-section-title">Projected financials</div>
+        ${previewSimpleRowsHtml(data.projectedFinancials, "Projected financials will appear here. Use one line per row, and separate columns with |.")}
+      </div>
+
+      <div class="doc-section">
         <div class="doc-section-title">Scenario / sensitivity notes</div>
         ${previewParagraphsHtml(data.scenarioNotes, "Scenario notes will appear here.")}
       </div>
@@ -1587,6 +1830,7 @@
     const valuationSummaryEl = document.getElementById("valuationSummary");
     const keyAssumptionsEl = document.getElementById("keyAssumptions");
     const scenarioNotesEl = document.getElementById("scenarioNotes");
+    const projectedFinancialsEl = document.getElementById("projectedFinancials");
 
     const previewBody = document.getElementById("docPreviewBody");
     const previewMode = document.getElementById("previewMode");
@@ -1605,10 +1849,7 @@
     const author = [firstEl?.value, lastEl?.value].map(v => (v || "").trim()).filter(Boolean).join(" ") || "—";
 
     const now = new Date();
-    const dateLabel = `${now.getDate()} ${[
-      "January","February","March","April","May","June",
-      "July","August","September","October","November","December"
-    ][now.getMonth()]} ${now.getFullYear()}`;
+    const dateLabel = formatDateLong(now);
 
     const currentPriceText = document.getElementById("currentPrice")?.textContent?.trim() || "—";
     const rangeReturnText = document.getElementById("rangeReturn")?.textContent?.trim() || "—";
@@ -1629,6 +1870,7 @@
       valuationSummary: valuationSummaryEl?.value || "",
       keyAssumptions: keyAssumptionsEl?.value || "",
       scenarioNotes: scenarioNotesEl?.value || "",
+      projectedFinancials: projectedFinancialsEl?.value || "",
       currentPrice: currentPriceText,
       rangeReturn: rangeReturnText,
       realisedVol: realisedVolText,
@@ -1640,11 +1882,9 @@
     if (headerLeft) headerLeft.textContent = `CRG | ${noteType} | ${dateLabel}`;
     if (!previewBody) return;
 
-    if (noteType === "Equity Research") {
-      previewBody.innerHTML = previewEquityHtml(data);
-    } else {
-      previewBody.innerHTML = previewGeneralHtml(data);
-    }
+    previewBody.innerHTML = noteType === "Equity Research"
+      ? previewEquityHtml(data)
+      : previewGeneralHtml(data);
   }
 
   let previewSyncInterval = null;
