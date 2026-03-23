@@ -1,28 +1,12 @@
-/* =========================================================
-   Cordoba Research Group — Research Documentation Tool (RDT)
-   app.js (Institutional v2.2 — Workspace layout edition)
-   ---------------------------------------------------------
-   Includes:
-   ✅ Existing export logic
-   ✅ Autosave
-   ✅ Co-author management
-   ✅ Equity tear sheet support
-   ✅ Top action button wiring
-   ✅ Live workspace preview sync
-   ========================================================= */
-
 (() => {
   "use strict";
 
-  console.log("RDT workspace app.js loaded (v2.2)");
+  console.log("RDT final app.js loaded");
 
-  // ------------------------------
-  // Brand (Cordoba)
-  // ------------------------------
   const BRAND = {
     name: "Cordoba Research Group",
     short: "CRG",
-    version: "RDT v2.2.0",
+    version: "RDT v2.3.0",
     tagline: "Values that bind",
     colors: {
       gold: "9A690F",
@@ -47,9 +31,6 @@
     }
   };
 
-  // ------------------------------
-  // Utilities
-  // ------------------------------
   const $ = (sel, root = document) => root.querySelector(sel);
   const $$ = (sel, root = document) => Array.from(root.querySelectorAll(sel));
   const safeTrim = (v) => (v ?? "").toString().trim();
@@ -142,10 +123,7 @@
     return `${cc}-${nn}`;
   }
 
-  // ------------------------------
-  // Draft persistence
-  // ------------------------------
-  const DRAFT_KEY = "crg_rdt_draft_v22";
+  const DRAFT_KEY = "crg_rdt_draft_v23";
 
   const DRAFT_FIELDS = [
     "noteType","title","topic",
@@ -195,7 +173,10 @@
   function scheduleDraftSave() {
     setDraftStatus("Saving…");
     clearTimeout(draftSaveTimer);
-    draftSaveTimer = setTimeout(() => saveDraftNow(), 350);
+    draftSaveTimer = setTimeout(() => {
+      saveDraftNow();
+      syncWorkspacePreview();
+    }, 350);
   }
 
   function loadDraft() {
@@ -209,12 +190,9 @@
   }
 
   function clearDraft() {
-    try { localStorage.removeItem(DRAFT_KEY); } catch(_) {}
+    try { localStorage.removeItem(DRAFT_KEY); } catch (_) {}
   }
 
-  // ------------------------------
-  // Phone wiring (primary + coauthors)
-  // ------------------------------
   const authorPhoneCountryEl = document.getElementById("authorPhoneCountry");
   const authorPhoneNationalEl = document.getElementById("authorPhoneNational");
   const authorPhoneHiddenEl = document.getElementById("authorPhone");
@@ -242,16 +220,23 @@
   }
 
   if (authorPhoneNationalEl) {
-    authorPhoneNationalEl.addEventListener("input", () => { formatPrimaryVisible(); scheduleDraftSave(); });
-    authorPhoneNationalEl.addEventListener("blur", () => { syncPrimaryPhone(); scheduleDraftSave(); });
-  }
-  if (authorPhoneCountryEl) {
-    authorPhoneCountryEl.addEventListener("change", () => { syncPrimaryPhone(); scheduleDraftSave(); });
+    authorPhoneNationalEl.addEventListener("input", () => {
+      formatPrimaryVisible();
+      scheduleDraftSave();
+    });
+    authorPhoneNationalEl.addEventListener("blur", () => {
+      syncPrimaryPhone();
+      scheduleDraftSave();
+    });
   }
 
-  // ------------------------------
-  // Co-author management
-  // ------------------------------
+  if (authorPhoneCountryEl) {
+    authorPhoneCountryEl.addEventListener("change", () => {
+      syncPrimaryPhone();
+      scheduleDraftSave();
+    });
+  }
+
   let coAuthorCount = 0;
   const addCoAuthorBtn = document.getElementById("addCoAuthor");
   const coAuthorsList = document.getElementById("coAuthorsList");
@@ -305,11 +290,22 @@
     }
 
     if (nationalEl) {
-      nationalEl.addEventListener("input", () => { formatVisible(); scheduleDraftSave(); updateCompletionMeter(); });
-      nationalEl.addEventListener("blur", () => { syncHidden(); scheduleDraftSave(); });
+      nationalEl.addEventListener("input", () => {
+        formatVisible();
+        scheduleDraftSave();
+        updateCompletionMeter();
+      });
+      nationalEl.addEventListener("blur", () => {
+        syncHidden();
+        scheduleDraftSave();
+      });
     }
+
     if (ccEl) {
-      ccEl.addEventListener("change", () => { syncHidden(); scheduleDraftSave(); });
+      ccEl.addEventListener("change", () => {
+        syncHidden();
+        scheduleDraftSave();
+      });
     }
 
     syncHidden();
@@ -334,13 +330,13 @@
       <button type="button" class="remove-coauthor" data-remove-id="${coAuthorCount}">Remove</button>
     `;
 
-    const hidden = $(".coauthor-phone", div);
-    if (hidden) hidden.required = false;
-
     wireCoauthorPhone(div);
 
     ["input","change","keyup"].forEach(evt => {
-      div.addEventListener(evt, () => scheduleDraftSave(), { passive: true });
+      div.addEventListener(evt, () => {
+        scheduleDraftSave();
+        syncWorkspacePreview();
+      }, { passive: true });
     });
 
     return div;
@@ -366,9 +362,6 @@
     });
   }
 
-  // ------------------------------
-  // Equity section toggle
-  // ------------------------------
   const noteTypeEl = document.getElementById("noteType");
   const equitySectionEl = document.getElementById("equitySection");
 
@@ -391,9 +384,6 @@
     toggleEquitySection();
   }
 
-  // ------------------------------
-  // Completion meter
-  // ------------------------------
   const completionTextEl = document.getElementById("completionText");
   const completionBarEl = document.getElementById("completionBar");
 
@@ -423,26 +413,16 @@
 
     if (completionTextEl) completionTextEl.textContent = `${done} / ${total} publish-core`;
     if (completionBarEl) completionBarEl.style.width = `${pctDone}%`;
-
-    const bar = completionBarEl?.parentElement;
-    if (bar) bar.setAttribute("aria-valuenow", String(pctDone));
   }
 
   ["input","change","keyup"].forEach(evt => {
-    document.addEventListener(evt, (e) => {
-      const t = e.target;
-      if (!t) return;
-      if (t.closest && t.closest("#researchForm")) {
-        updateCompletionMeter();
-        scheduleDraftSave();
-        syncWorkspacePreview();
-      }
+    document.addEventListener(evt, () => {
+      updateCompletionMeter();
+      scheduleDraftSave();
+      syncWorkspacePreview();
     }, { passive: true });
   });
 
-  // ------------------------------
-  // Attachment summary
-  // ------------------------------
   const modelFilesEl = document.getElementById("modelFiles");
   const attachSummaryHeadEl = document.getElementById("attachmentSummaryHead");
   const attachSummaryListEl = document.getElementById("attachmentSummaryList");
@@ -481,9 +461,6 @@
     });
   }
 
-  // ------------------------------
-  // Reset
-  // ------------------------------
   const resetBtn = document.getElementById("resetFormBtn");
   const formEl = document.getElementById("researchForm");
 
@@ -525,9 +502,6 @@
     });
   }
 
-  // ------------------------------
-  // Email to CRG
-  // ------------------------------
   const emailToCrgBtn = document.getElementById("emailToCrgBtn");
 
   function buildCrgEmailPayload() {
@@ -575,9 +549,6 @@
     });
   }
 
-  // ------------------------------
-  // Top button wiring
-  // ------------------------------
   const emailToCrgBtnTop = document.getElementById("emailToCrgBtnTop");
   if (emailToCrgBtnTop && emailToCrgBtn) {
     emailToCrgBtnTop.addEventListener("click", () => emailToCrgBtn.click());
@@ -588,9 +559,6 @@
     resetFormBtnTop.addEventListener("click", () => resetBtn.click());
   }
 
-  // ------------------------------
-  // Price chart + stats
-  // ------------------------------
   let priceChart = null;
   let priceChartImageBytes = null;
 
@@ -806,10 +774,6 @@
 
   if (fetchChartBtn) fetchChartBtn.addEventListener("click", buildPriceChart);
 
-  // =========================================================
-  // WORD EXPORT (docx)
-  // =========================================================
-
   function ensureLibs() {
     if (typeof docx === "undefined") throw new Error("docx library not loaded. Refresh the page.");
     if (typeof saveAs === "undefined") throw new Error("FileSaver library not loaded. Refresh the page.");
@@ -932,8 +896,7 @@
 
   function splitIntoParagraphBlocks(text) {
     const raw = (text || "").replace(/\r/g, "");
-    const blocks = raw.split(/\n\s*\n/g).map(b => b.trim()).filter(Boolean);
-    return blocks;
+    return raw.split(/\n\s*\n/g).map(b => b.trim()).filter(Boolean);
   }
 
   async function addImages(files) {
@@ -968,8 +931,17 @@
     return noBorderTable([
       new docx.TableRow({
         children: [
-          cell(para(run(leftText, { size: 16, color: BRAND.colors.lightMuted }), { spacing: { after: 0 } }), { width: 70, margins: { top: 80, bottom: 80, left: 0, right: 0 } }),
-          cell(para(run(BRAND.short, { size: 16, color: BRAND.colors.lightMuted }), { spacing: { after: 0 }, align: docx.AlignmentType.RIGHT }), { width: 30, margins: { top: 80, bottom: 80, left: 0, right: 0 } })
+          cell(
+            para(run(leftText, { size: 16, color: BRAND.colors.lightMuted }), { spacing: { after: 0 } }),
+            { width: 70, margins: { top: 80, bottom: 80, left: 0, right: 0 } }
+          ),
+          cell(
+            para(run(BRAND.short, { size: 16, color: BRAND.colors.lightMuted }), {
+              spacing: { after: 0 },
+              align: docx.AlignmentType.RIGHT
+            }),
+            { width: 30, margins: { top: 80, bottom: 80, left: 0, right: 0 } }
+          )
         ]
       })
     ]);
@@ -1009,9 +981,18 @@
             para(run(BRAND.tagline, { size: 16, color: BRAND.colors.muted }), { spacing: { after: 0 } })
           ], { width: 68, margins: { top: 0, bottom: 0, left: 0, right: 0 } }),
           cell([
-            para(run("INSTITUTIONAL EQUITY RESEARCH", { size: 16, bold: true, color: BRAND.colors.red }), { spacing: { after: 30 }, align: docx.AlignmentType.RIGHT }),
-            para(run(dateLabel, { size: 16, color: BRAND.colors.ink }), { spacing: { after: 20 }, align: docx.AlignmentType.RIGHT }),
-            para(run("Initiating coverage", { size: 16, bold: true, color: BRAND.colors.red }), { spacing: { after: 0 }, align: docx.AlignmentType.RIGHT })
+            para(run("INSTITUTIONAL EQUITY RESEARCH", { size: 16, bold: true, color: BRAND.colors.red }), {
+              spacing: { after: 30 },
+              align: docx.AlignmentType.RIGHT
+            }),
+            para(run(dateLabel, { size: 16, color: BRAND.colors.ink }), {
+              spacing: { after: 20 },
+              align: docx.AlignmentType.RIGHT
+            }),
+            para(run("Initiating coverage", { size: 16, bold: true, color: BRAND.colors.red }), {
+              spacing: { after: 0 },
+              align: docx.AlignmentType.RIGHT
+            })
           ], { width: 32, margins: { top: 0, bottom: 0, left: 0, right: 0 } })
         ]
       })
@@ -1032,12 +1013,10 @@
     rows.push(kv("Recommendation", ratingToDisplay(rating)));
     rows.push(kv("Current price", currentPrice));
     rows.push(kv("Target price", targetPrice));
-
     rows.push(para(run(" ", { size: 10 }), { spacing: { after: 60 } }));
     rows.push(para(run("Price performance (range)", { size: 18, bold: true, color: BRAND.colors.muted }), { spacing: { after: 120 } }));
     rows.push(kv("Return", rangeReturn));
     rows.push(kv("Vol (ann.)", volAnn));
-
     rows.push(para(run(" ", { size: 10 }), { spacing: { after: 60 } }));
     rows.push(para(run("Chart", { size: 18, bold: true, color: BRAND.colors.muted }), { spacing: { after: 90 } }));
 
@@ -1138,13 +1117,10 @@
     const {
       noteType, title, topic,
       authorLastName, authorFirstName, authorPhoneSafe,
-      coAuthors,
       analysis, keyTakeaways, content, cordobaView,
       imageFiles, dateTimeString,
       ticker, valuationSummary, keyAssumptions, scenarioNotes, modelFiles, modelLink,
-      priceChartImageBytes,
-      targetPrice, equityStats,
-      crgRating
+      priceChartImageBytes, targetPrice, equityStats, crgRating
     } = payload;
 
     const nt = noteType || "Research Note";
@@ -1182,10 +1158,7 @@
     let children = [];
 
     if (nt === "Equity Research") {
-      children.push(
-        equityMasthead(dateTimeString.split(" ").slice(0, 3).join(" ")),
-        thinRule(220)
-      );
+      children.push(equityMasthead(dateTimeString.split(" ").slice(0, 3).join(" ")), thinRule(220));
 
       const sidebar = equityKeyDataSidebar({
         ticker: safeTrim(ticker),
@@ -1228,10 +1201,7 @@
       children.push(
         page1Layout,
         para(run(BRAND.disclaimers.internal, { size: 14, color: BRAND.colors.muted }), { spacing: { before: 220, after: 0 } }),
-        pageBreak()
-      );
-
-      children.push(
+        pageBreak(),
         heading("Tear sheet", 34, 140),
         thinRule(160),
         tearSheetStatsRow({
@@ -1267,8 +1237,7 @@
         children.push(subheading("Key assumptions", 28, 110), ...bulletLines(keyAssumptions, 90));
       }
 
-      children.push(pageBreak());
-      children.push(heading("Investment thesis", 34, 140), thinRule(180));
+      children.push(pageBreak(), heading("Investment thesis", 34, 140), thinRule(180));
 
       if (restParas.length) children.push(...restParas);
       if (safeTrim(content)) children.push(subheading("Additional detail", 26, 110), ...linesToParagraphs(content, 140));
@@ -1325,18 +1294,12 @@
         },
         headers: {
           default: new docx.Header({
-            children: [
-              headerTable(nt, iso),
-              thinRule(0)
-            ]
+            children: [headerTable(nt, iso), thinRule(0)]
           })
         },
         footers: {
           default: new docx.Footer({
-            children: [
-              footerLine(),
-              footerTable()
-            ]
+            children: [footerLine(), footerTable()]
           })
         },
         children
@@ -1344,9 +1307,6 @@
     });
   }
 
-  // ------------------------------
-  // Submit / Export
-  // ------------------------------
   const form = document.getElementById("researchForm");
   if (form) form.noValidate = true;
 
@@ -1377,7 +1337,6 @@
         const noteType = safeTrim($("#noteType")?.value);
         const title = safeTrim($("#title")?.value);
         const topic = safeTrim($("#topic")?.value);
-
         const authorLastName = safeTrim($("#authorLastName")?.value);
         const authorFirstName = safeTrim($("#authorFirstName")?.value);
         const authorPhoneSafe = naIfBlank(safeTrim($("#authorPhone")?.value));
@@ -1402,20 +1361,9 @@
         const now = new Date();
         const dateTimeString = formatDateTime(now);
 
-        const coAuthors = [];
-        $$(".coauthor-entry").forEach(entry => {
-          const lastName = safeTrim($(".coauthor-lastname", entry)?.value);
-          const firstName = safeTrim($(".coauthor-firstname", entry)?.value);
-          const phone = safeTrim($(".coauthor-phone", entry)?.value);
-          if (lastName || firstName) {
-            coAuthors.push({ lastName: lastName || "", firstName: firstName || "", phone: naIfBlank(phone) });
-          }
-        });
-
         const doc = await createInstitutionalDocument({
           noteType, title, topic,
           authorLastName, authorFirstName, authorPhoneSafe,
-          coAuthors,
           analysis, keyTakeaways, content, cordobaView,
           imageFiles, dateTimeString,
           ticker, valuationSummary, keyAssumptions, scenarioNotes, modelFiles, modelLink,
@@ -1426,12 +1374,10 @@
         });
 
         const blob = await docx.Packer.toBlob(doc);
-
         const fileName =
           `${(title || "research_note").replace(/[^a-z0-9]/gi, "_").toLowerCase()}_${(noteType || "note").replace(/\s+/g, "_").toLowerCase()}_${formatDateShortISO(now)}.docx`;
 
         saveAs(blob, fileName);
-
         showMsg("success", `✓ Document "${fileName}" generated successfully.`);
         saveDraftNow();
         syncWorkspacePreview();
@@ -1446,11 +1392,9 @@
     });
   }
 
-  // ------------------------------
-  // Draft restore
-  // ------------------------------
   function applyDraft(draft) {
     if (!draft) return;
+
     DRAFT_FIELDS.forEach(id => {
       const el = document.getElementById(id);
       if (!el) return;
@@ -1484,9 +1428,148 @@
     syncPrimaryPhone();
   }
 
-  // ------------------------------
-  // Workspace preview sync
-  // ------------------------------
+  function escapePreviewHtml(str) {
+    return (str || "")
+      .replaceAll("&", "&amp;")
+      .replaceAll("<", "&lt;")
+      .replaceAll(">", "&gt;")
+      .replaceAll('"', "&quot;")
+      .replaceAll("'", "&#039;");
+  }
+
+  function toParagraphs(text) {
+    const raw = safeTrim(text);
+    if (!raw) return [];
+    return raw.split(/\n\s*\n/g).map(x => x.trim()).filter(Boolean);
+  }
+
+  function toBulletItems(text) {
+    const raw = safeTrim(text);
+    if (!raw) return [];
+    return raw
+      .split("\n")
+      .map(x => x.replace(/^[-*•]\s*/, "").trim())
+      .filter(Boolean);
+  }
+
+  function previewParagraphsHtml(text, fallback = "") {
+    const blocks = toParagraphs(text);
+    if (!blocks.length) return `<div class="doc-paragraph doc-empty">${escapePreviewHtml(fallback)}</div>`;
+    return blocks.map(block => `<div class="doc-paragraph">${escapePreviewHtml(block)}</div>`).join("");
+  }
+
+  function previewBulletsHtml(text, fallback = "") {
+    const items = toBulletItems(text);
+    if (!items.length) return `<div class="doc-paragraph doc-empty">${escapePreviewHtml(fallback)}</div>`;
+    return `<ul class="doc-bullets">${items.map(item => `<li>${escapePreviewHtml(item)}</li>`).join("")}</ul>`;
+  }
+
+  function previewEquityHtml(data) {
+    const ratingDisplay = !data.crgRating ? "—" : (data.crgRating.toLowerCase() === "hold" ? "Neutral" : data.crgRating);
+    const title = data.title || "Untitled equity note";
+    const topic = data.topic || "—";
+    const ticker = data.ticker || "—";
+    const currentPrice = data.currentPrice || "—";
+    const targetPrice = data.targetPrice || "—";
+    const rangeReturn = data.rangeReturn || "—";
+    const realisedVol = data.realisedVol || "—";
+
+    return `
+      <div class="doc-equity-masthead">
+        <div class="doc-equity-brand">
+          <div class="doc-equity-brand-title">CORDOBA RESEARCH GROUP</div>
+          <div class="doc-equity-brand-tag">Values that bind</div>
+        </div>
+        <div class="doc-equity-right">
+          <div class="red">INSTITUTIONAL EQUITY RESEARCH</div>
+          <div>${escapePreviewHtml(data.dateLabel)}</div>
+          <div class="red">Initiating coverage</div>
+        </div>
+      </div>
+
+      <div class="doc-equity-grid">
+        <div class="doc-equity-sidebar">
+          <div class="doc-equity-sidebar-title">Key data</div>
+          <div class="doc-equity-kv"><strong>Ticker:</strong> ${escapePreviewHtml(ticker)}</div>
+          <div class="doc-equity-kv"><strong>Recommendation:</strong> ${escapePreviewHtml(ratingDisplay)}</div>
+          <div class="doc-equity-kv"><strong>Current price:</strong> ${escapePreviewHtml(currentPrice)}</div>
+          <div class="doc-equity-kv"><strong>Target price:</strong> ${escapePreviewHtml(targetPrice)}</div>
+          <div class="doc-equity-kv"><strong>Return:</strong> ${escapePreviewHtml(rangeReturn)}</div>
+          <div class="doc-equity-kv"><strong>Vol (ann.):</strong> ${escapePreviewHtml(realisedVol)}</div>
+          <div class="doc-mini-chart-box">Chart preview area</div>
+        </div>
+
+        <div>
+          <div class="doc-equity-main-title">${escapePreviewHtml(ticker.toUpperCase())} ${escapePreviewHtml(ratingDisplay)}</div>
+          <div class="doc-equity-subline">
+            Current Price: ${escapePreviewHtml(currentPrice)} &nbsp;&nbsp;&nbsp; Target Price: ${escapePreviewHtml(targetPrice)}
+          </div>
+          <div class="doc-equity-headline">${escapePreviewHtml(title)}</div>
+          <div class="doc-topic">${escapePreviewHtml(topic)}</div>
+
+          <div class="doc-section">
+            <div class="doc-section-title">Investment thesis</div>
+            ${previewParagraphsHtml(data.analysis, "Your investment thesis will appear here.")}
+          </div>
+        </div>
+      </div>
+
+      <div class="doc-section">
+        <div class="doc-section-title">Key takeaways</div>
+        ${previewBulletsHtml(data.keyTakeaways, "Key takeaways will appear here.")}
+      </div>
+
+      <div class="doc-section">
+        <div class="doc-section-title">Valuation</div>
+        ${previewParagraphsHtml(data.valuationSummary, "Valuation commentary will appear here.")}
+      </div>
+
+      <div class="doc-section">
+        <div class="doc-section-title">Key assumptions</div>
+        ${previewBulletsHtml(data.keyAssumptions, "Key assumptions will appear here.")}
+      </div>
+
+      <div class="doc-section">
+        <div class="doc-section-title">Scenario / sensitivity notes</div>
+        ${previewParagraphsHtml(data.scenarioNotes, "Scenario notes will appear here.")}
+      </div>
+
+      <div class="doc-section">
+        <div class="doc-section-title">The Cordoba view</div>
+        ${previewParagraphsHtml(data.cordobaView, "The Cordoba view will appear here.")}
+      </div>
+    `;
+  }
+
+  function previewGeneralHtml(data) {
+    return `
+      <div class="doc-kicker">${escapePreviewHtml(data.noteType || "Research Note")}</div>
+      <div class="doc-title">${escapePreviewHtml(data.title || "Untitled research note")}</div>
+      <div class="doc-topic">${escapePreviewHtml(data.topic || "—")}</div>
+      <div class="doc-meta-line"><strong>Author:</strong> ${escapePreviewHtml(data.author || "—")}</div>
+
+      <div class="doc-section">
+        <div class="doc-section-title">Key takeaways</div>
+        ${previewBulletsHtml(data.keyTakeaways, "Key takeaways will appear here.")}
+      </div>
+
+      <div class="doc-section">
+        <div class="doc-section-title">Analysis</div>
+        ${previewParagraphsHtml(data.analysis, "Your analysis will appear here.")}
+      </div>
+
+      <div class="doc-section">
+        <div class="doc-section-title">Additional detail</div>
+        ${previewParagraphsHtml(data.content, "Additional detail will appear here.")}
+      </div>
+
+      <div class="doc-section">
+        <div class="doc-section-title">The Cordoba view</div>
+        ${previewParagraphsHtml(data.cordobaView, "The Cordoba view will appear here.")}
+      </div>
+    `;
+  }
+
   function syncWorkspacePreview() {
     const titleEl = document.getElementById("title");
     const topicEl = document.getElementById("topic");
@@ -1495,58 +1578,77 @@
     const lastEl = document.getElementById("authorLastName");
     const takeawaysEl = document.getElementById("keyTakeaways");
     const analysisEl = document.getElementById("analysis");
+    const contentEl = document.getElementById("content");
     const cordobaViewEl = document.getElementById("cordobaView");
 
-    const liveTitle = document.getElementById("liveTitle");
-    const previewNoteType = document.getElementById("previewNoteType");
-    const previewTopic = document.getElementById("previewTopic");
-    const previewAuthor = document.getElementById("previewAuthor");
-    const previewTakeaways = document.getElementById("previewTakeaways");
-    const previewAnalysis = document.getElementById("previewAnalysis");
-    const previewCordobaView = document.getElementById("previewCordobaView");
+    const tickerEl = document.getElementById("ticker");
+    const crgRatingEl = document.getElementById("crgRating");
+    const targetPriceElLocal = document.getElementById("targetPrice");
+    const valuationSummaryEl = document.getElementById("valuationSummary");
+    const keyAssumptionsEl = document.getElementById("keyAssumptions");
+    const scenarioNotesEl = document.getElementById("scenarioNotes");
+
+    const previewBody = document.getElementById("docPreviewBody");
+    const previewMode = document.getElementById("previewMode");
     const draftStatusMirror = document.getElementById("draftStatusMirror");
     const draftStatusLive = document.getElementById("draftStatus");
+    const headerLeft = document.getElementById("docHeaderLeft");
 
     const safe = (v, fallback) => {
       const s = (v || "").trim();
       return s || fallback;
     };
 
-    if (liveTitle) liveTitle.textContent = safe(titleEl?.value, "Document preview");
-    if (previewNoteType) previewNoteType.textContent = safe(noteTypeElLocal?.value, "—");
-    if (previewTopic) previewTopic.textContent = safe(topicEl?.value, "—");
+    const noteType = safe(noteTypeElLocal?.value, "Research Note");
+    const title = safe(titleEl?.value, "Document preview");
+    const topic = safe(topicEl?.value, "—");
+    const author = [firstEl?.value, lastEl?.value].map(v => (v || "").trim()).filter(Boolean).join(" ") || "—";
 
-    if (previewAuthor) {
-      const fullName = [firstEl?.value, lastEl?.value].map(v => (v || "").trim()).filter(Boolean).join(" ");
-      previewAuthor.textContent = fullName || "—";
-    }
+    const now = new Date();
+    const dateLabel = `${now.getDate()} ${[
+      "January","February","March","April","May","June",
+      "July","August","September","October","November","December"
+    ][now.getMonth()]} ${now.getFullYear()}`;
 
-    if (previewTakeaways) {
-      previewTakeaways.textContent = safe(takeawaysEl?.value, "Your key takeaways will appear here as you draft.");
-    }
+    const currentPriceText = document.getElementById("currentPrice")?.textContent?.trim() || "—";
+    const rangeReturnText = document.getElementById("rangeReturn")?.textContent?.trim() || "—";
+    const realisedVolText = document.getElementById("realisedVol")?.textContent?.trim() || "—";
 
-    if (previewAnalysis) {
-      previewAnalysis.textContent = safe(analysisEl?.value, "Your analysis preview will appear here.");
-    }
+    const data = {
+      noteType,
+      title,
+      topic,
+      author,
+      keyTakeaways: takeawaysEl?.value || "",
+      analysis: analysisEl?.value || "",
+      content: contentEl?.value || "",
+      cordobaView: cordobaViewEl?.value || "",
+      ticker: tickerEl?.value || "",
+      crgRating: crgRatingEl?.value || "",
+      targetPrice: safe(targetPriceElLocal?.value, "—"),
+      valuationSummary: valuationSummaryEl?.value || "",
+      keyAssumptions: keyAssumptionsEl?.value || "",
+      scenarioNotes: scenarioNotesEl?.value || "",
+      currentPrice: currentPriceText,
+      rangeReturn: rangeReturnText,
+      realisedVol: realisedVolText,
+      dateLabel
+    };
 
-    if (previewCordobaView) {
-      previewCordobaView.textContent = safe(cordobaViewEl?.value, "Your Cordoba view will appear here.");
-    }
+    if (previewMode) previewMode.textContent = noteType;
+    if (draftStatusMirror && draftStatusLive) draftStatusMirror.textContent = draftStatusLive.textContent || "—";
+    if (headerLeft) headerLeft.textContent = `CRG | ${noteType} | ${dateLabel}`;
+    if (!previewBody) return;
 
-    if (draftStatusMirror && draftStatusLive) {
-      draftStatusMirror.textContent = draftStatusLive.textContent || "—";
+    if (noteType === "Equity Research") {
+      previewBody.innerHTML = previewEquityHtml(data);
+    } else {
+      previewBody.innerHTML = previewGeneralHtml(data);
     }
   }
 
-  ["input","change","keyup"].forEach(evt => {
-    document.addEventListener(evt, syncWorkspacePreview, { passive: true });
-  });
-
   let previewSyncInterval = null;
 
-  // ------------------------------
-  // Init
-  // ------------------------------
   function init() {
     syncPrimaryPhone();
     updateAttachmentSummary();
@@ -1562,6 +1664,7 @@
       setDraftStatus("");
     }
 
+    toggleEquitySection();
     syncWorkspacePreview();
 
     if (!previewSyncInterval) {
