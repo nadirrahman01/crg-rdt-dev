@@ -5,78 +5,63 @@
   <title>Cordoba Research Group — RDT</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
 
-  <!-- Core styles -->
   <link rel="stylesheet" href="assets/styles.css" />
 
-  <!-- Chart.js for price chart -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
-
-  <!-- docx + FileSaver for Word export -->
   <script src="https://cdn.jsdelivr.net/npm/docx@8.5.0/build/index.umd.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/file-saver@2.0.5/dist/FileSaver.min.js"></script>
 </head>
 
 <body>
-  <!-- =======================================================
-       Institutional Shell
-       ======================================================= -->
   <div class="app-shell">
-    <!-- Topbar -->
     <div class="topbar">
       <div class="topbar-left">
         <div class="brand-badge" aria-hidden="true">CRG</div>
         <div class="brand-stack">
           <div class="brand-title">Cordoba Research Group</div>
-          <div class="brand-subtitle">Research Documentation Tool · Institutional Template</div>
+          <div class="brand-subtitle">Research Documentation Tool · Classic Desktop Edition</div>
         </div>
       </div>
 
       <div class="topbar-right">
         <div class="status-pill">
-          Draft: <span id="draftStatus">—</span>
+          Draft: <span id="draftStatus" style="margin-left:4px;">—</span>
         </div>
         <div class="status-pill">
-          Completion: <span id="completionText">—</span>
+          Completion: <span id="completionText" style="margin-left:4px;">—</span>
         </div>
       </div>
     </div>
 
-    <!-- Body -->
     <div class="shell-body">
-      <!-- =====================================================
-           Main pane (authoring)
-           ===================================================== -->
       <div class="main-pane">
-        <div class="container" style="box-shadow:none;border:0;padding:0;background:transparent;">
+        <div class="container">
           <div class="hero">
             <div>
               <div class="hero-title">Research Note Builder</div>
-              <div class="hero-subtitle">Write cleanly, export in sell-side format, and keep drafts autosaved.</div>
+              <div class="hero-subtitle">Structured drafting, classic desktop UI, and institutional Word export.</div>
             </div>
+
             <div class="institutional-footer" style="text-align:right;">
-              <div style="font-size:12px;color:rgba(11,14,20,.58);font-weight:600;text-transform:uppercase;letter-spacing:.2px;">
-                Internal Use
+              <div style="font-size:11px;color:#294670;font-weight:700;text-transform:uppercase;letter-spacing:.25px;">
+                Internal Use Only
               </div>
-              <div style="font-size:12.5px;color:rgba(11,14,20,.58);">
-                Córdoba · Gold Standard Formatting
+              <div style="font-size:11px;color:#5b6f8d;margin-top:2px;">
+                Cordoba Research Group · Research Workstation
               </div>
             </div>
           </div>
 
-          <!-- Progress -->
           <div class="progress-wrap" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
             <div class="progress-label">Publish readiness</div>
-            <div class="progress-bar"><div id="completionBar" class="progress-fill"></div></div>
+            <div class="progress-bar">
+              <div id="completionBar" class="progress-fill"></div>
+            </div>
           </div>
 
-          <!-- Message -->
           <div id="message" class="message" style="display:none;"></div>
 
-          <!-- =====================================================
-               Form
-               ===================================================== -->
           <form id="researchForm" novalidate>
-            <!-- NOTE TYPE -->
             <label for="noteType">Note Type</label>
             <select id="noteType" required>
               <option value="">Select…</option>
@@ -87,18 +72,15 @@
               <option value="General Note">General Note</option>
             </select>
 
-            <!-- TITLE -->
             <label for="title">Title</label>
             <input id="title" type="text" placeholder="e.g. Rebalancing Act: How Policy Shifts Are Rewriting Trade" required />
 
-            <!-- TOPIC -->
             <label for="topic">Topic</label>
             <input id="topic" type="text" placeholder="e.g. Global Macro · Rates · Policy · Equity Strategy" required />
 
-            <!-- AUTHOR -->
             <div class="panel">
               <div class="panel-head">
-                <div class="panel-title">Author details</div>
+                <div class="panel-title">Author Details</div>
                 <div class="panel-muted">Shown on the cover and header.</div>
               </div>
 
@@ -141,11 +123,9 @@
                 />
               </div>
 
-              <!-- Hidden field used by JS/Word export -->
               <input id="authorPhone" type="text" style="display:none;" />
             </div>
 
-            <!-- CO-AUTHORS -->
             <div class="panel">
               <div class="panel-head">
                 <div class="panel-title">Co-authors</div>
@@ -155,7 +135,6 @@
               <div id="coAuthorsList"></div>
             </div>
 
-            <!-- KEY TAKEAWAYS -->
             <label for="keyTakeaways">Key Takeaways (bullets)</label>
             <textarea
               id="keyTakeaways"
@@ -163,7 +142,6 @@
               required
             ></textarea>
 
-            <!-- ANALYSIS -->
             <label for="analysis">Analysis</label>
             <textarea
               id="analysis"
@@ -171,21 +149,18 @@
               required
             ></textarea>
 
-            <!-- OPTIONAL CONTENT -->
             <label for="content">Additional Detail (optional)</label>
             <textarea
               id="content"
               placeholder="Extra context, background, longer-form detail. Optional."
             ></textarea>
 
-            <!-- CORDOBA VIEW -->
             <label for="cordobaView">The Cordoba View (optional but recommended)</label>
             <textarea
               id="cordobaView"
               placeholder="What we think at Cordoba. Your differentiated view and positioning."
             ></textarea>
 
-            <!-- FIGURES -->
             <div class="panel">
               <div class="panel-head">
                 <div class="panel-title">Figures & Charts</div>
@@ -197,13 +172,10 @@
               <div class="help-text">Tip: name files clearly (e.g. “Figure 1 - Yield Curve.png”).</div>
             </div>
 
-            <!-- =====================================================
-                 EQUITY SECTION (toggles by Note Type)
-                 ===================================================== -->
             <div id="equitySection" class="equity-section" style="display:none;">
               <div class="equity-header">
                 <div class="equity-title">Equity Tear Sheet</div>
-                <div class="equity-subtitle">Optional fields, but recommended for a true sell-side output.</div>
+                <div class="equity-subtitle">Recommended for a full sell-side style equity output.</div>
               </div>
 
               <label for="ticker" style="margin-top:0;">Ticker (Stooq)</label>
@@ -239,10 +211,9 @@
               <label for="targetPrice">Target Price (optional)</label>
               <input id="targetPrice" type="text" placeholder="e.g. 210" />
 
-              <!-- Price chart -->
               <div class="chart-panel">
                 <div class="chart-head">
-                  <div class="chart-title">Price chart</div>
+                  <div class="chart-title">Price Chart</div>
                   <div class="chart-actions">
                     <select id="chartRange" class="chart-range" aria-label="Chart range">
                       <option value="6mo">6M</option>
@@ -258,7 +229,7 @@
                   <canvas id="priceChart"></canvas>
                 </div>
 
-                <div class="help-text" id="chartStatus" style="margin-top:10px;"> </div>
+                <div class="help-text" id="chartStatus" style="margin-top:10px;"></div>
 
                 <div class="metrics-grid">
                   <div class="metric-card">
@@ -280,11 +251,10 @@
                 </div>
               </div>
 
-              <!-- Model / valuation -->
               <div class="panel">
                 <div class="panel-head">
-                  <div class="panel-title">Valuation & model</div>
-                  <div class="panel-muted">Used in Tear Sheet appendix.</div>
+                  <div class="panel-title">Valuation & Model</div>
+                  <div class="panel-muted">Used in tear sheet appendix.</div>
                 </div>
 
                 <label for="valuationSummary" style="margin-top:0;">Valuation Summary (optional)</label>
@@ -303,13 +273,12 @@
                 <input id="modelFiles" type="file" multiple />
 
                 <div class="attachment-summary">
-                  <div id="attachmentSummaryHead" class="attachment-summary-head">No files selected</div>
+                  <div id="attachmentSummaryHead" class="attachmentSummaryHead attachment-summary-head">No files selected</div>
                   <div id="attachmentSummaryList" class="attachment-summary-list" style="display:none;"></div>
                 </div>
               </div>
             </div>
 
-            <!-- Guidance -->
             <div class="tool-info">
               <div class="tool-info-title">Workflow note</div>
               <div class="tool-info-text">
@@ -318,7 +287,6 @@
               </div>
             </div>
 
-            <!-- Actions -->
             <div class="form-actions">
               <button type="submit" class="btn btn-primary">Generate Word Document</button>
               <button type="button" id="emailToCrgBtn" class="btn btn-secondary">Email to CRG</button>
@@ -328,41 +296,42 @@
         </div>
       </div>
 
-      <!-- =====================================================
-           Right rail (publish controls / compliance / tips)
-           ===================================================== -->
       <aside class="right-rail">
-        <div class="rail-card" style="margin-bottom:14px;">
+        <div class="rail-card">
           <div class="rail-title">Publish checklist</div>
           <div class="rail-text">
-            Your Word export is built to a sell-side rhythm:
-            cover banner, sidebar contents, overview rail, then sections.
-            Keep takeaways short and investor-facing.
-          </div>
-          <div style="height:12px;"></div>
-          <div class="rail-text">
-            <b>Equity notes:</b> Fetch the chart before export to embed the tear sheet chart and stats.
-          </div>
-        </div>
-
-        <div class="rail-card" style="margin-bottom:14px;">
-          <div class="rail-title">Compliance</div>
-          <div class="rail-text">
-            Internal use only. Validate tickers, charts, prices, and any forward-looking statements before distribution.
+            Keep the analysis body in short paragraphs and use the takeaways box for any bullet-style summary.
+            The output is designed to remain clean once exported into Word.
           </div>
         </div>
 
         <div class="rail-card">
-          <div class="rail-title">Quick tips</div>
+          <div class="rail-title">Equity notes</div>
           <div class="rail-text">
-            Use short paragraphs. Avoid long lists in the analysis body. If you need bullets, keep them in “Key Takeaways”.
+            Fetch the chart before export if you want the tear sheet chart, current price, range return,
+            realised volatility, and upside metrics to populate properly.
+          </div>
+        </div>
+
+        <div class="rail-card">
+          <div class="rail-title">Compliance</div>
+          <div class="rail-text">
+            Internal use only. Validate tickers, prices, assumptions, attachments, and any forward-looking
+            statements before circulation or publication.
+          </div>
+        </div>
+
+        <div class="rail-card">
+          <div class="rail-title">Desktop tips</div>
+          <div class="rail-text">
+            This layout is intentionally styled like a classic desktop workspace: denser controls, clearer structure,
+            and stronger separation between drafting and review areas.
           </div>
         </div>
       </aside>
     </div>
   </div>
 
-  <!-- App script (must be last) -->
   <script src="assets/app.js"></script>
 </body>
 </html>
