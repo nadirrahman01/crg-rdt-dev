@@ -16,39 +16,55 @@
   <div class="app-shell">
     <div class="topbar">
       <div class="topbar-left">
-        <div class="brand-badge" aria-hidden="true">CRG</div>
         <div class="brand-stack">
-          <div class="brand-title">Cordoba Research Group</div>
-          <div class="brand-subtitle">Research Documentation Tool · Classic Desktop Edition</div>
+          <div class="brand-title">Cordoba Research Group — Research Documentation Tool</div>
         </div>
       </div>
 
       <div class="topbar-right">
-        <div class="status-pill">
-          Draft: <span id="draftStatus" style="margin-left:4px;">—</span>
-        </div>
-        <div class="status-pill">
-          Completion: <span id="completionText" style="margin-left:4px;">—</span>
-        </div>
+        <div class="status-pill">Draft: <span id="draftStatus" style="margin-left:4px;">—</span></div>
+        <div class="status-pill">Completion: <span id="completionText" style="margin-left:4px;">—</span></div>
       </div>
     </div>
 
     <div class="shell-body">
+      <!-- LEFT SIDEBAR -->
+      <aside class="right-rail">
+        <div class="rail-card">
+          <div class="rail-title">Workflow & Export</div>
+          <div class="rail-text">
+            This workstation is designed for structured research note drafting and Word export.
+            For equity notes, fetch the chart before exporting if you want the tear sheet metrics to populate.
+          </div>
+        </div>
+
+        <div class="rail-card">
+          <div class="rail-title">Compliance</div>
+          <div class="rail-text">
+            Internal use only. Validate tickers, assumptions, supporting figures, pricing, and forward-looking statements before circulation.
+          </div>
+        </div>
+
+        <div class="rail-card">
+          <div class="rail-title">Quick Notes</div>
+          <div class="rail-text">
+            Keep the body in short paragraphs. Put the punchiest summary in Key Takeaways. Use “Figure X” references when needed.
+          </div>
+        </div>
+      </aside>
+
+      <!-- MAIN CONTENT -->
       <div class="main-pane">
         <div class="container">
           <div class="hero">
             <div>
               <div class="hero-title">Research Note Builder</div>
-              <div class="hero-subtitle">Structured drafting, classic desktop UI, and institutional Word export.</div>
+              <div class="hero-subtitle">Institutional drafting workspace with classic desktop layout.</div>
             </div>
 
             <div class="institutional-footer" style="text-align:right;">
-              <div style="font-size:11px;color:#294670;font-weight:700;text-transform:uppercase;letter-spacing:.25px;">
-                Internal Use Only
-              </div>
-              <div style="font-size:11px;color:#5b6f8d;margin-top:2px;">
-                Cordoba Research Group · Research Workstation
-              </div>
+              <div style="font-size:11px;color:#1f1f1f;font-weight:700;">Internal Use</div>
+              <div style="font-size:11px;color:#4c4c4c;margin-top:2px;">Cordoba Research Group</div>
             </div>
           </div>
 
@@ -81,10 +97,10 @@
             <div class="panel">
               <div class="panel-head">
                 <div class="panel-title">Author Details</div>
-                <div class="panel-muted">Shown on the cover and header.</div>
+                <div class="panel-muted">Shown on the cover and header</div>
               </div>
 
-              <label for="authorLastName" style="margin-top:0;">Last Name</label>
+              <label for="authorLastName" style="margin-top:10px;">Last Name</label>
               <input id="authorLastName" type="text" placeholder="RAHMAN" autocomplete="family-name" required />
 
               <label for="authorFirstName">First Name</label>
@@ -132,7 +148,7 @@
                 <button type="button" class="btn btn-secondary" id="addCoAuthor">Add co-author</button>
               </div>
 
-              <div id="coAuthorsList"></div>
+              <div id="coAuthorsList" style="margin-bottom:10px;"></div>
             </div>
 
             <label for="keyTakeaways">Key Takeaways (bullets)</label>
@@ -164,18 +180,18 @@
             <div class="panel">
               <div class="panel-head">
                 <div class="panel-title">Figures & Charts</div>
-                <div class="panel-muted">Upload images at the end. They’ll be appended as a Figures section.</div>
+                <div class="panel-muted">Images append to the export</div>
               </div>
 
-              <label for="imageUpload" style="margin-top:0;">Upload images</label>
+              <label for="imageUpload" style="margin-top:10px;">Upload images</label>
               <input id="imageUpload" type="file" accept="image/*" multiple />
-              <div class="help-text">Tip: name files clearly (e.g. “Figure 1 - Yield Curve.png”).</div>
+              <div class="help-text">Tip: name files clearly, e.g. “Figure 1 - Yield Curve.png”.</div>
             </div>
 
             <div id="equitySection" class="equity-section" style="display:none;">
               <div class="equity-header">
                 <div class="equity-title">Equity Tear Sheet</div>
-                <div class="equity-subtitle">Recommended for a full sell-side style equity output.</div>
+                <div class="equity-subtitle">Recommended for a full sell-side style output</div>
               </div>
 
               <label for="ticker" style="margin-top:0;">Ticker (Stooq)</label>
@@ -191,7 +207,7 @@
                   CRG Rating (required for Equity)
                   <span class="info-badge" tabindex="0" aria-label="Rating info">i</span>
                   <span class="info-pop">
-                    <b>CRG Rating</b> is a house view signal. Keep it consistent and defensible.
+                    <b>CRG Rating</b> is a house view signal.
                     <br><br>
                     <b>Buy</b>: upside skewed, catalysts exist, risks understood.
                     <br>
@@ -229,7 +245,7 @@
                   <canvas id="priceChart"></canvas>
                 </div>
 
-                <div class="help-text" id="chartStatus" style="margin-top:10px;"></div>
+                <div class="help-text" id="chartStatus" style="margin-top:8px;"></div>
 
                 <div class="metrics-grid">
                   <div class="metric-card">
@@ -254,10 +270,10 @@
               <div class="panel">
                 <div class="panel-head">
                   <div class="panel-title">Valuation & Model</div>
-                  <div class="panel-muted">Used in tear sheet appendix.</div>
+                  <div class="panel-muted">Used in tear sheet appendix</div>
                 </div>
 
-                <label for="valuationSummary" style="margin-top:0;">Valuation Summary (optional)</label>
+                <label for="valuationSummary" style="margin-top:10px;">Valuation Summary (optional)</label>
                 <textarea id="valuationSummary" placeholder="e.g. DCF implies fair value; key debate is margin durability."></textarea>
 
                 <label for="keyAssumptions">Key Assumptions (optional bullets)</label>
@@ -273,15 +289,15 @@
                 <input id="modelFiles" type="file" multiple />
 
                 <div class="attachment-summary">
-                  <div id="attachmentSummaryHead" class="attachmentSummaryHead attachment-summary-head">No files selected</div>
+                  <div id="attachmentSummaryHead" class="attachment-summary-head">No files selected</div>
                   <div id="attachmentSummaryList" class="attachment-summary-list" style="display:none;"></div>
                 </div>
               </div>
             </div>
 
-            <div class="tool-info">
-              <div class="tool-info-title">Workflow note</div>
-              <div class="tool-info-text">
+            <div class="tool-info" style="margin-top:10px;padding:10px;">
+              <div style="font-size:12px;font-weight:700;margin-bottom:4px;">Workflow note</div>
+              <div style="font-size:11px;color:#333;">
                 If you reference a chart or figure in your write-up, mention it as “Figure X”.
                 Images are appended at the end of the Word export.
               </div>
@@ -295,40 +311,6 @@
           </form>
         </div>
       </div>
-
-      <aside class="right-rail">
-        <div class="rail-card">
-          <div class="rail-title">Publish checklist</div>
-          <div class="rail-text">
-            Keep the analysis body in short paragraphs and use the takeaways box for any bullet-style summary.
-            The output is designed to remain clean once exported into Word.
-          </div>
-        </div>
-
-        <div class="rail-card">
-          <div class="rail-title">Equity notes</div>
-          <div class="rail-text">
-            Fetch the chart before export if you want the tear sheet chart, current price, range return,
-            realised volatility, and upside metrics to populate properly.
-          </div>
-        </div>
-
-        <div class="rail-card">
-          <div class="rail-title">Compliance</div>
-          <div class="rail-text">
-            Internal use only. Validate tickers, prices, assumptions, attachments, and any forward-looking
-            statements before circulation or publication.
-          </div>
-        </div>
-
-        <div class="rail-card">
-          <div class="rail-title">Desktop tips</div>
-          <div class="rail-text">
-            This layout is intentionally styled like a classic desktop workspace: denser controls, clearer structure,
-            and stronger separation between drafting and review areas.
-          </div>
-        </div>
-      </aside>
     </div>
   </div>
 
