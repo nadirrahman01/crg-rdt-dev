@@ -6,7 +6,7 @@
     short: "CRG",
     version: "RDT v4.0",
     tagline: "Values that bind",
-    previewLogoPath: "./assets/cordoba-wordmark.svg",
+    previewLogoPath: "assets/cordoba-wordmark.svg",
     logoPath: "assets/cordoba-logo.png",
     colors: {
       gold: "B38633",
