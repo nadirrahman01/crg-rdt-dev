@@ -4,862 +4,341 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Cordoba Research Group — Research Documentation Tool</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link
-    href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Newsreader:opsz,wght@6..72,500;6..72,700&display=swap"
-    rel="stylesheet"
-  />
   <style>
-    :root {
-      --bg-top: #eef3f9;
-      --bg-bottom: #f7f4ed;
-      --surface: rgba(255, 255, 255, 0.92);
-      --border: #d7dee8;
-      --text: #162436;
-      --text-soft: #607086;
-      --navy: #102b46;
-      --navy-strong: #0b1d30;
-      --navy-mid: #234a72;
-      --gold: #b38633;
-      --red: #9e3737;
-      --green: #245e48;
-      --shadow-soft: 0 18px 42px rgba(15, 33, 52, 0.08);
-      --shadow-strong: 0 30px 80px rgba(15, 33, 52, 0.14);
-      --radius-xl: 28px;
-      --radius-lg: 22px;
-      --radius-md: 16px;
-      --font-ui: "Manrope", "Aptos", "Segoe UI", sans-serif;
-      --font-display: "Newsreader", Georgia, serif;
-    }
-
-    * { box-sizing: border-box; }
-
-    html, body {
-      margin: 0;
-      min-height: 100%;
-    }
-
     body {
-      background:
-        radial-gradient(circle at top left, rgba(16, 43, 70, 0.1), transparent 28%),
-        radial-gradient(circle at right 12%, rgba(179, 134, 51, 0.12), transparent 24%),
-        linear-gradient(180deg, var(--bg-top) 0%, var(--bg-bottom) 100%);
-      color: var(--text);
-      font-family: var(--font-ui);
-      font-size: 14px;
-      line-height: 1.5;
+      margin: 0;
+      background: #edf2f7;
+      color: #142537;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
     }
-
-    button, input, select, textarea { font: inherit; }
-    img { max-width: 100%; display: block; }
 
     .app-shell {
-      max-width: 1760px;
+      max-width: 1600px;
       margin: 0 auto;
-      padding: 28px;
+      padding: 24px;
     }
 
-    .card,
-    .panel,
-    .subpanel,
-    .status-card,
-    .page-preview {
-      background: var(--surface);
-      border: 1px solid rgba(255, 255, 255, 0.75);
-      box-shadow: var(--shadow-soft);
-      backdrop-filter: blur(18px);
-    }
-
-    .app-topbar,
-    .control-ribbon,
-    .section-jump,
-    .preview-panel {
-      border-radius: var(--radius-xl);
-    }
-
-    .panel,
-    .status-card {
-      border-radius: var(--radius-lg);
-    }
-
-    .app-topbar {
-      display: flex;
-      justify-content: space-between;
-      gap: 24px;
-      padding: 28px 30px;
-      background:
-        radial-gradient(circle at top right, rgba(255, 255, 255, 0.08), transparent 30%),
-        linear-gradient(135deg, #091726 0%, #123455 52%, #1e4d77 100%);
-      color: #f7fbff;
-    }
-
-    .brand-block {
-      display: flex;
-      gap: 20px;
-      align-items: flex-start;
-      min-width: 0;
-    }
-
-    .brand-mark {
-      min-width: 220px;
-      padding-top: 14px;
-    }
-
-    .brand-mark img {
-      width: 220px;
-      height: auto;
-    }
-
-    .brand-mark-fallback {
-      display: none;
-      font-family: var(--font-display);
-      font-size: 34px;
-      line-height: 0.95;
-      color: #f3e6ca;
-    }
-
-    .eyebrow,
-    .section-kicker,
-    .meta-label,
-    .status-label,
-    .section-jump-label,
-    .metric-label,
-    .panel-note {
-      font-size: 11px;
-      font-weight: 800;
-      letter-spacing: 0.12em;
-      text-transform: uppercase;
-    }
-
-    .eyebrow,
-    .meta-label {
-      color: rgba(226, 238, 248, 0.78);
-    }
-
-    .brand-copy h1,
-    .control-ribbon h2,
-    .panel-head h2,
-    .preview-panel-head h2 {
-      margin: 10px 0;
-      font-family: var(--font-display);
-      line-height: 1.04;
-      color: var(--navy-strong);
-    }
-
-    .app-topbar .brand-copy h1 {
-      color: #fff;
-      font-size: clamp(38px, 5vw, 58px);
-    }
-
-    .brand-copy p {
-      max-width: 760px;
-      margin: 0;
-      color: rgba(236, 244, 251, 0.82);
-    }
-
-    .topbar-meta,
-    .control-ribbon-actions,
-    .section-jump-list,
-    .action-row,
-    .chart-actions,
-    .preview-pill-group {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 10px;
-    }
-
-    .topbar-meta { align-content: flex-start; justify-content: flex-end; }
-
-    .meta-pill,
-    .preview-pill {
-      display: inline-flex;
-      flex-direction: column;
-      gap: 4px;
-      min-width: 132px;
-      padding: 12px 14px;
-      border: 1px solid rgba(255, 255, 255, 0.12);
-      border-radius: 18px;
-      background: rgba(255, 255, 255, 0.06);
-    }
-
-    .meta-pill strong { color: #fff; font-size: 15px; }
-
-    .control-ribbon,
-    .section-jump {
-      margin-top: 18px;
-      padding: 22px 24px;
-    }
-
-    .control-ribbon {
-      display: grid;
-      grid-template-columns: minmax(0, 1.4fr) auto;
-      gap: 20px;
-      align-items: center;
-    }
-
-    .control-ribbon .section-kicker,
-    .panel-head .section-kicker,
-    .preview-panel-head .section-kicker {
-      color: var(--navy-mid);
-    }
-
-    .control-ribbon p,
-    .panel-note,
-    .help-text,
-    .workflow-note,
-    .status-copy {
-      color: var(--text-soft);
-    }
-
-    .section-jump { background: rgba(255, 255, 255, 0.78); }
-
-    .jump-btn,
-    .btn,
-    .remove-coauthor {
-      border-radius: 999px;
-      padding: 11px 16px;
-      font-size: 13px;
-      font-weight: 800;
-      cursor: pointer;
-    }
-
-    .jump-btn,
-    .btn-secondary {
-      border: 1px solid rgba(16, 43, 70, 0.12);
-      background: rgba(255, 255, 255, 0.86);
-      color: var(--navy);
-    }
-
-    .btn-primary {
-      border: 1px solid transparent;
-      background: linear-gradient(135deg, var(--navy) 0%, var(--navy-mid) 100%);
-      color: #fff;
-    }
-
-    .btn-ghost,
-    .remove-coauthor {
-      border: 1px solid rgba(179, 134, 51, 0.22);
-      background: rgba(179, 134, 51, 0.08);
-      color: var(--navy);
-    }
-
-    .btn-small { padding: 9px 12px; }
-
-    .workspace-layout {
-      display: grid;
-      grid-template-columns: minmax(540px, 0.95fr) minmax(620px, 1.05fr);
-      gap: 22px;
-      margin-top: 22px;
-      align-items: start;
-    }
-
-    .panel {
-      margin-bottom: 18px;
-      overflow: hidden;
-    }
-
-    .panel-head,
-    .subpanel-head,
-    .preview-panel-head {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      gap: 18px;
-      padding: 18px 22px;
-    }
-
-    .panel-head,
-    .subpanel-head {
-      background: linear-gradient(90deg, rgba(16, 43, 70, 0.98), rgba(35, 74, 114, 0.94));
-      color: #f8fbff;
-    }
-
-    .panel-body,
-    .subpanel-body,
-    .preview-shell {
-      padding: 22px;
-    }
-
-    .field-grid {
-      display: grid;
-      gap: 14px;
-    }
-
-    .field-grid--2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-    .field-grid--3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
-    .field-grid--4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
-
-    label {
-      display: block;
-      margin: 0 0 8px;
-      font-size: 12px;
-      font-weight: 800;
-      color: var(--navy-strong);
-    }
-
-    input[type="text"],
-    select,
-    textarea,
-    input[type="file"] {
-      width: 100%;
-      padding: 14px 15px;
-      border: 1px solid var(--border);
-      border-radius: 14px;
-      background: rgba(255, 255, 255, 0.92);
-      color: var(--text);
-      outline: none;
-    }
-
-    textarea { min-height: 132px; resize: vertical; }
-    #analysis { min-height: 260px; }
-
-    .phone-row {
-      display: flex;
-      gap: 12px;
-    }
-
-    .phone-country {
-      width: 128px;
-      min-width: 128px;
-    }
-
-    .coauthor-list {
-      display: grid;
-      gap: 12px;
-      margin-top: 18px;
-    }
-
-    .coauthor-entry {
-      display: grid;
-      grid-template-columns: 1fr 1fr 132px 1fr auto;
-      gap: 12px;
-      align-items: end;
-      padding: 16px;
-      border: 1px solid rgba(16, 43, 70, 0.08);
-      border-radius: 18px;
-      background: rgba(246, 243, 237, 0.68);
-    }
-
-    .coauthor-entry .phone-row--compact { display: contents; }
-    .coauthor-entry .phone-country { width: auto; min-width: 0; }
-
-    .metrics-grid,
-    .status-grid {
-      display: grid;
-      gap: 12px;
-    }
-
-    .metrics-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); margin-top: 20px; }
-    .status-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); margin-bottom: 18px; }
-
-    .metric-card,
-    .attachment-summary,
-    .status-card {
-      padding: 16px;
-      border-radius: 18px;
-      border: 1px solid rgba(16, 43, 70, 0.08);
-      background: rgba(246, 248, 251, 0.82);
-    }
-
-    .metric-value,
-    .status-value {
-      margin-top: 8px;
-      font-size: 24px;
-      font-weight: 800;
-      color: var(--navy);
-    }
-
-    .progress-bar {
-      height: 14px;
-      margin-top: 12px;
-      border-radius: 999px;
-      overflow: hidden;
-      background: rgba(16, 43, 70, 0.08);
-    }
-
-    .progress-fill {
-      height: 100%;
-      width: 0;
-      background: linear-gradient(90deg, var(--gold) 0%, var(--navy-mid) 100%);
-    }
-
-    .quality-list {
-      display: grid;
-      gap: 8px;
-      margin: 14px 0 0;
-      padding: 0;
-      list-style: none;
-    }
-
-    .quality-list li {
-      position: relative;
-      padding-left: 18px;
-      font-size: 13px;
-      color: var(--text-soft);
-    }
-
-    .quality-list li::before {
-      content: "";
-      position: absolute;
-      left: 0;
-      top: 8px;
-      width: 8px;
-      height: 8px;
-      border-radius: 50%;
-      background: rgba(16, 43, 70, 0.16);
-    }
-
-    .quality-list li.is-pass::before { background: var(--green); }
-    .quality-list li.is-fail::before { background: var(--red); }
-
-    .preview-panel {
-      overflow: hidden;
-    }
-
-    .preview-panel-head {
-      border-bottom: 1px solid rgba(16, 43, 70, 0.08);
-    }
-
-    .preview-pill {
-      min-width: 116px;
-      background: rgba(246, 243, 237, 0.78);
-      border: 1px solid rgba(16, 43, 70, 0.08);
-      color: var(--navy);
-    }
-
-    .preview-shell {
-      background: linear-gradient(180deg, rgba(17, 43, 71, 0.08), rgba(179, 134, 51, 0.08));
-    }
-
-    .page-preview {
-      width: min(840px, 100%);
-      min-height: 1120px;
-      margin: 0 auto;
-      padding: 44px 48px 36px;
-      background: #fff;
-      box-shadow: var(--shadow-strong);
-      border-radius: var(--radius-md);
-    }
-
-    .doc-header-row,
-    .doc-footer-meta {
-      display: flex;
-      justify-content: space-between;
-      gap: 18px;
-      color: #748091;
-      font-size: 11px;
-    }
-
-    .doc-rule,
-    .doc-footer-line {
-      height: 1px;
-      background: #d5dbe4;
-    }
-
-    .doc-rule { margin: 12px 0 26px; }
-    .doc-footer { margin-top: 26px; }
-    .doc-footer-line { margin-bottom: 10px; }
-
-    @media (max-width: 1520px) {
-      .workspace-layout { grid-template-columns: minmax(0, 1fr); }
-      .page-preview { width: 100%; }
-    }
-
-    @media (max-width: 1180px) {
-      .field-grid--4,
-      .metrics-grid,
-      .status-grid {
-        grid-template-columns: repeat(2, minmax(0, 1fr));
-      }
-
-      .coauthor-entry {
-        grid-template-columns: repeat(2, minmax(0, 1fr));
-      }
-    }
-
-    @media (max-width: 920px) {
-      .app-shell { padding: 18px; }
-      .app-topbar,
-      .control-ribbon,
-      .panel-head,
-      .preview-panel-head {
-        display: grid;
-        justify-content: stretch;
-      }
-
-      .brand-block { display: block; }
-      .brand-mark { margin-bottom: 18px; }
-      .field-grid--2,
-      .field-grid--3,
-      .status-grid {
-        grid-template-columns: 1fr;
-      }
-
-      .page-preview { padding: 28px 22px; }
-    }
-
-    @media (max-width: 720px) {
-      .app-shell { padding: 14px; }
-      .topbar-meta,
-      .control-ribbon-actions,
-      .section-jump-list,
-      .action-row,
-      .chart-actions,
-      .preview-pill-group,
-      .phone-row {
-        flex-direction: column;
-        align-items: stretch;
-      }
-
-      .field-grid--4,
-      .metrics-grid,
-      .status-grid,
-      .coauthor-entry {
-        grid-template-columns: 1fr;
-      }
-
-      .phone-country {
-        width: 100%;
-        min-width: 0;
-      }
+    .is-hidden {
+      display: none !important;
     }
   </style>
   <link rel="stylesheet" href="styles.css" />
-
-  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/docx@8.5.0/build/index.umd.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/file-saver@2.0.5/dist/FileSaver.min.js"></script>
 </head>
 <body>
   <div class="app-shell">
-    <header class="app-topbar card">
-      <div class="brand-block">
-        <div class="brand-mark">
-          <img
-            src="assets/cordoba-wordmark.svg"
-            alt="Cordoba Research Group"
-            onerror="this.style.display='none'; this.nextElementSibling.style.display='block';"
-          />
-          <div class="brand-mark-fallback">Cordoba Research Group</div>
-        </div>
+    <header class="topbar">
+      <div class="brand-lockup">
+        <img
+          class="brand-wordmark"
+          src="assets/cordoba-wordmark.svg"
+          alt="Cordoba Research Group"
+          onerror="this.style.display='none'; this.nextElementSibling.style.display='block';"
+        />
+        <div class="brand-fallback">Cordoba Research Group</div>
+
         <div class="brand-copy">
-          <div class="eyebrow">Institutional Research Workflow</div>
+          <div class="brand-kicker">Institutional Research Publishing System</div>
           <h1>Research Documentation Tool</h1>
           <p>
-            Build consistent, branded research notes with structured analyst inputs, equity tear sheets,
-            live preview, and institutional Word export.
+            A cleaner workflow for drafting branded research notes with consistent structure,
+            live publication preview, equity-specific sections, and export-ready output.
           </p>
         </div>
       </div>
 
       <div class="topbar-meta">
-        <div class="meta-pill">
-          <span class="meta-label">Build</span>
-          <strong>RDT v4.0</strong>
+        <div class="meta-card">
+          <span>Reference</span>
+          <strong id="noteReferenceTop">CRG-DRAFT</strong>
         </div>
-        <div class="meta-pill">
-          <span class="meta-label">Draft</span>
-          <strong id="draftStatus">—</strong>
+        <div class="meta-card">
+          <span>Draft</span>
+          <strong id="draftStatus">Not saved</strong>
         </div>
-        <div class="meta-pill">
-          <span class="meta-label">Readiness</span>
+        <div class="meta-card">
+          <span>Readiness</span>
           <strong id="readinessStatus">Draft</strong>
         </div>
       </div>
     </header>
 
-    <section class="control-ribbon card">
-      <div class="control-ribbon-copy">
-        <div class="section-kicker">Editorial Operating Model</div>
-        <h2>Move analysts from free-form writing to an institutional house template.</h2>
+    <section class="context-bar">
+      <div class="context-copy">
+        <div class="section-kicker">Publishing Direction</div>
+        <h2>Designed for a house note, not a loose memo.</h2>
         <p>
-          The workflow below forces the call, catalysts, risks, valuation support, distribution class,
-          and Cordoba house view into one consistent note design.
+          The workflow follows an institutional publication rhythm: cover, executive summary,
+          numbered sections, clear house view, controlled valuation support, and formal disclaimer handling.
         </p>
       </div>
 
-      <div class="control-ribbon-actions">
-        <button type="button" id="emailToCrgBtnTop" class="btn btn-secondary">Email Desk</button>
-        <button type="button" id="scrollPreviewBtn" class="btn btn-secondary">Jump to Preview</button>
-        <button type="button" id="resetFormBtnTop" class="btn btn-ghost">Reset</button>
+      <div class="context-actions">
+        <button type="button" class="ghost-btn" id="saveDraftBtn">Save Draft</button>
+        <button type="button" class="ghost-btn" id="resetFormBtn">Reset</button>
+        <button type="button" class="primary-btn" id="exportDocBtnTop">Export Word File</button>
       </div>
     </section>
 
-    <section class="section-jump card">
-      <div class="section-jump-label">Jump to section</div>
-      <div class="section-jump-list">
-        <button class="jump-btn" data-scroll-target="documentSetupPanel" type="button">Document Control</button>
-        <button class="jump-btn" data-scroll-target="contributorsPanel" type="button">Contributors</button>
-        <button class="jump-btn" data-scroll-target="researchViewPanel" type="button">Research View</button>
-        <button class="jump-btn" data-scroll-target="equitySection" type="button">Equity Snapshot</button>
-        <button class="jump-btn" data-scroll-target="valuationPanel" type="button">Valuation</button>
-        <button class="jump-btn" data-scroll-target="evidencePanel" type="button">Figures & Compliance</button>
-      </div>
-    </section>
+    <div class="workspace-shell">
+      <nav class="section-rail">
+        <div class="rail-card">
+          <div class="section-kicker">Compose</div>
+          <h3>Note Sections</h3>
 
-    <div class="workspace-layout">
-      <aside class="authoring-column">
+          <button type="button" class="rail-link" data-scroll-target="sectionSetup">Document Control</button>
+          <button type="button" class="rail-link" data-scroll-target="sectionAuthors">Authors</button>
+          <button type="button" class="rail-link" data-scroll-target="sectionSummary">Executive Summary</button>
+          <button type="button" class="rail-link" data-scroll-target="sectionAnalysis">Core Analysis</button>
+          <button type="button" class="rail-link" data-scroll-target="sectionEquity">Equity Module</button>
+          <button type="button" class="rail-link" data-scroll-target="sectionEvidence">Figures & Disclosures</button>
+        </div>
+
+        <div class="rail-card">
+          <div class="section-kicker">Quality</div>
+          <h3 id="qualitySummary">0 / 0 gates closed</h3>
+          <ul id="qualityChecklist" class="quality-list"></ul>
+        </div>
+      </nav>
+
+      <main class="editor-column">
+        <div id="message" class="message is-hidden"></div>
+
         <form id="researchForm" novalidate>
-          <section class="panel" id="documentSetupPanel">
-            <div class="panel-head">
+          <section class="editor-section" id="sectionSetup">
+            <div class="section-head">
               <div>
-                <div class="section-kicker">1. Note Control</div>
-                <h2>Document setup and routing</h2>
+                <div class="section-kicker">01. Document Control</div>
+                <h2>Define the note before you draft it.</h2>
               </div>
-              <span class="panel-note">Every note starts with consistent metadata.</span>
+              <div class="section-note">This controls the cover, routing, reference code, and disclaimer state.</div>
             </div>
 
-            <div class="panel-body">
+            <div class="section-body">
               <div class="field-grid field-grid--4">
-                <div>
-                  <label for="noteType">Note Type</label>
+                <div class="field">
+                  <label for="noteType">Research Type</label>
                   <select id="noteType" required>
                     <option value="">Select…</option>
                     <option value="Macro Research">Macro Research</option>
+                    <option value="Equity Research">Equity Research</option>
                     <option value="Fixed Income Research">Fixed Income Research</option>
                     <option value="Commodity Insights">Commodity Insights</option>
-                    <option value="Equity Research">Equity Research</option>
-                    <option value="General Note">General Note</option>
+                    <option value="Strategy Note">Strategy Note</option>
                   </select>
                 </div>
 
-                <div>
-                  <label for="noteStage">Publication Type</label>
-                  <select id="noteStage" required>
+                <div class="field">
+                  <label for="publicationType">Publication Type</label>
+                  <select id="publicationType" required>
                     <option value="">Select…</option>
-                    <option value="Initiation">Initiation</option>
-                    <option value="Update">Update</option>
+                    <option value="In Focus">In Focus</option>
                     <option value="Flash Note">Flash Note</option>
+                    <option value="Update">Update</option>
+                    <option value="Initiation">Initiation</option>
                     <option value="Results Review">Results Review</option>
-                    <option value="Preview">Preview</option>
                     <option value="Thematic">Thematic</option>
-                    <option value="Sector Note">Sector Note</option>
                   </select>
                 </div>
 
-                <div>
+                <div class="field">
                   <label for="distributionClass">Distribution Class</label>
                   <select id="distributionClass" required>
                     <option value="">Select…</option>
+                    <option value="Institutional Only">Institutional Only</option>
+                    <option value="Professional Clients Only">Professional Clients Only</option>
                     <option value="Internal Draft">Internal Draft</option>
-                    <option value="Internal Approved">Internal Approved</option>
                     <option value="Client Ready">Client Ready</option>
-                    <option value="Sales & Trading">Sales &amp; Trading</option>
                   </select>
                 </div>
 
-                <div>
-                  <label for="noteHorizon">Investment Horizon</label>
-                  <select id="noteHorizon">
-                    <option value="">Select…</option>
-                    <option value="Tactical (0–3m)">Tactical (0–3m)</option>
-                    <option value="Core (6–12m)">Core (6–12m)</option>
-                    <option value="Strategic (12m+)">Strategic (12m+)</option>
-                    <option value="Event-driven">Event-driven</option>
-                  </select>
+                <div class="field">
+                  <label for="publicationDate">Publication Date</label>
+                  <input id="publicationDate" type="date" required />
                 </div>
               </div>
 
-              <label for="title">Research Title</label>
-              <input
-                id="title"
-                type="text"
-                placeholder="e.g. Mispriced Duration: Why the Market Is Underestimating Policy Normalisation"
-                required
-              />
+              <div class="field">
+                <label for="title">Title</label>
+                <input
+                  id="title"
+                  type="text"
+                  placeholder="e.g. Asset Allocation In Focus: Repricing the Growth/Inflation Mix"
+                  required
+                />
+              </div>
+
+              <div class="field">
+                <label for="subtitle">Subtitle / Deck</label>
+                <input
+                  id="subtitle"
+                  type="text"
+                  placeholder="A concise institutional subhead that frames the question, the lens, or the central call."
+                  required
+                />
+              </div>
 
               <div class="field-grid field-grid--2">
-                <div>
-                  <label for="topic">Topic / Coverage Focus</label>
+                <div class="field">
+                  <label for="topic">Coverage Focus</label>
                   <input
                     id="topic"
                     type="text"
-                    placeholder="e.g. Global Macro · Rates · Cross-Asset Positioning"
+                    placeholder="e.g. Multi-Asset · Macro Strategy · Rates · Cross-Asset Allocation"
                     required
                   />
                 </div>
 
-                <div>
-                  <label for="thesisHeadline">House View Headline</label>
+                <div class="field">
+                  <label for="houseView">House View</label>
                   <input
-                    id="thesisHeadline"
+                    id="houseView"
                     type="text"
-                    placeholder="e.g. Quality rerates as funding risk compresses faster than consensus expects."
+                    placeholder="e.g. We prefer duration over cyclicals as growth cools faster than inflation."
                     required
                   />
-                </div>
-              </div>
-
-              <div class="insight-strip">
-                <div class="insight-card">
-                  <span class="insight-label">Institutional standard</span>
-                  <strong>Call first, evidence second</strong>
-                  <p>Lead with the investment call, then prove it with thesis, catalysts, risks and valuation.</p>
-                </div>
-                <div class="insight-card">
-                  <span class="insight-label">Brand consistency</span>
-                  <strong>Metadata drives design</strong>
-                  <p>The same fields control preview, export, routing and disclaimers to avoid formatting drift.</p>
-                </div>
-                <div class="insight-card">
-                  <span class="insight-label">Analyst discipline</span>
-                  <strong>Quality gates before export</strong>
-                  <p>Analysts can see instantly whether the note is desk-ready or still missing institutional scaffolding.</p>
                 </div>
               </div>
             </div>
           </section>
 
-          <section class="panel" id="contributorsPanel">
-            <div class="panel-head">
+          <section class="editor-section" id="sectionAuthors">
+            <div class="section-head">
               <div>
-                <div class="section-kicker">2. Contributors</div>
-                <h2>Author identity and analyst roster</h2>
+                <div class="section-kicker">02. Authors</div>
+                <h2>Keep the analyst line clean and consistent.</h2>
               </div>
-              <button type="button" class="btn btn-secondary btn-small" id="addCoAuthor">Add co-author</button>
+              <button type="button" class="ghost-btn ghost-btn--small" id="addCoAuthor">Add Co-author</button>
             </div>
 
-            <div class="panel-body">
-              <div class="field-grid field-grid--2">
-                <div>
-                  <label for="authorLastName">Last Name</label>
-                  <input id="authorLastName" type="text" placeholder="RAHMAN" autocomplete="family-name" required />
+            <div class="section-body">
+              <div class="field-grid field-grid--3">
+                <div class="field">
+                  <label for="authorName">Lead Analyst</label>
+                  <input id="authorName" type="text" placeholder="e.g. Nadir Rahman" required />
                 </div>
 
-                <div>
-                  <label for="authorFirstName">First Name</label>
-                  <input id="authorFirstName" type="text" placeholder="Nadir" autocomplete="given-name" required />
+                <div class="field">
+                  <label for="authorRole">Desk / Role</label>
+                  <input id="authorRole" type="text" placeholder="e.g. Head of Equity Research" />
+                </div>
+
+                <div class="field">
+                  <label for="contactLine">Contact Line</label>
+                  <input id="contactLine" type="text" placeholder="e.g. research@cordobarg.com" />
                 </div>
               </div>
-
-              <label>Phone</label>
-              <div class="phone-row">
-                <select id="authorPhoneCountry" class="phone-country" aria-label="Country code">
-                  <option value="44" selected>+44</option>
-                  <option value="1">+1</option>
-                  <option value="353">+353</option>
-                  <option value="33">+33</option>
-                  <option value="49">+49</option>
-                  <option value="31">+31</option>
-                  <option value="34">+34</option>
-                  <option value="39">+39</option>
-                  <option value="971">+971</option>
-                  <option value="966">+966</option>
-                  <option value="92">+92</option>
-                  <option value="91">+91</option>
-                  <option value="27">+27</option>
-                  <option value="">Other</option>
-                </select>
-                <input
-                  id="authorPhoneNational"
-                  class="phone-number"
-                  type="text"
-                  inputmode="numeric"
-                  autocomplete="tel-national"
-                  placeholder="e.g. 7400 123 456"
-                />
-              </div>
-              <input id="authorPhone" type="text" hidden />
 
               <div id="coAuthorsList" class="coauthor-list"></div>
             </div>
           </section>
 
-          <section class="panel" id="researchViewPanel">
-            <div class="panel-head">
+          <section class="editor-section" id="sectionSummary">
+            <div class="section-head">
               <div>
-                <div class="section-kicker">3. Research View</div>
-                <h2>Thesis, catalysts, risks and differentiation</h2>
+                <div class="section-kicker">03. Executive Summary</div>
+                <h2>Lead with the call, then make the reader want page two.</h2>
               </div>
-              <span class="panel-note">This is the institutional core of the note.</span>
+              <div class="section-note">The summary page should feel like something sales, PMs, and ICs can read first.</div>
             </div>
 
-            <div class="panel-body">
-              <label for="keyTakeaways">Key Takeaways</label>
-              <textarea
-                id="keyTakeaways"
-                placeholder="- One line per takeaway&#10;- Keep each point investor-facing&#10;- Surface the call, why now, and what matters"
-                required
-              ></textarea>
-
-              <label for="analysis">Investment Thesis / Core Analysis</label>
-              <textarea
-                id="analysis"
-                placeholder="Write the main investment argument in short institutional paragraphs. Start with the central thesis, then evidence, then what changes consensus."
-                required
-              ></textarea>
-
-              <div class="field-grid field-grid--2">
-                <div>
-                  <label for="variantPerception">Variant Perception</label>
-                  <textarea
-                    id="variantPerception"
-                    placeholder="What is the market missing? Where does Cordoba differ from consensus or implied pricing?"
-                  ></textarea>
-                </div>
-
-                <div>
-                  <label for="catalysts">Catalysts / What Unlocks the Call</label>
-                  <textarea
-                    id="catalysts"
-                    placeholder="- Near-term catalyst&#10;- Data point or event&#10;- Medium-term rerating trigger"
-                    required
-                  ></textarea>
-                </div>
+            <div class="section-body">
+              <div class="field">
+                <label for="executiveSummary">Executive Summary</label>
+                <textarea
+                  id="executiveSummary"
+                  placeholder="Write a short front-page summary that frames the thesis, why it matters now, and what changed."
+                  required
+                ></textarea>
               </div>
 
-              <div class="field-grid field-grid--2">
-                <div>
-                  <label for="keyRisks">Key Risks</label>
-                  <textarea
-                    id="keyRisks"
-                    placeholder="- What can go wrong&#10;- What invalidates the thesis&#10;- Main external dependencies"
-                    required
-                  ></textarea>
-                </div>
-
-                <div>
-                  <label for="cordobaView">The Cordoba View</label>
-                  <textarea
-                    id="cordobaView"
-                    placeholder="Write the differentiated house view, preferred positioning, and why it matters for clients."
-                  ></textarea>
-                </div>
+              <div class="field">
+                <label for="keyTakeaways">Key Takeaways</label>
+                <textarea
+                  id="keyTakeaways"
+                  placeholder="- One line per takeaway&#10;- Keep the language investor-facing&#10;- Make the call clear, not descriptive"
+                  required
+                ></textarea>
               </div>
 
-              <label for="content">Additional Detail / Supporting Context</label>
-              <textarea
-                id="content"
-                placeholder="Optional background, channel checks, framework detail, or supporting narrative that sits behind the core note."
-              ></textarea>
+              <div class="field">
+                <label for="cordobaView">The Cordoba View</label>
+                <textarea
+                  id="cordobaView"
+                  placeholder="State the differentiated house position, the portfolio implication, and where Cordoba is intentionally different."
+                  required
+                ></textarea>
+              </div>
             </div>
           </section>
 
-          <section class="panel equity-only" id="equitySection" style="display:none;">
-            <div class="panel-head">
+          <section class="editor-section" id="sectionAnalysis">
+            <div class="section-head">
               <div>
-                <div class="section-kicker">4. Equity Snapshot</div>
-                <h2>Tear sheet, recommendation and market context</h2>
+                <div class="section-kicker">04. Core Analysis</div>
+                <h2>Build the note like a publication, not a notebook.</h2>
               </div>
-              <span class="panel-note">Visible only for equity research notes.</span>
+              <div class="section-note">Use numbered sections, evidence, and explicit risk framing.</div>
             </div>
 
-            <div class="panel-body">
-              <div class="field-grid field-grid--3">
-                <div>
-                  <label for="ticker">Ticker (Stooq)</label>
-                  <input id="ticker" type="text" placeholder="e.g. aapl.us or bp.uk" />
-                  <div class="help-text">
-                    Use a
-                    <a href="https://stooq.com/" target="_blank" rel="noopener">stooq.com</a>
-                    style ticker for charting.
-                  </div>
+            <div class="section-body">
+              <div class="field">
+                <label for="analysis">Investment Thesis</label>
+                <textarea
+                  id="analysis"
+                  placeholder="Write the core analytical section here. Keep it institutional, paragraph-led, and evidence-based."
+                  required
+                ></textarea>
+              </div>
+
+              <div class="field-grid field-grid--2">
+                <div class="field">
+                  <label for="catalysts">Catalysts / Why Now</label>
+                  <textarea
+                    id="catalysts"
+                    placeholder="- Upcoming catalyst&#10;- Inflection point&#10;- What can unlock the call"
+                    required
+                  ></textarea>
                 </div>
 
-                <div>
-                  <label for="crgRating">CRG Rating</label>
-                  <select id="crgRating">
+                <div class="field">
+                  <label for="keyRisks">Key Risks</label>
+                  <textarea
+                    id="keyRisks"
+                    placeholder="- What can invalidate the thesis&#10;- What we might be underestimating&#10;- Major exogenous risks"
+                    required
+                  ></textarea>
+                </div>
+              </div>
+
+              <div class="field">
+                <label for="supportingAnalysis">Supporting Analysis / Evidence</label>
+                <textarea
+                  id="supportingAnalysis"
+                  placeholder="Use this section for deeper analysis, framework explanation, data interpretation, channel checks, or market context."
+                ></textarea>
+              </div>
+            </div>
+          </section>
+
+          <section class="editor-section" id="sectionEquity">
+            <div class="section-head">
+              <div>
+                <div class="section-kicker">05. Equity Module</div>
+                <h2>Only used when the note type is Equity Research.</h2>
+              </div>
+              <div class="section-note">If the note is not equity, this section stays out of the preview and export.</div>
+            </div>
+
+            <div class="section-body">
+              <div class="field-grid field-grid--4">
+                <div class="field">
+                  <label for="ticker">Ticker</label>
+                  <input id="ticker" type="text" placeholder="e.g. aapl.us" />
+                </div>
+
+                <div class="field">
+                  <label for="rating">Recommendation</label>
+                  <select id="rating">
                     <option value="">Select…</option>
                     <option value="Buy">Buy</option>
                     <option value="Hold">Hold</option>
@@ -867,231 +346,159 @@
                   </select>
                 </div>
 
-                <div>
+                <div class="field">
+                  <label for="currentPriceInput">Current Price</label>
+                  <input id="currentPriceInput" type="text" placeholder="e.g. 186.40" />
+                </div>
+
+                <div class="field">
                   <label for="targetPrice">Target Price</label>
-                  <input id="targetPrice" type="text" placeholder="e.g. 210" />
+                  <input id="targetPrice" type="text" placeholder="e.g. 210.00" />
                 </div>
               </div>
 
-              <div class="metrics-grid">
+              <div class="metric-strip">
                 <div class="metric-card">
-                  <div class="metric-label">Current price</div>
-                  <div class="metric-value" id="currentPrice">—</div>
+                  <span>Current Price</span>
+                  <strong id="currentPriceDisplay">—</strong>
                 </div>
                 <div class="metric-card">
-                  <div class="metric-label">Return (range)</div>
-                  <div class="metric-value" id="rangeReturn">—</div>
+                  <span>Upside / Downside</span>
+                  <strong id="upsideDisplay">—</strong>
                 </div>
                 <div class="metric-card">
-                  <div class="metric-label">Volatility (ann.)</div>
-                  <div class="metric-value" id="realisedVol">—</div>
+                  <span>Range Return</span>
+                  <strong id="rangeReturnDisplay">—</strong>
                 </div>
                 <div class="metric-card">
-                  <div class="metric-label">Upside to target</div>
-                  <div class="metric-value" id="upsideToTarget">—</div>
+                  <span>Volatility (Ann.)</span>
+                  <strong id="volatilityDisplay">—</strong>
                 </div>
               </div>
 
-              <div class="subpanel">
-                <div class="subpanel-head">Price Chart</div>
-                <div class="subpanel-body">
-                  <div class="chart-actions">
-                    <select id="chartRange" class="chart-range" aria-label="Chart range">
+              <div class="chart-panel">
+                <div class="chart-toolbar">
+                  <div>
+                    <label for="chartRange">Chart Range</label>
+                    <select id="chartRange">
                       <option value="6mo">6M</option>
                       <option value="1y" selected>1Y</option>
                       <option value="2y">2Y</option>
                       <option value="5y">5Y</option>
                     </select>
-                    <button type="button" id="fetchPriceChart" class="btn btn-secondary">Fetch chart</button>
                   </div>
 
-                  <div class="chart-wrap">
-                    <canvas id="priceChart"></canvas>
-                  </div>
-
-                  <div class="help-text" id="chartStatus"></div>
+                  <button type="button" class="ghost-btn" id="fetchPriceChart">Fetch Price Chart</button>
                 </div>
+
+                <div id="chartPreview" class="chart-preview chart-preview--empty">
+                  Price chart preview will appear here.
+                </div>
+                <div id="chartStatus" class="chart-status">No chart loaded.</div>
               </div>
-            </div>
-          </section>
 
-          <section class="panel equity-only" id="valuationPanel" style="display:none;">
-            <div class="panel-head">
-              <div>
-                <div class="section-kicker">5. Valuation & Forecasts</div>
-                <h2>Support the call with numbers</h2>
+              <div class="field">
+                <label for="valuationSummary">Valuation Summary</label>
+                <textarea
+                  id="valuationSummary"
+                  placeholder="Explain the valuation framework, the target derivation, and the key argument behind fair value."
+                ></textarea>
               </div>
-              <span class="panel-note">Institutional equity notes need explicit model support.</span>
-            </div>
 
-            <div class="panel-body">
-              <label for="valuationSummary">Valuation Summary</label>
-              <textarea
-                id="valuationSummary"
-                placeholder="Describe the valuation framework, target derivation, and why the market should converge."
-              ></textarea>
-
-              <div class="field-grid field-grid--2">
-                <div>
-                  <label for="keyAssumptions">Key Assumptions</label>
-                  <textarea
-                    id="keyAssumptions"
-                    placeholder="- Revenue growth&#10;- Margin path&#10;- Multiple or DCF inputs"
-                  ></textarea>
-                </div>
-
-                <div>
-                  <label for="scenarioNotes">Scenario / Sensitivity Notes</label>
-                  <textarea
-                    id="scenarioNotes"
-                    placeholder="Bull / base / bear framing, sensitivity ranges, and what changes the fair value."
-                  ></textarea>
-                </div>
+              <div class="field">
+                <label for="scenarioNotes">Scenario / Sensitivity Notes</label>
+                <textarea
+                  id="scenarioNotes"
+                  placeholder="Describe the bull/base/bear framing and the sensitivities most relevant to the call."
+                ></textarea>
               </div>
 
               <div class="field-grid field-grid--2">
-                <div>
-                  <label for="projectedFinancialsTitle">Projected Financials Title</label>
-                  <input id="projectedFinancialsTitle" type="text" placeholder="e.g. Forecast Snapshot" />
+                <div class="field">
+                  <label for="forecastTitle">Forecast Table Title</label>
+                  <input id="forecastTitle" type="text" placeholder="e.g. Forecast Snapshot" />
                 </div>
 
-                <div>
-                  <label for="modelLink">Model Link</label>
+                <div class="field">
+                  <label for="modelLink">Model Link (optional)</label>
                   <input id="modelLink" type="text" placeholder="https://…" />
                 </div>
               </div>
 
-              <label for="projectedFinancialsTable">Projected Financials Table</label>
-              <textarea
-                id="projectedFinancialsTable"
-                placeholder="Metric,2025E,2026E,2027E&#10;Revenue,1200,1320,1450&#10;EBITDA,210,245,280&#10;EPS,1.24,1.41,1.63"
-              ></textarea>
-              <div class="help-text">Use commas, tabs or pipes. The first row is treated as the header row.</div>
-
-              <label for="modelFiles">Model Files</label>
-              <input id="modelFiles" type="file" multiple />
-
-              <div class="attachment-summary">
-                <div id="attachmentSummaryHead" class="attachment-summary-head">No files selected</div>
-                <div id="attachmentSummaryList" class="attachment-summary-list" style="display:none;"></div>
+              <div class="field">
+                <label for="forecastTable">Forecast Table</label>
+                <textarea
+                  id="forecastTable"
+                  placeholder="Metric,2025E,2026E,2027E&#10;Revenue,1200,1320,1450&#10;EBITDA,210,245,280&#10;EPS,1.24,1.41,1.63"
+                ></textarea>
               </div>
             </div>
           </section>
 
-          <section class="panel" id="evidencePanel">
-            <div class="panel-head">
+          <section class="editor-section" id="sectionEvidence">
+            <div class="section-head">
               <div>
-                <div class="section-kicker">6. Figures & Compliance</div>
-                <h2>Images, attachments and disclaimer discipline</h2>
+                <div class="section-kicker">06. Figures & Disclosures</div>
+                <h2>Finish the note with controlled support material.</h2>
               </div>
-              <span class="panel-note">Keep figure titles clear and compliance language controlled.</span>
+              <div class="section-note">Figures and disclosures should support the publication, not clutter the UI.</div>
             </div>
 
-            <div class="panel-body">
-              <label for="imageUpload">Upload Figures / Charts</label>
-              <input id="imageUpload" type="file" accept="image/*" multiple />
-              <div class="help-text">Use clear names such as “Figure 1 - Volume Trend.png”. These are appended to the export.</div>
+            <div class="section-body">
+              <div class="field">
+                <label for="figureUpload">Figures / Charts</label>
+                <input id="figureUpload" type="file" accept="image/*" multiple />
+                <div class="field-help">Uploaded figures are appended in the export appendix and listed in the preview.</div>
+              </div>
 
-              <label for="customDisclaimer">Additional Disclaimer (optional)</label>
-              <textarea
-                id="customDisclaimer"
-                placeholder="Optional desk-specific language, compliance note, or distribution qualifier to append after the house disclaimer."
-              ></textarea>
+              <div id="figureList" class="file-list"></div>
 
-              <div class="workflow-note">
-                <strong>Brand rule:</strong> keep the note title concise, make the house call explicit, and ensure every note contains
-                key takeaways, thesis, catalysts, risks, and a clear Cordoba view before export.
+              <div class="field">
+                <label for="customDisclaimer">Additional Disclosure (optional)</label>
+                <textarea
+                  id="customDisclaimer"
+                  placeholder="Optional note-specific compliance or distribution language to append after the house disclosure."
+                ></textarea>
               </div>
             </div>
           </section>
 
           <div class="action-row">
-            <button type="submit" class="btn btn-primary">Generate Word Document</button>
-            <button type="button" id="emailToCrgBtn" class="btn btn-secondary">Email Desk</button>
-            <button type="button" id="resetFormBtn" class="btn btn-ghost">Reset</button>
+            <button type="submit" class="primary-btn" id="exportDocBtn">Export Word File</button>
+            <button type="button" class="ghost-btn" id="previewRefreshBtn">Refresh Preview</button>
+            <button type="button" class="ghost-btn" id="resetFormBtnBottom">Reset</button>
           </div>
         </form>
-      </aside>
-
-      <main class="preview-column" id="previewPanel">
-        <div id="message" class="message" style="display:none;"></div>
-
-        <section class="status-grid">
-          <article class="status-card card">
-            <div class="status-label">Publish readiness</div>
-            <div class="progress-bar">
-              <div id="completionBar" class="progress-fill"></div>
-            </div>
-            <div class="status-value" id="completionText">0 / 0 publish-core</div>
-            <p class="status-copy">Measured against the institutional note fields that should always be completed before circulation.</p>
-          </article>
-
-          <article class="status-card card">
-            <div class="status-label">Quality gates</div>
-            <div class="status-value" id="qualityGateSummary">0 / 0 gates closed</div>
-            <ul id="qualityChecklist" class="quality-list"></ul>
-          </article>
-
-          <article class="status-card card">
-            <div class="status-label">Routing & note control</div>
-            <div class="routing-stack">
-              <div class="routing-item">
-                <span>Preview mode</span>
-                <strong id="previewMode">General Note</strong>
-              </div>
-              <div class="routing-item">
-                <span>Distribution</span>
-                <strong id="distributionMirror">—</strong>
-              </div>
-              <div class="routing-item">
-                <span>Desk CC</span>
-                <strong id="deskRouting">—</strong>
-              </div>
-              <div class="routing-item">
-                <span>Note reference</span>
-                <strong id="noteReference">CRG-0000</strong>
-              </div>
-              <div class="routing-item">
-                <span>Draft mirror</span>
-                <strong id="draftStatusMirror">—</strong>
-              </div>
-            </div>
-          </article>
-        </section>
-
-        <section class="preview-panel card">
-          <div class="preview-panel-head">
-            <div>
-              <div class="section-kicker">Live Document Preview</div>
-              <h2>Institutional output view</h2>
-            </div>
-            <div class="preview-pill-group">
-              <span class="preview-pill" id="previewPillType">Research Note</span>
-              <span class="preview-pill" id="previewPillStage">Draft</span>
-            </div>
-          </div>
-
-          <div class="preview-shell">
-            <div class="page-preview" id="docPreviewPage">
-              <div class="doc-header-row">
-                <div class="doc-header-left" id="docHeaderLeft">CRG | Research Note | —</div>
-                <div class="doc-header-right" id="docHeaderRight">Internal Draft</div>
-              </div>
-
-              <div class="doc-rule"></div>
-
-              <div class="doc-preview-body" id="docPreviewBody"></div>
-
-              <div class="doc-footer">
-                <div class="doc-footer-line"></div>
-                <div class="doc-footer-meta" id="previewDisclaimer">
-                  Internal use only. Outputs are draft research documentation generated from user inputs and third-party market data.
-                </div>
-              </div>
-            </div>
-          </div>
-        </section>
       </main>
+
+      <aside class="preview-column">
+        <div class="preview-summary">
+          <div class="preview-summary-card">
+            <span>Publication</span>
+            <strong id="previewPublicationType">Draft</strong>
+          </div>
+          <div class="preview-summary-card">
+            <span>Distribution</span>
+            <strong id="previewDistribution">—</strong>
+          </div>
+          <div class="preview-summary-card">
+            <span>Reference</span>
+            <strong id="previewReference">CRG-DRAFT</strong>
+          </div>
+        </div>
+
+        <section class="preview-shell">
+          <div class="preview-head">
+            <div>
+              <div class="section-kicker">Live Publication Preview</div>
+              <h2>Preview</h2>
+            </div>
+            <div class="preview-note">Cover, summary, sections and appendix use the same render model as the export.</div>
+          </div>
+
+          <div id="previewPages" class="preview-pages"></div>
+        </section>
+      </aside>
     </div>
   </div>
 
