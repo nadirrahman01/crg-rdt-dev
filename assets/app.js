@@ -583,6 +583,312 @@ document.addEventListener("DOMContentLoaded", () => {
     };
   }
 
+  function normalizeComparableText(value) {
+    return String(value || "")
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, " ")
+      .trim();
+  }
+
+  function countMeaningfulWords(text) {
+    return normalizeComparableText(text)
+      .split(/\s+/)
+      .filter(Boolean).length;
+  }
+
+  function containsAnyKeyword(text, keywords) {
+    const source = normalizeComparableText(text);
+    return keywords.some((keyword) => source.includes(normalizeComparableText(keyword)));
+  }
+
+  function buildFinding(severity, title, detail, section, options = {}) {
+    return {
+      severity,
+      title,
+      detail,
+      section,
+      blocking: severity === "critical",
+      focusId: options.focusId || "",
+      sortOrder: severity === "critical" ? 0 : severity === "warning" ? 1 : 2
+    };
+  }
+
+  function extractFinancialHeaderYears(headers) {
+    return (headers || [])
+      .map((header) => {
+        const text = String(header || "").trim();
+        const fullYearMatch = text.match(/(20\d{2})/);
+        if (fullYearMatch) return Number(fullYearMatch[1]);
+
+        const shortYearMatch = text.match(/(\d{2})(?=[A-Z]?$)/i);
+        if (!shortYearMatch) return null;
+        const shortYear = Number(shortYearMatch[1]);
+        return shortYear >= 70 ? 1900 + shortYear : 2000 + shortYear;
+      })
+      .filter((year) => Number.isFinite(year));
+  }
+
+  function isFinancialTableStale(matrix, publicationDate) {
+    const headers = matrix?.headers || [];
+    const normalizedHeaders = headers.map((header) => String(header || "").toUpperCase());
+    const years = extractFinancialHeaderYears(headers);
+    const publicationYear = publicationDate.getFullYear();
+    const hasForecastColumn = normalizedHeaders.some((header) => header.includes("F"));
+    const maxYear = years.length ? Math.max(...years) : null;
+
+    if (!headers.length) return true;
+    if (!hasForecastColumn) return true;
+    if (!Number.isFinite(maxYear)) return true;
+    return maxYear < publicationYear + 1;
+  }
+
+  function isLikelyGenericCordobaView(text) {
+    const normalized = normalizeComparableText(text);
+    if (!normalized) return true;
+    if (countMeaningfulWords(text) < 12) return true;
+
+    const genericPhrases = [
+      "we remain constructive",
+      "continue to monitor",
+      "stay selective",
+      "house view remains constructive",
+      "watch the data",
+      "further updates to follow",
+      "positive on the story",
+      "balanced view"
+    ];
+
+    return genericPhrases.some((phrase) => normalized.includes(phrase));
+  }
+
+  function buildPrePublishReview(data, validation = validateForm(false)) {
+    const findings = [];
+    const noteType = String(data.noteType || "");
+    const missingIds = new Set(validation.missing.map((entry) => entry.id));
+    const combinedResearchText = [data.keyTakeaways, data.analysis, data.content, data.cordobaView, data.scenarioNotes]
+      .filter(Boolean)
+      .join("\n");
+    const publicationDate = parseInputDate(data.publicationDate) || data.generatedAt || new Date();
+
+    validation.missing.forEach((entry) => {
+      findings.push(
+        buildFinding(
+          "critical",
+          entry.label,
+          `Complete this ${entry.section.toLowerCase()} field before export.`,
+          entry.section,
+          { focusId: entry.id }
+        )
+      );
+    });
+
+    if (isEquitySelected()) {
+      const targetPrice = parseNumber(data.targetPrice);
+      const valuationWordCount = countMeaningfulWords(data.valuationSummary);
+      if (targetPrice != null && valuationWordCount < 18) {
+        findings.push(
+          buildFinding(
+            "critical",
+            "Target price rationale missing",
+            "A target price is set, but the valuation summary does not yet explain the basis for that target.",
+            "Equity",
+            { focusId: "valuationSummary" }
+          )
+        );
+      }
+
+      if (data.crgRating && !missingIds.has("analysis") && !containsAnyKeyword(combinedResearchText, [
+        "catalyst",
+        "trigger",
+        "driver",
+        "earnings",
+        "margin",
+        "order",
+        "pricing",
+        "volume",
+        "rerating",
+        "re-rating",
+        "valuation"
+      ])) {
+        findings.push(
+          buildFinding(
+            "warning",
+            "Rating set with limited catalyst support",
+            "The note carries a formal rating, but the draft does not clearly surface catalysts or investment-case support.",
+            "Equity",
+            { focusId: "analysis" }
+          )
+        );
+      }
+
+      if (!data.benchmarkTicker.trim()) {
+        findings.push(
+          buildFinding(
+            "warning",
+            "Benchmark missing",
+            "Add a benchmark ticker so the tear sheet can show relative performance rather than standalone price action.",
+            "Equity",
+            { focusId: "benchmarkTicker" }
+          )
+        );
+      }
+
+      if (!data.financialTableInput.trim()) {
+        findings.push(
+          buildFinding(
+            "warning",
+            "Financial table not populated",
+            "Paste a live forecast table from the model so the equity note prints with actual financial estimates rather than placeholders.",
+            "Equity",
+            { focusId: "financialTableInput" }
+          )
+        );
+      } else {
+        const matrix = parseFinancialTableInput(data.financialTableInput, publicationDate);
+        if (isFinancialTableStale(matrix, publicationDate)) {
+          findings.push(
+            buildFinding(
+              "warning",
+              "Financial table may be stale",
+              "The financial headers look historical-only or do not extend far enough beyond the publication year.",
+              "Equity",
+              { focusId: "financialTableInput" }
+            )
+          );
+        }
+      }
+    }
+
+    if (normalizeComparableText(data.deck) && normalizeComparableText(data.deck) === normalizeComparableText(data.title)) {
+      findings.push(
+        buildFinding(
+          "suggestion",
+          "Deck duplicates the title",
+          "Use the deck to add differentiated framing, context, or timing instead of repeating the research title verbatim.",
+          "Brief",
+          { focusId: "deck" }
+        )
+      );
+    }
+
+    if (!missingIds.has("keyTakeaways") && (lineItems(data.keyTakeaways).length < 2 || countMeaningfulWords(data.keyTakeaways) < 14)) {
+      findings.push(
+        buildFinding(
+          "warning",
+          "Key Takeaways are thin",
+          "Add clearer bullet points so the note opens with a sharper summary of the thesis, catalysts, and call.",
+          "Research",
+          { focusId: "keyTakeaways" }
+        )
+      );
+    }
+
+    if (!missingIds.has("analysis") && countMeaningfulWords(data.analysis) < 120) {
+      findings.push(
+        buildFinding(
+          "warning",
+          "Analysis needs more development",
+          "The analysis section is still too light for a publication-ready research note.",
+          "Research",
+          { focusId: "analysis" }
+        )
+      );
+    }
+
+    if (!missingIds.has("cordobaView") && isLikelyGenericCordobaView(data.cordobaView)) {
+      findings.push(
+        buildFinding(
+          "warning",
+          "Cordoba View is too generic",
+          "Tighten the house view so it states the action, horizon, and what would change conviction.",
+          "Research",
+          { focusId: "cordobaView" }
+        )
+      );
+    }
+
+    if (noteType === "Macro Research" && !missingIds.has("analysis") && !containsAnyKeyword(combinedResearchText, [
+      "inflation",
+      "rates",
+      "growth",
+      "policy",
+      "payroll",
+      "cpi",
+      "pmi",
+      "scenario"
+    ])) {
+      findings.push(
+        buildFinding(
+          "suggestion",
+          "Macro framing could be sharper",
+          "The draft would read more institutionally with an explicit macro driver set: growth, inflation, rates, policy, or scenario markers.",
+          "Research",
+          { focusId: "analysis" }
+        )
+      );
+    }
+
+    if (noteType === "Fixed Income Research" && !missingIds.has("analysis") && !containsAnyKeyword(combinedResearchText, [
+      "spread",
+      "yield",
+      "carry",
+      "curve",
+      "duration",
+      "refinancing",
+      "maturity",
+      "coupon"
+    ])) {
+      findings.push(
+        buildFinding(
+          "suggestion",
+          "Fixed income lens not yet explicit",
+          "Consider surfacing spread, yield, carry, curve, or refinancing language so the FI call reads as desk-specific rather than general commentary.",
+          "Research",
+          { focusId: "analysis" }
+        )
+      );
+    }
+
+    if ((noteType === "Commodity Insights" || noteType === "Commodity Research") && !missingIds.has("analysis") && !containsAnyKeyword(combinedResearchText, [
+      "supply",
+      "demand",
+      "inventory",
+      "balance",
+      "curve",
+      "production",
+      "opec",
+      "stock"
+    ])) {
+      findings.push(
+        buildFinding(
+          "suggestion",
+          "Commodity balance framing is light",
+          "Highlight supply, demand, inventory, or curve dynamics so the commodity view feels more complete.",
+          "Research",
+          { focusId: "analysis" }
+        )
+      );
+    }
+
+    findings.sort((left, right) => left.sortOrder - right.sortOrder);
+
+    const criticalCount = findings.filter((finding) => finding.severity === "critical").length;
+    const warningCount = findings.filter((finding) => finding.severity === "warning").length;
+    const suggestionCount = findings.filter((finding) => finding.severity === "suggestion").length;
+
+    return {
+      findings,
+      blockingCount: criticalCount,
+      warningCount,
+      suggestionCount,
+      counts: {
+        critical: criticalCount,
+        warning: warningCount,
+        suggestion: suggestionCount
+      }
+    };
+  }
+
   function buildSectionCompletion(sectionKey) {
     const ids = SECTION_REQUIREMENTS[sectionKey] || [];
     if (sectionKey === "equity" && !isEquitySelected()) return "Optional";
@@ -595,7 +901,7 @@ document.addEventListener("DOMContentLoaded", () => {
     return `${complete}/${ids.length}`;
   }
 
-  function updateSectionPills() {
+  function updateSectionPills(validation, review) {
     dom.navNote.textContent = buildSectionCompletion("note");
     dom.navAuthors.textContent = buildSectionCompletion("authors");
     dom.navEquity.textContent = buildSectionCompletion("equity");
@@ -603,23 +909,56 @@ document.addEventListener("DOMContentLoaded", () => {
 
     const supportCount = Array.from(dom.modelFiles.files || []).length + Array.from(dom.imageUpload.files || []).length;
     dom.navExhibits.textContent = supportCount ? `${supportCount} files` : "Optional";
-    dom.navOutput.textContent = validateForm(false).valid ? "Ready" : "Draft";
+    if (review.blockingCount > 0) {
+      dom.navOutput.textContent = "Blocked";
+    } else if (review.warningCount > 0) {
+      dom.navOutput.textContent = "Check";
+    } else if (validation.valid) {
+      dom.navOutput.textContent = "Ready";
+    } else {
+      dom.navOutput.textContent = "Draft";
+    }
   }
 
-  function updateCompletion() {
-    const validation = validateForm(false);
+  function updateCompletion(validation, review) {
     dom.completionBar.style.width = `${validation.percent}%`;
     dom.completionText.textContent = `${validation.complete} / ${validation.total} required fields complete`;
     dom.readinessPercent.textContent = `${validation.percent}%`;
-    dom.noteStateChip.textContent = validation.valid ? "Ready" : validation.percent >= 55 ? "In Build" : "Draft";
-    dom.noteStateChip.style.background = validation.valid ? "rgba(37, 115, 75, 0.12)" : validation.percent >= 55 ? "rgba(132, 95, 15, 0.10)" : "rgba(109, 118, 130, 0.12)";
-    dom.noteStateChip.style.color = validation.valid ? "#25734b" : validation.percent >= 55 ? "#845F0F" : "#5d6570";
-    dom.noteStateChip.style.borderColor = validation.valid ? "rgba(37, 115, 75, 0.2)" : validation.percent >= 55 ? "rgba(132, 95, 15, 0.22)" : "rgba(109, 118, 130, 0.16)";
+    if (review.blockingCount > 0) {
+      dom.noteStateChip.textContent = "Review";
+      dom.noteStateChip.style.background = "rgba(132, 95, 15, 0.10)";
+      dom.noteStateChip.style.color = "#845F0F";
+      dom.noteStateChip.style.borderColor = "rgba(132, 95, 15, 0.22)";
+    } else if (review.warningCount > 0) {
+      dom.noteStateChip.textContent = "Check";
+      dom.noteStateChip.style.background = "rgba(180, 139, 51, 0.12)";
+      dom.noteStateChip.style.color = "#8a6521";
+      dom.noteStateChip.style.borderColor = "rgba(180, 139, 51, 0.22)";
+    } else if (validation.valid) {
+      dom.noteStateChip.textContent = "Ready";
+      dom.noteStateChip.style.background = "rgba(37, 115, 75, 0.12)";
+      dom.noteStateChip.style.color = "#25734b";
+      dom.noteStateChip.style.borderColor = "rgba(37, 115, 75, 0.2)";
+    } else if (validation.percent >= 55) {
+      dom.noteStateChip.textContent = "In Build";
+      dom.noteStateChip.style.background = "rgba(132, 95, 15, 0.10)";
+      dom.noteStateChip.style.color = "#845F0F";
+      dom.noteStateChip.style.borderColor = "rgba(132, 95, 15, 0.22)";
+    } else {
+      dom.noteStateChip.textContent = "Draft";
+      dom.noteStateChip.style.background = "rgba(109, 118, 130, 0.12)";
+      dom.noteStateChip.style.color = "#5d6570";
+      dom.noteStateChip.style.borderColor = "rgba(109, 118, 130, 0.16)";
+    }
 
     const progressTrack = dom.completionBar.parentElement;
     if (progressTrack) progressTrack.setAttribute("aria-valuenow", String(validation.percent));
 
-    if (validation.valid) {
+    if (review.blockingCount > 0) {
+      dom.readinessCaption.textContent = `Pre-publish review has ${review.blockingCount} critical issue${review.blockingCount === 1 ? "" : "s"} to resolve before export.`;
+    } else if (review.warningCount > 0) {
+      dom.readinessCaption.textContent = `The note is structurally complete, but the readiness pass still shows ${review.warningCount} warning${review.warningCount === 1 ? "" : "s"} to tighten before publication.`;
+    } else if (validation.valid) {
       dom.readinessCaption.textContent = "The brief, narrative, and author metadata are complete. The Word note can now render cleanly in the publication template.";
     } else if (validation.percent >= 55) {
       dom.readinessCaption.textContent = "The draft is structurally taking shape. Complete the remaining mandatory fields before export.";
@@ -627,22 +966,49 @@ document.addEventListener("DOMContentLoaded", () => {
       dom.readinessCaption.textContent = "Complete the brief, byline, and core body sections before generating the Word note.";
     }
 
-    renderMissingFields(validation.missing);
+    renderMissingFields(review);
   }
 
-  function renderMissingFields(missing) {
+  function renderMissingFields(review) {
     dom.missingFields.innerHTML = "";
 
-    if (!missing.length) {
+    if (!review.findings.length) {
       const item = document.createElement("li");
-      item.textContent = "No blocking fields. The note is structurally ready.";
+      item.className = "finding-item finding-clear";
+      item.textContent = "No critical issues or review warnings. The note is structurally ready for publication export.";
       dom.missingFields.appendChild(item);
       return;
     }
 
-    missing.slice(0, 6).forEach((entry) => {
+    review.findings.slice(0, 6).forEach((entry) => {
       const item = document.createElement("li");
-      item.textContent = entry.label;
+      item.className = `finding-item finding-${entry.severity}`;
+
+      const row = document.createElement("div");
+      row.className = "finding-row";
+
+      const copy = document.createElement("div");
+      const title = document.createElement("strong");
+      title.className = "finding-title";
+      title.textContent = entry.title;
+      copy.appendChild(title);
+
+      if (entry.detail) {
+        const detail = document.createElement("span");
+        detail.className = "finding-detail";
+        detail.textContent = entry.detail;
+        copy.appendChild(detail);
+      }
+
+      row.appendChild(copy);
+
+      const badge = document.createElement("span");
+      badge.className = "finding-badge";
+      badge.textContent = entry.severity;
+      row.appendChild(badge);
+
+      item.appendChild(row);
+
       const meta = document.createElement("span");
       meta.textContent = entry.section;
       item.appendChild(meta);
@@ -650,13 +1016,12 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
-  function updateSummaryCards() {
-    const noteType = dom.noteType.value.trim();
-    const deskLine = getDeskLine();
-    const deck = dom.deck.value.trim();
+  function updateSummaryCards(validation, review, data) {
+    const noteType = data.noteType;
+    const deskLine = data.deskLine;
+    const deck = data.deck;
     const authorLine = buildPrimaryAuthorLine();
-    const coAuthors = getCoAuthors();
-    const validation = validateForm(false);
+    const coAuthors = data.coAuthors;
 
     dom.summaryType.textContent = strategyLabelForNoteType(noteType) || "Select a note type";
     dom.summaryTopic.textContent = deck || `${deskLine || "Set the desk line"}${dom.publicationDate.value ? ` | ${formatInputDateLabel(dom.publicationDate.value)}` : ""}`;
@@ -664,7 +1029,15 @@ document.addEventListener("DOMContentLoaded", () => {
     dom.summaryCoAuthors.textContent = coAuthors.length
       ? `${coAuthors.length} co-author${coAuthors.length > 1 ? "s" : ""} added.`
       : "No co-authors added.";
-    dom.summaryOutput.textContent = validation.valid ? "Publication package ready" : "Draft in progress";
+    if (review.blockingCount > 0) {
+      dom.summaryOutput.textContent = "Critical issues to resolve";
+    } else if (review.warningCount > 0) {
+      dom.summaryOutput.textContent = "Ready with warnings";
+    } else if (validation.valid) {
+      dom.summaryOutput.textContent = "Publication package ready";
+    } else {
+      dom.summaryOutput.textContent = "Draft in progress";
+    }
 
     const attachmentBits = [];
     const modelCount = Array.from(dom.modelFiles.files || []).length;
@@ -673,13 +1046,14 @@ document.addEventListener("DOMContentLoaded", () => {
     if (modelCount) attachmentBits.push(`${modelCount} model file${modelCount > 1 ? "s" : ""}`);
     if (imageCount) attachmentBits.push(`${imageCount} exhibit${imageCount > 1 ? "s" : ""}`);
 
+    const reviewSummary = `Pre-publish review: ${review.counts.critical} critical, ${review.counts.warning} warning${review.counts.warning === 1 ? "" : "s"}, ${review.counts.suggestion} suggestion${review.counts.suggestion === 1 ? "" : "s"}.`;
+
     dom.summaryOutputDetail.textContent = attachmentBits.length
-      ? `Support pack includes ${attachmentBits.join(", ")}.`
-      : "Word export and email payload update automatically as the note develops.";
+      ? `${reviewSummary} Support pack includes ${attachmentBits.join(", ")}.`
+      : reviewSummary;
   }
 
-  function updatePreview() {
-    const data = collectFormData();
+  function updatePreview(data) {
     dom.previewTitle.textContent = data.title || "No title yet";
     dom.previewAuthor.textContent = buildPrimaryAuthorLine() || "Primary author pending";
 
@@ -722,10 +1096,13 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   function updateAllUI() {
-    updateCompletion();
-    updateSectionPills();
-    updateSummaryCards();
-    updatePreview();
+    const validation = validateForm(false);
+    const data = collectFormData();
+    const review = buildPrePublishReview(data, validation);
+    updateCompletion(validation, review);
+    updateSectionPills(validation, review);
+    updateSummaryCards(validation, review, data);
+    updatePreview(data);
     updateUpsideDisplay();
   }
 
@@ -1606,12 +1983,34 @@ document.addEventListener("DOMContentLoaded", () => {
         }
       }
       const data = collectFormData();
+      data.noteId = buildNoteId(data);
+      const review = buildPrePublishReview(data, validateForm(false));
+
+      if (review.blockingCount > 0) {
+        const firstCritical = review.findings.find((finding) => finding.severity === "critical");
+        const focusTarget = firstCritical?.focusId ? document.getElementById(firstCritical.focusId) : null;
+        if (focusTarget) {
+          focusTarget.scrollIntoView({ behavior: "smooth", block: "center" });
+          focusTarget.focus();
+        }
+        setMessage(
+          "error",
+          `Pre-publish review found ${review.blockingCount} critical issue${review.blockingCount === 1 ? "" : "s"}. Resolve ${review.findings.filter((finding) => finding.severity === "critical").slice(0, 3).map((finding) => finding.title).join(", ")} before export.`
+        );
+        return;
+      }
+
       const documentFileName = buildDocumentFileName(data);
       const doc = await createDocument(data);
       const blob = await window.docx.Packer.toBlob(doc);
       window.saveAs(blob, documentFileName);
       saveDraft();
-      setMessage("success", `Document generated successfully as ${documentFileName}.`);
+      setMessage(
+        "success",
+        review.warningCount || review.suggestionCount
+          ? `Document generated successfully as ${documentFileName}. Note ID ${data.noteId}. Pre-publish review still shows ${review.warningCount} warning${review.warningCount === 1 ? "" : "s"} and ${review.suggestionCount} suggestion${review.suggestionCount === 1 ? "" : "s"}.`
+          : `Document generated successfully as ${documentFileName}. Note ID ${data.noteId}.`
+      );
     } catch (error) {
       console.error("Document generation failed:", error);
       setMessage("error", `Document generation failed: ${error.message}`);
@@ -1672,6 +2071,28 @@ document.addEventListener("DOMContentLoaded", () => {
     const typeSlug = slugify(data.noteType || "note");
     const dateSlug = formatDateShort(parseInputDate(data.publicationDate) || data.generatedAt || new Date());
     return `${dateSlug}_${titleSlug}_${typeSlug}.docx`;
+  }
+
+  function noteTypeCode(noteType) {
+    const map = {
+      "General Note": "GEN",
+      "Equity Research": "EQ",
+      "Macro Research": "MAC",
+      "Fixed Income Research": "FI",
+      "Commodity Insights": "COM",
+      "Commodity Research": "COM"
+    };
+
+    return map[noteType] || "RSC";
+  }
+
+  function buildNoteId(data) {
+    const publicationDate = parseInputDate(data.publicationDate) || data.generatedAt || new Date();
+    const generatedAt = data.generatedAt || new Date();
+    const hh = String(generatedAt.getHours()).padStart(2, "0");
+    const mm = String(generatedAt.getMinutes()).padStart(2, "0");
+    const ss = String(generatedAt.getSeconds()).padStart(2, "0");
+    return `CRG-${noteTypeCode(data.noteType)}-${formatDateShort(publicationDate)}-${hh}${mm}${ss}`;
   }
 
   function slugify(value) {
@@ -1817,10 +2238,10 @@ document.addEventListener("DOMContentLoaded", () => {
       documentChildren.push(buildNomuraSubhead(docxLib, colors, "Model Files"), ...supportParagraphs);
     }
 
-    return buildResearchDocumentShell(docxLib, colors, publicationDate, data.generatedAt, documentChildren);
+    return buildResearchDocumentShell(docxLib, colors, publicationDate, data.generatedAt, data.noteId, documentChildren);
   }
 
-  function buildResearchDocumentShell(docxLib, colors, publicationDate, generatedAt, children) {
+  function buildResearchDocumentShell(docxLib, colors, publicationDate, generatedAt, noteId, children) {
     return new docxLib.Document({
       styles: {
         default: {
@@ -1860,7 +2281,7 @@ document.addEventListener("DOMContentLoaded", () => {
                   },
                   spacing: { after: 40 }
                 }),
-                buildFooterMetaTable(docxLib, colors, publicationDate, generatedAt)
+                buildFooterMetaTable(docxLib, colors, publicationDate, generatedAt, noteId)
               ]
             })
           },
@@ -1940,7 +2361,7 @@ document.addEventListener("DOMContentLoaded", () => {
       }
 
       children.push(...deferredCordobaView);
-      return buildResearchDocumentShell(docxLib, colors, publicationDate, data.generatedAt, children);
+      return buildResearchDocumentShell(docxLib, colors, publicationDate, data.generatedAt, data.noteId, children);
     }
 
     if (data.imageFiles.length) {
@@ -1956,7 +2377,7 @@ document.addEventListener("DOMContentLoaded", () => {
       children.push(buildNomuraSubhead(docxLib, colors, "Model Files"), ...supportParagraphs);
     }
 
-    return buildResearchDocumentShell(docxLib, colors, publicationDate, data.generatedAt, children);
+    return buildResearchDocumentShell(docxLib, colors, publicationDate, data.generatedAt, data.noteId, children);
   }
 
   function buildEquitySecurityLine(docxLib, colors, data) {
@@ -2607,7 +3028,7 @@ document.addEventListener("DOMContentLoaded", () => {
     return strategyLabelForNoteType(noteType) || "Research Note";
   }
 
-  function buildFooterMetaTable(docxLib, colors, publicationDate, generatedAt) {
+  function buildFooterMetaTable(docxLib, colors, publicationDate, generatedAt, noteId) {
     return new docxLib.Table({
       width: { size: 100, type: docxLib.WidthType.PERCENTAGE },
       borders: {
@@ -2659,7 +3080,7 @@ document.addEventListener("DOMContentLoaded", () => {
                   alignment: docxLib.AlignmentType.CENTER,
                   children: [
                     new docxLib.TextRun({
-                      text: `Generated ${formatProductionTimestamp(generatedAt)}`,
+                      text: `${noteId ? `Note ID: ${noteId} | ` : ""}Generated ${formatProductionTimestamp(generatedAt)}`,
                       size: 12,
                       color: colors.muted,
                       font: "Arial"
