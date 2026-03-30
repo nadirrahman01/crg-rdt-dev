@@ -6,6 +6,7 @@
   <title>CRG Research Production Console</title>
   <link rel="stylesheet" href="assets/styles.css">
   <script defer src="https://cdn.jsdelivr.net/npm/chart.js@4.4.2/dist/chart.umd.min.js"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
   <script defer src="https://unpkg.com/docx@7.8.2/build/index.js"></script>
   <script defer src="https://unpkg.com/file-saver@2.0.5/dist/FileSaver.min.js"></script>
   <script defer src="assets/app.js"></script>
@@ -27,11 +28,12 @@
         <span class="header-meta-label">Current Time</span>
         <strong id="headerDateTime">--</strong>
         <span class="app-version">v.1.04</span>
+        <button type="button" class="rail-toggle" id="toggleRailBtn" aria-controls="workflowRail" aria-expanded="true">Hide Panel</button>
       </div>
     </header>
 
-    <div class="app-body">
-      <aside class="workflow-rail">
+    <div class="app-body" id="appBody">
+      <aside class="workflow-rail" id="workflowRail">
         <section class="rail-panel rail-panel-accent">
           <div class="rail-panel-head">
             <span class="rail-label">Readiness</span>
@@ -416,15 +418,7 @@
                 <textarea id="valuationSummary" name="valuationSummary" rows="8" placeholder="Summarise fair value, valuation dislocation, and the core driver of the target price."></textarea>
               </div>
 
-              <div class="field">
-                <div class="label-row">
-                  <label for="keyAssumptions">Key Assumptions</label>
-                  <span class="field-tag">Optional</span>
-                </div>
-                <textarea id="keyAssumptions" name="keyAssumptions" rows="8" placeholder="One assumption per line. For example:&#10;WACC: 8.5%&#10;Terminal growth: 2.0%&#10;EBIT margin: 28%"></textarea>
-              </div>
-
-              <div class="field">
+              <div class="field field-span-2">
                 <div class="label-row">
                   <label for="scenarioNotes">Scenario And Sensitivity Notes</label>
                   <span class="field-tag">Optional</span>
@@ -467,9 +461,11 @@
                     <div class="financial-editor-toolbar">
                       <div class="financial-editor-copy">
                         <strong>Build the forecast table directly in the note.</strong>
-                        <span>Edit period headers, line items, and values in place. Use Excel import only when it is faster.</span>
+                        <span>Edit period headers, line items, and values in place. Download the desk template when you want a cleaner Excel round-trip.</span>
                       </div>
                       <div class="financial-editor-actions">
+                        <button type="button" class="btn btn-secondary btn-xs" id="financialDownloadTemplateBtn">Download Excel Template</button>
+                        <button type="button" class="btn btn-secondary btn-xs" id="financialUploadTriggerBtn">Upload Completed Template</button>
                         <button type="button" class="btn btn-ghost btn-xs" id="financialAddColumnBtn">Add Period</button>
                         <button type="button" class="btn btn-ghost btn-xs" id="financialAddRowBtn">Add Line Item</button>
                         <button type="button" class="btn btn-ghost btn-xs" id="financialResetBtn">Reset Grid</button>
@@ -485,15 +481,16 @@
                   </div>
 
                   <textarea id="financialTableInput" name="financialTableInput" hidden></textarea>
+                  <input type="file" id="financialTemplateUpload" accept=".xlsx,.xlsm,.xls,.csv" hidden>
 
                   <details class="financial-import-panel">
-                    <summary>Import from Excel (optional)</summary>
+                    <summary>Paste from clipboard (optional)</summary>
                     <div class="financial-import-body">
                       <label for="financialTablePaste">Paste tab-, comma-, or pipe-delimited forecasts</label>
                       <textarea id="financialTablePaste" name="financialTablePaste" class="table-paste-area" rows="6" placeholder="Metric&#9;FY23A&#9;FY24F&#9;FY25F&#9;FY26F&#10;Revenue (mn)&#9;29315&#9;24773&#9;24633&#9;27762&#10;Reported net profit (mn)&#9;4479&#9;2232&#9;2035&#9;3654&#10;Normalised net profit (mn)&#9;4479&#9;2232&#9;2035&#9;3654&#10;FD norm. EPS&#9;12.60&#9;6.31&#9;5.75&#9;10.33&#10;FD norm. EPS growth (%)&#9;22.2&#9;-50.2&#9;-8.8&#9;63.7"></textarea>
                       <div class="financial-import-actions">
                         <button type="button" class="btn btn-secondary btn-xs" id="financialImportBtn">Import Table</button>
-                        <p class="field-help">Import replaces the current grid. The first column becomes the line items and the first row becomes the period headers.</p>
+                        <p class="field-help">Clipboard import replaces the current grid. The first column becomes the line items and the first row becomes the period headers.</p>
                       </div>
                     </div>
                   </details>
@@ -567,7 +564,7 @@
             </div>
           </section>
 
-          <section class="section-card section-card-output" id="section-output" data-nav="section-output">
+          <section class="section-card" id="section-output" data-nav="section-output">
             <div class="section-head">
               <div class="section-head-left">
                 <span class="section-index">06</span>
