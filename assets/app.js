@@ -928,7 +928,7 @@ document.addEventListener("DOMContentLoaded", () => {
     renderChart(chartConfig);
     await waitForChartPaint();
 
-    state.priceChartImageBytes = canvasToPngBytes(dom.priceChartCanvas);
+    state.priceChartImageBytes = await buildExportChartImageBytes(chartConfig);
 
     const closeValues = filteredSecurity.map((item) => item.close);
     const currentPrice = closeValues[closeValues.length - 1];
@@ -1264,16 +1264,7 @@ document.addEventListener("DOMContentLoaded", () => {
   function renderChart(config) {
     if (state.priceChart) state.priceChart.destroy();
 
-    const datasets = (config.datasets || []).map((dataset) => ({
-      label: dataset.label,
-      data: dataset.data,
-      borderColor: dataset.borderColor,
-      backgroundColor: dataset.backgroundColor,
-      pointRadius: 0,
-      borderWidth: 2.2,
-      tension: 0.2,
-      fill: dataset.fill === true
-    }));
+    const datasets = buildChartDatasets(config, "ui");
 
     state.priceChart = new window.Chart(dom.priceChartCanvas, {
       type: "line",
@@ -1281,52 +1272,87 @@ document.addEventListener("DOMContentLoaded", () => {
         labels: config.labels,
         datasets
       },
-      options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        interaction: {
-          mode: "index",
-          intersect: false
-        },
-        plugins: {
-          legend: {
-            display: datasets.length > 1,
-            position: "top",
-            labels: {
-              boxWidth: 10,
-              color: "#4e617d",
-              font: { family: "Aptos", size: 11 }
-            }
-          },
-          tooltip: {
-            displayColors: false,
-            backgroundColor: "#101b2f",
-            titleFont: { family: "Aptos", weight: "600" },
-            bodyFont: { family: "Aptos" }
+      options: buildChartOptions(config, datasets.length, "ui")
+    });
+  }
+
+  function buildChartDatasets(config, variant = "ui") {
+    const isExport = variant === "export";
+
+    return (config.datasets || []).map((dataset) => ({
+      label: dataset.label,
+      data: dataset.data,
+      borderColor: dataset.borderColor,
+      backgroundColor: dataset.backgroundColor,
+      pointRadius: 0,
+      borderWidth: isExport ? 4 : 2.2,
+      tension: 0.2,
+      fill: dataset.fill === true
+    }));
+  }
+
+  function buildChartOptions(config, datasetCount, variant = "ui") {
+    const isExport = variant === "export";
+    const tickFontSize = isExport ? 17 : 11;
+    const legendFontSize = isExport ? 19 : 11;
+
+    return {
+      responsive: !isExport,
+      maintainAspectRatio: false,
+      animation: isExport ? false : undefined,
+      interaction: {
+        mode: "index",
+        intersect: false
+      },
+      layout: {
+        padding: isExport ? { top: 8, right: 12, bottom: 8, left: 8 } : 0
+      },
+      plugins: {
+        legend: {
+          display: datasetCount > 1,
+          position: "top",
+          labels: {
+            boxWidth: isExport ? 18 : 10,
+            boxHeight: isExport ? 18 : 10,
+            padding: isExport ? 18 : 12,
+            color: "#4e617d",
+            font: { family: "Aptos", size: legendFontSize, weight: "600" }
           }
         },
-        scales: {
-          x: {
-            grid: { display: false },
-            ticks: {
-              maxTicksLimit: 7,
-              color: "#4e617d"
-            }
-          },
-          y: {
-            grid: { color: "rgba(15, 23, 42, 0.08)" },
-            ticks: {
-              maxTicksLimit: 6,
-              color: "#4e617d",
-              callback(value) {
-                if (config.mode === "relative") return Number(value).toFixed(0);
-                return value;
-              }
+        tooltip: {
+          displayColors: false,
+          backgroundColor: "#101b2f",
+          titleFont: { family: "Aptos", weight: "600" },
+          bodyFont: { family: "Aptos" }
+        }
+      },
+      scales: {
+        x: {
+          grid: { display: false },
+          ticks: {
+            maxTicksLimit: 7,
+            color: "#4e617d",
+            maxRotation: 0,
+            minRotation: 0,
+            padding: isExport ? 10 : 4,
+            font: { family: "Aptos", size: tickFontSize }
+          }
+        },
+        y: {
+          grid: { color: "rgba(15, 23, 42, 0.08)" },
+          ticks: {
+            maxTicksLimit: 6,
+            color: "#4e617d",
+            padding: isExport ? 10 : 4,
+            font: { family: "Aptos", size: tickFontSize },
+            callback(value) {
+              if (config.mode === "relative") return Number(value).toFixed(0);
+              return value;
             }
           }
         }
       }
-    });
+    };
   }
 
   function waitForChartPaint() {
@@ -1341,6 +1367,42 @@ document.addEventListener("DOMContentLoaded", () => {
     const dataUrl = canvas.toDataURL("image/png");
     const base64 = dataUrl.split(",")[1];
     return Uint8Array.from(window.atob(base64), (char) => char.charCodeAt(0));
+  }
+
+  async function buildExportChartImageBytes(config) {
+    const exportCanvas = document.createElement("canvas");
+    exportCanvas.width = 1560;
+    exportCanvas.height = 990;
+
+    const exportDatasets = buildChartDatasets(config, "export");
+    const exportChart = new window.Chart(exportCanvas, {
+      type: "line",
+      data: {
+        labels: config.labels,
+        datasets: exportDatasets
+      },
+      options: buildChartOptions(config, exportDatasets.length, "export")
+    });
+
+    try {
+      exportChart.update("none");
+      await waitForChartPaint();
+      paintCanvasBackground(exportCanvas, "#FFFFFF");
+      return canvasToPngBytes(exportCanvas);
+    } finally {
+      exportChart.destroy();
+    }
+  }
+
+  function paintCanvasBackground(canvas, color) {
+    const context = canvas.getContext("2d");
+    if (!context) return;
+
+    context.save();
+    context.globalCompositeOperation = "destination-over";
+    context.fillStyle = color;
+    context.fillRect(0, 0, canvas.width, canvas.height);
+    context.restore();
   }
 
   function computeDailyReturns(closes) {
