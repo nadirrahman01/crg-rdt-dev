@@ -336,16 +336,20 @@ document.addEventListener("DOMContentLoaded", () => {
     return `${now.getFullYear()}-${month}-${day}`;
   }
 
-  function defaultDeskLine(noteType) {
+  function strategyLabelForNoteType(noteType) {
     const map = {
-      "General Note": "Strategy - Global",
-      "Equity Research": "Equity Research - Global",
-      "Macro Research": "Macro Strategy - Global",
-      "Fixed Income Research": "Fixed Income - Global",
-      "Commodity Insights": "Commodities - Global"
+      "General Note": "Global Strategy",
+      "Equity Research": "Global Equity Strategy",
+      "Macro Research": "Global Macro Strategy",
+      "Fixed Income Research": "Global Fixed Income Strategy",
+      "Commodity Insights": "Global Commodities Strategy"
     };
 
     return noteType ? (map[noteType] || "Research - Global") : "";
+  }
+
+  function defaultDeskLine(noteType) {
+    return strategyLabelForNoteType(noteType);
   }
 
   function ensurePublicationDate() {
@@ -607,7 +611,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const coAuthors = getCoAuthors();
     const validation = validateForm(false);
 
-    dom.summaryType.textContent = noteType || "Select a note type";
+    dom.summaryType.textContent = strategyLabelForNoteType(noteType) || "Select a note type";
     dom.summaryTopic.textContent = deck || `${deskLine || "Set the desk line"}${dom.publicationDate.value ? ` | ${formatInputDateLabel(dom.publicationDate.value)}` : ""}`;
     dom.summaryAuthor.textContent = authorLine || "Assign primary author";
     dom.summaryCoAuthors.textContent = coAuthors.length
@@ -664,7 +668,8 @@ document.addEventListener("DOMContentLoaded", () => {
     const lastName = dom.authorLastName.value.trim();
     const firstName = dom.authorFirstName.value.trim();
     const combined = [firstName, lastName].filter(Boolean).join(" ").trim();
-    return combined;
+    if (!combined) return "";
+    return `${combined}, ${formatPhoneDisplay(dom.authorPhone.value)}`;
   }
 
   function getDeskLine() {
@@ -1308,6 +1313,8 @@ document.addEventListener("DOMContentLoaded", () => {
       muted: "5D636D",
       line: "D8DCE2",
       soft: "F5F6F8",
+      takeawayFill: "FFF3E8",
+      takeawayBorder: "E6D1B7",
       white: "FFFFFF"
     };
 
@@ -1337,8 +1344,7 @@ document.addEventListener("DOMContentLoaded", () => {
       }),
       buildNomuraTitlePanel(docxLib, colors, data, analystNames, publicationDate),
       new docxLib.Paragraph({ spacing: { after: 70 } }),
-      buildNomuraSubhead(docxLib, colors, "Key Takeaways"),
-      ...buildNomuraBulletParagraphs(docxLib, lineItems(data.keyTakeaways))
+      buildKeyTakeawaysBox(docxLib, colors, lineItems(data.keyTakeaways))
     ];
 
     if (data.noteType === "Equity Research") {
@@ -1460,15 +1466,7 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   function nomuraDisplayType(noteType) {
-    const map = {
-      "General Note": "Strategy Trade",
-      "Equity Research": "Equity Research",
-      "Macro Research": "Macro View",
-      "Fixed Income Research": "Fixed Income View",
-      "Commodity Insights": "Commodities View"
-    };
-
-    return map[noteType] || "Research Note";
+    return strategyLabelForNoteType(noteType) || "Research Note";
   }
 
   function buildFooterMetaTable(docxLib, colors, publicationDate, generatedAt) {
@@ -1572,7 +1570,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
   function formatPhoneDisplay(phone) {
     const raw = String(phone || "").trim();
-    if (!raw) return "";
+    if (!raw) return "N/A";
 
     if (raw.startsWith("+")) {
       return `+${digitsOnly(raw)}`;
@@ -1586,7 +1584,7 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     const digits = digitsOnly(raw);
-    return digits ? `+${digits}` : raw;
+    return digits ? `+${digits}` : "N/A";
   }
 
   async function buildNomuraBannerImageBytes(meta) {
@@ -1598,7 +1596,7 @@ document.addEventListener("DOMContentLoaded", () => {
     canvas.height = height;
 
     const publicationDate = meta.publicationDate || new Date();
-    const deskLine = meta.deskLine || "Research - Global";
+    const deskLine = meta.deskLine || defaultDeskLine(meta.noteType) || "Research - Global";
 
     ctx.fillStyle = "#ffffff";
     ctx.fillRect(0, 0, width, height);
@@ -1829,7 +1827,54 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
-  function buildNomuraBulletParagraphs(docxLib, items) {
+  function buildKeyTakeawaysBox(docxLib, colors, items) {
+    const cleanItems = items.length ? items : ["No key takeaways supplied."];
+
+    return new docxLib.Table({
+      width: { size: 100, type: docxLib.WidthType.PERCENTAGE },
+      borders: {
+        top: { style: docxLib.BorderStyle.NONE },
+        bottom: { style: docxLib.BorderStyle.NONE },
+        left: { style: docxLib.BorderStyle.NONE },
+        right: { style: docxLib.BorderStyle.NONE },
+        insideHorizontal: { style: docxLib.BorderStyle.NONE },
+        insideVertical: { style: docxLib.BorderStyle.NONE }
+      },
+      rows: [
+        new docxLib.TableRow({
+          children: [
+            new docxLib.TableCell({
+              shading: { fill: colors.takeawayFill },
+              margins: { top: 130, bottom: 130, left: 150, right: 150 },
+              borders: {
+                top: { color: colors.takeawayBorder, style: docxLib.BorderStyle.SINGLE, size: 5 },
+                bottom: { color: colors.takeawayBorder, style: docxLib.BorderStyle.SINGLE, size: 5 },
+                left: { color: colors.takeawayBorder, style: docxLib.BorderStyle.SINGLE, size: 5 },
+                right: { color: colors.takeawayBorder, style: docxLib.BorderStyle.SINGLE, size: 5 }
+              },
+              children: [
+                new docxLib.Paragraph({
+                  children: [
+                    new docxLib.TextRun({
+                      text: "Key Takeaways",
+                      bold: true,
+                      color: colors.red,
+                      size: 18,
+                      font: "Arial"
+                    })
+                  ],
+                  spacing: { after: 45 }
+                }),
+                ...buildNomuraBulletParagraphs(docxLib, cleanItems, 36)
+              ]
+            })
+          ]
+        })
+      ]
+    });
+  }
+
+  function buildNomuraBulletParagraphs(docxLib, items, spacingAfter = 42) {
     const cleanItems = items.length ? items : ["No key takeaways supplied."];
 
     return cleanItems.map((item) =>
@@ -1849,7 +1894,7 @@ document.addEventListener("DOMContentLoaded", () => {
             color: "1B1F24"
           })
         ],
-        spacing: { after: 42 }
+        spacing: { after: spacingAfter }
       })
     );
   }
