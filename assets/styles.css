@@ -69,7 +69,7 @@ body::before {
 
 .header-brand {
   min-width: 0;
-  width: 100%;
+  flex: 1 1 auto;
   display: flex;
   flex-direction: column;
   gap: 4px;
@@ -79,11 +79,17 @@ body::before {
   display: block;
 }
 
+.brand-topline {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
 .brand-overline,
 .section-kicker,
 .rail-label,
 .meta-label,
-.workspace-chip-label,
 .output-label,
 .rail-summary-label {
   margin: 0;
@@ -101,6 +107,19 @@ body::before {
   letter-spacing: -0.02em;
 }
 
+.app-version {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 7px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--panel-soft);
+  color: var(--ink-muted);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+}
+
 .header-copy {
   margin: 8px 0 0;
   color: var(--ink-soft);
@@ -108,6 +127,32 @@ body::before {
 
 .header-brand .header-copy:empty {
   display: none;
+}
+
+.header-meta {
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  justify-content: center;
+  gap: 4px;
+  min-width: 210px;
+  text-align: right;
+}
+
+.header-meta-label {
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--ink-muted);
+}
+
+#headerDateTime {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--navy);
+  white-space: nowrap;
 }
 
 .app-body {
@@ -298,29 +343,6 @@ body::before {
 
 .workspace {
   padding: 18px 20px 28px;
-}
-
-.workspace-strip {
-  margin-bottom: 12px;
-}
-
-.workspace-chip-group {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
-}
-
-.workspace-chip {
-  padding: 10px 12px;
-  border: 1px solid var(--line);
-  border-radius: var(--radius-md);
-  background: var(--panel);
-}
-
-.workspace-chip strong {
-  display: block;
-  margin-top: 5px;
-  font-size: 12px;
 }
 
 form {
@@ -609,10 +631,19 @@ input[type="file"]::file-selector-button {
   display: flex;
   align-items: center;
   gap: 8px;
+  flex: 0 0 auto;
 }
 
 .chart-range {
-  min-width: 88px;
+  width: 74px;
+  min-width: 74px;
+  max-width: 74px;
+  flex: 0 0 74px;
+}
+
+.chart-actions .btn {
+  min-width: 156px;
+  white-space: nowrap;
 }
 
 .chart-wrap {
@@ -859,6 +890,12 @@ code {
   .workflow-rail,
   .workspace {
     padding: 14px;
+  }
+
+  .header-meta {
+    align-items: flex-start;
+    text-align: left;
+    min-width: 0;
   }
 
   .phone-row,
