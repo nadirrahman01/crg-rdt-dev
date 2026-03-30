@@ -1330,7 +1330,7 @@ document.addEventListener("DOMContentLoaded", () => {
         children: [
           new docxLib.ImageRun({
             data: bannerBytes,
-            transformation: { width: 660, height: 112 }
+            transformation: { width: 705, height: 115 }
           })
         ],
         spacing: { after: 110 }
@@ -1432,7 +1432,7 @@ document.addEventListener("DOMContentLoaded", () => {
         {
           properties: {
             page: {
-              margin: { top: 520, right: 660, bottom: 660, left: 660 },
+              margin: { top: 520, right: 666, bottom: 660, left: 666, footer: 180 },
               pageSize: { width: 11906, height: 16838 }
             }
           },
@@ -1447,36 +1447,9 @@ document.addEventListener("DOMContentLoaded", () => {
                       size: 4
                     }
                   },
-                  spacing: { after: 25 }
+                  spacing: { after: 40 }
                 }),
-                new docxLib.Paragraph({
-                  tabStops: [
-                    { type: docxLib.TabStopType.CENTER, position: 4700 },
-                    { type: docxLib.TabStopType.RIGHT, position: 9200 }
-                  ],
-                  children: [
-                    new docxLib.TextRun({
-                      text: `Published: ${formatDocDate(publicationDate)}`,
-                      size: 12,
-                      color: colors.muted,
-                      font: "Arial"
-                    }),
-                    new docxLib.TextRun({ text: "\t" }),
-                    new docxLib.TextRun({
-                      text: `Audit: ${data.distribution} | ${nomuraDisplayType(data.noteType)} | Generated ${formatProductionTimestamp(data.generatedAt)}`,
-                      size: 12,
-                      color: colors.muted,
-                      font: "Arial"
-                    }),
-                    new docxLib.TextRun({ text: "\t" }),
-                    new docxLib.TextRun({
-                      children: ["Page ", docxLib.PageNumber.CURRENT, " of ", docxLib.PageNumber.TOTAL_PAGES],
-                      size: 12,
-                      color: colors.muted,
-                      font: "Arial"
-                    })
-                  ]
-                })
+                buildFooterMetaTable(docxLib, colors, publicationDate, data.generatedAt)
               ]
             })
           },
@@ -1496,6 +1469,98 @@ document.addEventListener("DOMContentLoaded", () => {
     };
 
     return map[noteType] || "Research Note";
+  }
+
+  function buildFooterMetaTable(docxLib, colors, publicationDate, generatedAt) {
+    return new docxLib.Table({
+      width: { size: 100, type: docxLib.WidthType.PERCENTAGE },
+      borders: {
+        top: { style: docxLib.BorderStyle.NONE },
+        bottom: { style: docxLib.BorderStyle.NONE },
+        left: { style: docxLib.BorderStyle.NONE },
+        right: { style: docxLib.BorderStyle.NONE },
+        insideHorizontal: { style: docxLib.BorderStyle.NONE },
+        insideVertical: { style: docxLib.BorderStyle.NONE }
+      },
+      rows: [
+        new docxLib.TableRow({
+          children: [
+            new docxLib.TableCell({
+              width: { size: 33.33, type: docxLib.WidthType.PERCENTAGE },
+              borders: {
+                top: { style: docxLib.BorderStyle.NONE },
+                bottom: { style: docxLib.BorderStyle.NONE },
+                left: { style: docxLib.BorderStyle.NONE },
+                right: { style: docxLib.BorderStyle.NONE }
+              },
+              margins: { top: 0, bottom: 0, left: 0, right: 0 },
+              children: [
+                new docxLib.Paragraph({
+                  alignment: docxLib.AlignmentType.LEFT,
+                  children: [
+                    new docxLib.TextRun({
+                      text: `Published: ${formatDocDate(publicationDate)}`,
+                      size: 12,
+                      color: colors.muted,
+                      font: "Arial"
+                    })
+                  ],
+                  spacing: { after: 0 }
+                })
+              ]
+            }),
+            new docxLib.TableCell({
+              width: { size: 33.34, type: docxLib.WidthType.PERCENTAGE },
+              borders: {
+                top: { style: docxLib.BorderStyle.NONE },
+                bottom: { style: docxLib.BorderStyle.NONE },
+                left: { style: docxLib.BorderStyle.NONE },
+                right: { style: docxLib.BorderStyle.NONE }
+              },
+              margins: { top: 0, bottom: 0, left: 0, right: 0 },
+              children: [
+                new docxLib.Paragraph({
+                  alignment: docxLib.AlignmentType.CENTER,
+                  children: [
+                    new docxLib.TextRun({
+                      text: `Generated ${formatProductionTimestamp(generatedAt)}`,
+                      size: 12,
+                      color: colors.muted,
+                      font: "Arial"
+                    })
+                  ],
+                  spacing: { after: 0 }
+                })
+              ]
+            }),
+            new docxLib.TableCell({
+              width: { size: 33.33, type: docxLib.WidthType.PERCENTAGE },
+              borders: {
+                top: { style: docxLib.BorderStyle.NONE },
+                bottom: { style: docxLib.BorderStyle.NONE },
+                left: { style: docxLib.BorderStyle.NONE },
+                right: { style: docxLib.BorderStyle.NONE }
+              },
+              margins: { top: 0, bottom: 0, left: 0, right: 0 },
+              children: [
+                new docxLib.Paragraph({
+                  alignment: docxLib.AlignmentType.RIGHT,
+                  children: [
+                    new docxLib.TextRun({
+                      children: ["Page ", docxLib.PageNumber.CURRENT, " of ", docxLib.PageNumber.TOTAL_PAGES],
+                      size: 12,
+                      color: colors.muted,
+                      font: "Arial"
+                    })
+                  ],
+                  spacing: { after: 0 }
+                })
+              ]
+            })
+          ]
+        })
+      ]
+    });
   }
 
   function buildDocAuthorLine(lastName, firstName, phone) {
