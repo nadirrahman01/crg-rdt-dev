@@ -3,6 +3,7 @@ console.log("CRG Research Production Console loaded");
 document.addEventListener("DOMContentLoaded", () => {
   const STORAGE_KEY = "crg-rdt-draft-v2";
   const NOTE_SEQUENCE_STORAGE_KEY = "crg-rdt-note-seq-v1";
+  const RAIL_STATE_STORAGE_KEY = "crg-rdt-rail-collapsed-v1";
   const COUNTRY_CODES = [
     { value: "44", label: "+44 UK" },
     { value: "1", label: "+1 US" },
@@ -86,6 +87,9 @@ document.addEventListener("DOMContentLoaded", () => {
 
   const dom = {
     form,
+    appBody: document.getElementById("appBody"),
+    workflowRail: document.getElementById("workflowRail"),
+    toggleRailBtn: document.getElementById("toggleRailBtn"),
     headerDateTime: document.getElementById("headerDateTime"),
     noteType: document.getElementById("noteType"),
     distribution: document.getElementById("distribution"),
@@ -124,7 +128,6 @@ document.addEventListener("DOMContentLoaded", () => {
     modelFiles: document.getElementById("modelFiles"),
     modelLink: document.getElementById("modelLink"),
     valuationSummary: document.getElementById("valuationSummary"),
-    keyAssumptions: document.getElementById("keyAssumptions"),
     scenarioNotes: document.getElementById("scenarioNotes"),
     financialTableTitle: document.getElementById("financialTableTitle"),
     financialSourceNote: document.getElementById("financialSourceNote"),
@@ -134,6 +137,9 @@ document.addEventListener("DOMContentLoaded", () => {
     financialTableInput: document.getElementById("financialTableInput"),
     financialTablePaste: document.getElementById("financialTablePaste"),
     financialImportBtn: document.getElementById("financialImportBtn"),
+    financialDownloadTemplateBtn: document.getElementById("financialDownloadTemplateBtn"),
+    financialUploadTriggerBtn: document.getElementById("financialUploadTriggerBtn"),
+    financialTemplateUpload: document.getElementById("financialTemplateUpload"),
     financialAddColumnBtn: document.getElementById("financialAddColumnBtn"),
     financialAddRowBtn: document.getElementById("financialAddRowBtn"),
     financialResetBtn: document.getElementById("financialResetBtn"),
@@ -191,6 +197,7 @@ document.addEventListener("DOMContentLoaded", () => {
       range: ""
     },
     financialTable: null,
+    railCollapsed: false,
     saveTimer: null,
     lastSavedAt: null
   };
@@ -221,7 +228,6 @@ document.addEventListener("DOMContentLoaded", () => {
     "adtUsd",
     "modelLink",
     "valuationSummary",
-    "keyAssumptions",
     "scenarioNotes",
     "financialTableTitle",
     "financialSourceNote",
@@ -237,6 +243,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
   function init() {
     startHeaderClock();
+    restoreRailState();
     wireSectionNavigation();
     wirePrimaryPhone();
     wireFormEvents();
@@ -355,9 +362,17 @@ document.addEventListener("DOMContentLoaded", () => {
     dom.financialAddRowBtn.addEventListener("click", addFinancialLineItem);
     dom.financialResetBtn.addEventListener("click", resetFinancialTableGrid);
     dom.financialImportBtn.addEventListener("click", importFinancialTableFromPaste);
+    dom.financialDownloadTemplateBtn.addEventListener("click", downloadFinancialTemplate);
+    dom.financialUploadTriggerBtn.addEventListener("click", () => {
+      if (!ensureXlsxAvailable("import the completed Excel template")) return;
+      dom.financialTemplateUpload.click();
+    });
+    dom.financialTemplateUpload.addEventListener("change", handleFinancialTemplateUpload);
 
     dom.financialTableEditor.addEventListener("input", handleFinancialGridInput);
+    dom.financialTableEditor.addEventListener("focusout", handleFinancialGridFocusOut);
     dom.financialTableEditor.addEventListener("click", handleFinancialGridClick);
+    dom.toggleRailBtn.addEventListener("click", toggleRail);
 
     dom.addCoAuthor.addEventListener("click", () => {
       addCoAuthorCard();
@@ -397,6 +412,32 @@ document.addEventListener("DOMContentLoaded", () => {
 
   function digitsOnly(value) {
     return String(value || "").replace(/\D/g, "");
+  }
+
+  function restoreRailState() {
+    try {
+      const collapsed = window.localStorage.getItem(RAIL_STATE_STORAGE_KEY) === "1";
+      applyRailState(collapsed);
+    } catch (error) {
+      applyRailState(false);
+    }
+  }
+
+  function applyRailState(collapsed) {
+    state.railCollapsed = Boolean(collapsed);
+    dom.appBody.classList.toggle("is-rail-collapsed", state.railCollapsed);
+    dom.toggleRailBtn.textContent = state.railCollapsed ? "Show Panel" : "Hide Panel";
+    dom.toggleRailBtn.setAttribute("aria-expanded", String(!state.railCollapsed));
+
+    try {
+      window.localStorage.setItem(RAIL_STATE_STORAGE_KEY, state.railCollapsed ? "1" : "0");
+    } catch (error) {
+      console.warn("Unable to persist rail state:", error);
+    }
+  }
+
+  function toggleRail() {
+    applyRailState(!state.railCollapsed);
   }
 
   function todayIsoDate() {
@@ -556,6 +597,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const publicationDate = parseInputDate(dom.publicationDate.value) || new Date();
     const rawValue = forceReset ? "" : dom.financialTableInput.value.trim();
     state.financialTable = parseFinancialTableInput(rawValue, publicationDate);
+    formatEntireFinancialTableDisplay();
     syncFinancialTableStorage();
     renderFinancialTableEditor();
 
@@ -623,7 +665,7 @@ document.addEventListener("DOMContentLoaded", () => {
           <td class="financial-grid-period-col">
             <input
               type="text"
-              class="financial-cell-input"
+              class="financial-cell-input is-${classifyFinancialMetric(row.label)}"
               value="${escapeAttribute(value)}"
               data-kind="value"
               data-row-index="${rowIndex}"
@@ -664,6 +706,32 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     syncFinancialTableStorage();
+  }
+
+  function handleFinancialGridFocusOut(event) {
+    const target = event.target;
+    if (!(target instanceof HTMLInputElement)) return;
+
+    const kind = target.getAttribute("data-kind");
+    const rowIndex = Number(target.getAttribute("data-row-index"));
+    const colIndex = Number(target.getAttribute("data-col-index"));
+
+    if (kind === "value" && Number.isInteger(rowIndex) && Number.isInteger(colIndex)) {
+      const rowLabel = state.financialTable.rows[rowIndex]?.label || "";
+      const formattedValue = formatFinancialValueForDisplay(target.value, rowLabel);
+      state.financialTable.rows[rowIndex].values[colIndex] = formattedValue;
+      target.value = formattedValue;
+      syncFinancialTableStorage();
+      return;
+    }
+
+    if (kind === "row-label" && Number.isInteger(rowIndex)) {
+      formatFinancialRowValues(rowIndex);
+      syncFinancialTableStorage();
+      renderFinancialTableEditor();
+      updateAllUI();
+      queueDraftSave();
+    }
   }
 
   function handleFinancialGridClick(event) {
@@ -744,10 +812,123 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     state.financialTable = parseFinancialTableInput(raw, parseInputDate(dom.publicationDate.value) || new Date());
+    formatEntireFinancialTableDisplay();
     syncFinancialTableStorage();
     renderFinancialTableEditor();
     updateAllUI();
     queueDraftSave();
+  }
+
+  async function downloadFinancialTemplate() {
+    if (!ensureXlsxAvailable("download the Excel template")) return;
+
+    const publicationDate = parseInputDate(dom.publicationDate.value) || new Date();
+    const matrix = pruneEmptyFinancialRows(normalizeFinancialMatrix(state.financialTable, publicationDate));
+    const workbook = buildFinancialTemplateWorkbook(matrix, {
+      title: dom.financialTableTitle.value.trim() || "Year-end 31 Dec",
+      sourceNote: dom.financialSourceNote.value.trim() || "Source: Company data, Cordoba Research Group estimates"
+    });
+    const tickerSlug = slugify(dom.ticker.value.trim() || "financial_forecast");
+    window.XLSX.writeFile(workbook, `${tickerSlug}_forecast_template.xlsx`);
+    setMessage("success", "Excel forecast template downloaded. Fill in the workbook and upload it back to replace the grid.");
+  }
+
+  async function handleFinancialTemplateUpload(event) {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    if (!ensureXlsxAvailable("import the completed Excel template")) return;
+
+    try {
+      const buffer = await file.arrayBuffer();
+      const workbook = window.XLSX.read(buffer, { type: "array", raw: false });
+      state.financialTable = readFinancialMatrixFromWorkbook(workbook, parseInputDate(dom.publicationDate.value) || new Date());
+      formatEntireFinancialTableDisplay();
+      syncFinancialTableStorage();
+      renderFinancialTableEditor();
+      updateAllUI();
+      queueDraftSave();
+      setMessage("success", `Financial forecast grid updated from ${file.name}.`);
+    } catch (error) {
+      console.error("Financial template import failed:", error);
+      setMessage("error", "The uploaded Excel template could not be parsed. Use the downloaded CRG template structure and try again.");
+    } finally {
+      event.target.value = "";
+    }
+  }
+
+  function ensureXlsxAvailable(actionLabel) {
+    if (typeof window.XLSX !== "undefined") return true;
+    setMessage("error", `The Excel workflow library is unavailable, so the tool cannot ${actionLabel} in this session.`);
+    return false;
+  }
+
+  function buildFinancialTemplateWorkbook(matrix, meta) {
+    const workbook = window.XLSX.utils.book_new();
+    const forecastSheet = window.XLSX.utils.aoa_to_sheet(financialMatrixToAoA(matrix));
+    forecastSheet["!cols"] = [
+      { wch: 30 },
+      ...matrix.headers.map(() => ({ wch: 14 }))
+    ];
+
+    const instructionsSheet = window.XLSX.utils.aoa_to_sheet([
+      ["Cordoba Research Group Financial Forecast Template"],
+      [""],
+      ["1. Update the Forecast Input sheet only."],
+      ["2. Keep the first row for period headers and the first column for line items."],
+      ["3. Use one row per metric and one column per period."],
+      ["4. Percent rows can be entered as 12.5 or 12.5%; the tool will normalize formatting."],
+      ["5. Upload the completed workbook back into the research production tool."],
+      [""],
+      [`Caption: ${meta.title}`],
+      [`Source note: ${meta.sourceNote}`]
+    ]);
+    instructionsSheet["!cols"] = [{ wch: 88 }];
+
+    window.XLSX.utils.book_append_sheet(workbook, forecastSheet, "Forecast Input");
+    window.XLSX.utils.book_append_sheet(workbook, instructionsSheet, "Instructions");
+    return workbook;
+  }
+
+  function financialMatrixToAoA(matrix) {
+    return [
+      ["Metric", ...(matrix?.headers || [])],
+      ...(matrix?.rows || []).map((row) => [
+        row.label || "",
+        ...(row.values || []).map((value) => formatFinancialValueForDisplay(value, row.label))
+      ])
+    ];
+  }
+
+  function readFinancialMatrixFromWorkbook(workbook, publicationDate) {
+    const targetSheetName = workbook.SheetNames.find((name) => /forecast/i.test(name)) || workbook.SheetNames[0];
+    const sheet = workbook.Sheets[targetSheetName];
+    const rows = window.XLSX.utils.sheet_to_json(sheet, {
+      header: 1,
+      defval: "",
+      blankrows: false,
+      raw: false
+    });
+
+    return createFinancialMatrixFromRows(rows, publicationDate);
+  }
+
+  function createFinancialMatrixFromRows(rows, publicationDate) {
+    const cleanedRows = (rows || [])
+      .map((row) => Array.isArray(row) ? row.map((cell) => String(cell ?? "").trim()) : [])
+      .filter((row) => row.some((cell) => cell));
+
+    if (!cleanedRows.length) return normalizeFinancialMatrix(null, publicationDate);
+
+    const headerRow = cleanedRows[0];
+    const headers = headerRow.slice(1, 7).filter(Boolean);
+    const bodyRows = cleanedRows
+      .slice(1)
+      .map((cells) => ({
+        label: cells[0] || "",
+        values: normalizeFinancialValues(cells.slice(1), headers.length || buildDefaultFinancialHeaders(publicationDate).length)
+      }));
+
+    return normalizeFinancialMatrix({ headers, rows: bodyRows }, publicationDate);
   }
 
   function moveFinancialColumn(fromIndex, toIndex) {
@@ -789,6 +970,87 @@ document.addEventListener("DOMContentLoaded", () => {
     const years = extractFinancialHeaderYears(headers);
     const nextYear = years.length ? Math.max(...years) + 1 : publicationDate.getFullYear() + 1;
     return `FY${String(nextYear).slice(-2)}F`;
+  }
+
+  function formatEntireFinancialTableDisplay() {
+    if (!state.financialTable) return;
+    state.financialTable.rows.forEach((row, rowIndex) => {
+      formatFinancialRowValues(rowIndex);
+    });
+  }
+
+  function formatFinancialRowValues(rowIndex) {
+    const row = state.financialTable?.rows?.[rowIndex];
+    if (!row) return;
+    row.values = row.values.map((value) => formatFinancialValueForDisplay(value, row.label));
+  }
+
+  function classifyFinancialMetric(label) {
+    const normalized = normalizeComparableText(label);
+    if (!normalized) return "numeric";
+
+    if (
+      normalized.includes("%") ||
+      /\bgrowth\b|\bmargin\b|\broe\b|\broic\b|\breturn\b|\byield\b|\bupside\b|\bdownside\b|\btax rate\b/.test(normalized)
+    ) {
+      return "percent";
+    }
+
+    if (/\beps\b/.test(normalized)) return "eps";
+
+    if (
+      normalized.includes("(x)") ||
+      /\bpe\b|\bp e\b|ev ebitda|price book|price to book|multiple|ratio\b/.test(normalized)
+    ) {
+      return "multiple";
+    }
+
+    if (
+      /\brevenue\b|\bprofit\b|\bebit\b|\bebitda\b|\bcash\b|\bdebt\b|\bcapex\b|\bfcf\b|\bdividend\b|\bbook value\b|\bassets\b|\bliabilities\b|\bnet income\b/.test(normalized)
+    ) {
+      return "monetary";
+    }
+
+    return "numeric";
+  }
+
+  function formatFinancialValueForDisplay(value, rowLabel) {
+    const text = String(value ?? "").trim();
+    if (!text || text === "-") return "";
+    if (/^(n\/a|nm|n\.m\.|na)$/i.test(text)) return text.toUpperCase();
+    if (/^[=]/.test(text)) return text;
+
+    const numericText = text.replace(/,/g, "").replace(/%/g, "").trim();
+    if (!/^-?\d*\.?\d+$/.test(numericText)) return text;
+
+    const number = Number(numericText);
+    if (!Number.isFinite(number)) return text;
+
+    const metricType = classifyFinancialMetric(rowLabel);
+    const decimalPart = numericText.includes(".") ? numericText.split(".")[1] : "";
+    const decimals = decimalPart.length;
+
+    if (metricType === "percent") {
+      return `${formatNumericForDisplay(number, decimals)}%`;
+    }
+
+    if (metricType === "monetary") {
+      return formatNumericForDisplay(number, decimals);
+    }
+
+    if (metricType === "eps" || metricType === "multiple" || metricType === "numeric") {
+      return formatNumericForDisplay(number, decimals);
+    }
+
+    return text;
+  }
+
+  function formatNumericForDisplay(number, decimals = 0) {
+    const safeDecimals = Math.min(Math.max(decimals, 0), 4);
+    return new Intl.NumberFormat("en-US", {
+      minimumFractionDigits: safeDecimals,
+      maximumFractionDigits: safeDecimals
+    }).format(number);
   }
 
   function isEquitySelected() {
@@ -2310,7 +2572,6 @@ document.addEventListener("DOMContentLoaded", () => {
       marketCapUsd: dom.marketCapUsd.value.trim(),
       adtUsd: dom.adtUsd.value.trim(),
       valuationSummary: dom.valuationSummary.value.trim(),
-      keyAssumptions: dom.keyAssumptions.value.trim(),
       scenarioNotes: dom.scenarioNotes.value.trim(),
       financialTableTitle: dom.financialTableTitle.value.trim(),
       financialSourceNote: dom.financialSourceNote.value.trim(),
@@ -2600,13 +2861,6 @@ document.addEventListener("DOMContentLoaded", () => {
       children.push(
         buildNomuraSubhead(docxLib, colors, "Valuation Summary"),
         ...buildNomuraBodyParagraphs(docxLib, data.valuationSummary)
-      );
-    }
-
-    if (data.keyAssumptions) {
-      children.push(
-        buildNomuraSubhead(docxLib, colors, "Key Assumptions"),
-        ...buildNomuraBulletParagraphs(docxLib, lineItems(data.keyAssumptions))
       );
     }
 
@@ -3138,7 +3392,7 @@ document.addEventListener("DOMContentLoaded", () => {
                   alignment: docxLib.AlignmentType.CENTER,
                   children: [
                     new docxLib.TextRun({
-                      text: formatFinancialCellForExport(value),
+                      text: formatFinancialCellForExport(value, row.label),
                       size: 11,
                       color: colors.black,
                       font: "Arial"
@@ -3347,9 +3601,9 @@ document.addEventListener("DOMContentLoaded", () => {
     );
   }
 
-  function formatFinancialCellForExport(value) {
-    const text = String(value || "").trim();
-    return text || "-";
+  function formatFinancialCellForExport(value, rowLabel) {
+    const formatted = formatFinancialValueForDisplay(value, rowLabel);
+    return formatted || "-";
   }
 
   function formatPlainMetricValue(value) {
