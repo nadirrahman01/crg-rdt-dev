@@ -416,7 +416,7 @@
                 </div>
               </div>
 
-              <div class="field">
+              <div class="field field-span-2">
                 <div class="label-row">
                   <label for="valuationSummary">Valuation Summary</label>
                   <span class="field-tag">Optional</span>
@@ -488,18 +488,6 @@
 
                   <textarea id="financialTableInput" name="financialTableInput" hidden></textarea>
                   <input type="file" id="financialTemplateUpload" accept=".xlsx,.xlsm,.xls,.csv" hidden>
-
-                  <details class="financial-import-panel">
-                    <summary>Paste from clipboard (optional)</summary>
-                    <div class="financial-import-body">
-                      <label for="financialTablePaste">Paste tab-, comma-, or pipe-delimited forecasts</label>
-                      <textarea id="financialTablePaste" name="financialTablePaste" class="table-paste-area" rows="6" placeholder="Metric&#9;FY23A&#9;FY24F&#9;FY25F&#9;FY26F&#10;Revenue (mn)&#9;29315&#9;24773&#9;24633&#9;27762&#10;Reported net profit (mn)&#9;4479&#9;2232&#9;2035&#9;3654&#10;Normalised net profit (mn)&#9;4479&#9;2232&#9;2035&#9;3654&#10;FD norm. EPS&#9;12.60&#9;6.31&#9;5.75&#9;10.33&#10;FD norm. EPS growth (%)&#9;22.2&#9;-50.2&#9;-8.8&#9;63.7"></textarea>
-                      <div class="financial-import-actions">
-                        <button type="button" class="btn btn-secondary btn-xs" id="financialImportBtn">Import Table</button>
-                        <p class="field-help">Clipboard import replaces the current grid. The first column becomes the line items and the first row becomes the period headers.</p>
-                      </div>
-                    </div>
-                  </details>
                 </div>
               </div>
             </div>
