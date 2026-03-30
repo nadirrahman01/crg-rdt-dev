@@ -3,7 +3,6 @@ console.log("CRG Research Production Console loaded");
 document.addEventListener("DOMContentLoaded", () => {
   const STORAGE_KEY = "crg-rdt-draft-v2";
   const NOTE_SEQUENCE_STORAGE_KEY = "crg-rdt-note-seq-v1";
-  const RAIL_STATE_STORAGE_KEY = "crg-rdt-rail-collapsed-v1";
   const COUNTRY_CODES = [
     { value: "44", label: "+44 UK" },
     { value: "1", label: "+1 US" },
@@ -417,12 +416,7 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   function restoreRailState() {
-    try {
-      const collapsed = window.localStorage.getItem(RAIL_STATE_STORAGE_KEY) === "1";
-      applyRailState(collapsed);
-    } catch (error) {
-      applyRailState(false);
-    }
+    applyRailState(false);
   }
 
   function applyRailState(collapsed) {
@@ -433,12 +427,6 @@ document.addEventListener("DOMContentLoaded", () => {
     dom.toggleRailText.textContent = state.railCollapsed ? "Show Workflow Panel" : "Hide Workflow Panel";
     dom.toggleRailBtn.setAttribute("aria-expanded", String(!state.railCollapsed));
     dom.toggleRailBtn.setAttribute("aria-label", state.railCollapsed ? "Show workflow side panel" : "Hide workflow side panel");
-
-    try {
-      window.localStorage.setItem(RAIL_STATE_STORAGE_KEY, state.railCollapsed ? "1" : "0");
-    } catch (error) {
-      console.warn("Unable to persist rail state:", error);
-    }
   }
 
   function toggleRail() {
