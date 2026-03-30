@@ -561,9 +561,9 @@ document.addEventListener("DOMContentLoaded", () => {
     dom.completionText.textContent = `${validation.complete} / ${validation.total} required fields complete`;
     dom.readinessPercent.textContent = `${validation.percent}%`;
     dom.noteStateChip.textContent = validation.valid ? "Ready" : validation.percent >= 55 ? "In Build" : "Draft";
-    dom.noteStateChip.style.background = validation.valid ? "rgba(37, 115, 75, 0.12)" : validation.percent >= 55 ? "rgba(204, 45, 31, 0.08)" : "rgba(109, 118, 130, 0.12)";
-    dom.noteStateChip.style.color = validation.valid ? "#25734b" : validation.percent >= 55 ? "#b62417" : "#5d6570";
-    dom.noteStateChip.style.borderColor = validation.valid ? "rgba(37, 115, 75, 0.2)" : validation.percent >= 55 ? "rgba(204, 45, 31, 0.2)" : "rgba(109, 118, 130, 0.16)";
+    dom.noteStateChip.style.background = validation.valid ? "rgba(37, 115, 75, 0.12)" : validation.percent >= 55 ? "rgba(132, 95, 15, 0.10)" : "rgba(109, 118, 130, 0.12)";
+    dom.noteStateChip.style.color = validation.valid ? "#25734b" : validation.percent >= 55 ? "#845F0F" : "#5d6570";
+    dom.noteStateChip.style.borderColor = validation.valid ? "rgba(37, 115, 75, 0.2)" : validation.percent >= 55 ? "rgba(132, 95, 15, 0.22)" : "rgba(109, 118, 130, 0.16)";
 
     const progressTrack = dom.completionBar.parentElement;
     if (progressTrack) progressTrack.setAttribute("aria-valuenow", String(validation.percent));
@@ -1300,9 +1300,9 @@ document.addEventListener("DOMContentLoaded", () => {
   async function createDocument(data) {
     const docxLib = window.docx;
     const colors = {
-      red: "CC2D1F",
-      redDark: "B62417",
-      redDeep: "9E1E15",
+      red: "845F0F",
+      redDark: "6F500D",
+      redDeep: "5D430B",
       black: "111111",
       ink: "1B1F24",
       muted: "5D636D",
@@ -1319,10 +1319,10 @@ document.addEventListener("DOMContentLoaded", () => {
     });
 
     const analystNames = [
-      buildDocAuthorLine(data.authorLastName, data.authorFirstName),
+      buildDocAuthorLine(data.authorLastName, data.authorFirstName, data.authorPhone),
       ...data.coAuthors
         .filter((coAuthor) => coAuthor.lastName || coAuthor.firstName)
-        .map((coAuthor) => buildDocAuthorLine(coAuthor.lastName, coAuthor.firstName))
+        .map((coAuthor) => buildDocAuthorLine(coAuthor.lastName, coAuthor.firstName, coAuthor.phone))
     ].filter(Boolean);
 
     const documentChildren = [
@@ -1330,14 +1330,14 @@ document.addEventListener("DOMContentLoaded", () => {
         children: [
           new docxLib.ImageRun({
             data: bannerBytes,
-            transformation: { width: 645, height: 112 }
+            transformation: { width: 660, height: 112 }
           })
         ],
         spacing: { after: 110 }
       }),
       buildNomuraTitlePanel(docxLib, colors, data, analystNames, publicationDate),
       new docxLib.Paragraph({ spacing: { after: 70 } }),
-      buildNomuraSubhead(docxLib, colors, "Idea trades:"),
+      buildNomuraSubhead(docxLib, colors, "Key Takeaways"),
       ...buildNomuraBulletParagraphs(docxLib, lineItems(data.keyTakeaways))
     ];
 
@@ -1356,58 +1356,58 @@ document.addEventListener("DOMContentLoaded", () => {
 
       if (marketRows.length) {
         documentChildren.push(
-          buildNomuraSubhead(docxLib, colors, "Market context:"),
+          buildNomuraSubhead(docxLib, colors, "Market Chart"),
           buildNomuraMetricTable(docxLib, colors, marketRows)
         );
       }
 
       if (data.valuationSummary) {
         documentChildren.push(
-          buildNomuraSubhead(docxLib, colors, "Valuation:"),
+          buildNomuraSubhead(docxLib, colors, "Valuation Summary"),
           ...buildNomuraBodyParagraphs(docxLib, data.valuationSummary)
         );
       }
 
       if (data.keyAssumptions) {
         documentChildren.push(
-          buildNomuraSubhead(docxLib, colors, "Key assumptions:"),
+          buildNomuraSubhead(docxLib, colors, "Key Assumptions"),
           ...buildNomuraBulletParagraphs(docxLib, lineItems(data.keyAssumptions))
         );
       }
 
       if (data.scenarioNotes) {
         documentChildren.push(
-          buildNomuraSubhead(docxLib, colors, "Scenario and sensitivity:"),
+          buildNomuraSubhead(docxLib, colors, "Scenario And Sensitivity Notes"),
           ...buildNomuraBodyParagraphs(docxLib, data.scenarioNotes)
         );
       }
     }
 
     documentChildren.push(
-      buildNomuraSubhead(docxLib, colors, "Why this view:"),
+      buildNomuraSubhead(docxLib, colors, "Analysis And Commentary"),
       ...buildNomuraBodyParagraphs(docxLib, data.analysis)
     );
 
     if (data.content) {
       documentChildren.push(
-        buildNomuraSubhead(docxLib, colors, "Additional detail:"),
+        buildNomuraSubhead(docxLib, colors, "Additional Detail"),
         ...buildNomuraBodyParagraphs(docxLib, data.content)
       );
     }
 
     documentChildren.push(
-      buildNomuraSubhead(docxLib, colors, "Catalysts ahead:"),
+      buildNomuraSubhead(docxLib, colors, "The Cordoba View"),
       ...buildNomuraBodyParagraphs(docxLib, data.cordobaView)
     );
 
     const exhibitParagraphs = await buildNomuraExhibitParagraphs(docxLib, colors, data);
     if (exhibitParagraphs.length) {
-      documentChildren.push(buildNomuraSubhead(docxLib, colors, "Charts and exhibits:"), ...exhibitParagraphs);
+      documentChildren.push(buildNomuraSubhead(docxLib, colors, "Figures / Screenshots"), ...exhibitParagraphs);
     }
 
     const supportParagraphs = buildSupportingMaterialParagraphs(docxLib, colors, data);
     if (supportParagraphs.length) {
-      documentChildren.push(buildNomuraSubhead(docxLib, colors, "Supporting material:"), ...supportParagraphs);
+      documentChildren.push(buildNomuraSubhead(docxLib, colors, "Model Files"), ...supportParagraphs);
     }
 
     return new docxLib.Document({
@@ -1450,10 +1450,27 @@ document.addEventListener("DOMContentLoaded", () => {
                   spacing: { after: 25 }
                 }),
                 new docxLib.Paragraph({
-                  alignment: docxLib.AlignmentType.RIGHT,
+                  tabStops: [
+                    { type: docxLib.TabStopType.CENTER, position: 4700 },
+                    { type: docxLib.TabStopType.RIGHT, position: 9200 }
+                  ],
                   children: [
                     new docxLib.TextRun({
-                      text: `Production Complete: ${formatProductionTimestamp(data.generatedAt)}`,
+                      text: `Published: ${formatDocDate(publicationDate)}`,
+                      size: 12,
+                      color: colors.muted,
+                      font: "Arial"
+                    }),
+                    new docxLib.TextRun({ text: "\t" }),
+                    new docxLib.TextRun({
+                      text: `Audit: ${data.distribution} | ${nomuraDisplayType(data.noteType)} | Generated ${formatProductionTimestamp(data.generatedAt)}`,
+                      size: 12,
+                      color: colors.muted,
+                      font: "Arial"
+                    }),
+                    new docxLib.TextRun({ text: "\t" }),
+                    new docxLib.TextRun({
+                      children: ["Page ", docxLib.PageNumber.CURRENT, " of ", docxLib.PageNumber.TOTAL_PAGES],
                       size: 12,
                       color: colors.muted,
                       font: "Arial"
@@ -1481,8 +1498,30 @@ document.addEventListener("DOMContentLoaded", () => {
     return map[noteType] || "Research Note";
   }
 
-  function buildDocAuthorLine(lastName, firstName) {
-    return [firstName, lastName].filter(Boolean).join(" ").trim();
+  function buildDocAuthorLine(lastName, firstName, phone) {
+    const name = [firstName, lastName].filter(Boolean).join(" ").trim();
+    const phoneDisplay = formatPhoneDisplay(phone);
+    if (name && phoneDisplay) return `${name}, ${phoneDisplay}`;
+    return name || phoneDisplay;
+  }
+
+  function formatPhoneDisplay(phone) {
+    const raw = String(phone || "").trim();
+    if (!raw) return "";
+
+    if (raw.startsWith("+")) {
+      return `+${digitsOnly(raw)}`;
+    }
+
+    if (raw.includes("-")) {
+      const [countryCode, nationalNumber] = raw.split("-");
+      const cc = digitsOnly(countryCode);
+      const nn = digitsOnly(nationalNumber);
+      if (cc || nn) return `+${cc}${nn}`;
+    }
+
+    const digits = digitsOnly(raw);
+    return digits ? `+${digits}` : raw;
   }
 
   async function buildNomuraBannerImageBytes(meta) {
@@ -1499,24 +1538,24 @@ document.addEventListener("DOMContentLoaded", () => {
     ctx.fillStyle = "#ffffff";
     ctx.fillRect(0, 0, width, height);
 
-    ctx.fillStyle = "#cc2d1f";
+    ctx.fillStyle = "#845F0F";
     ctx.fillRect(0, 0, width, 126);
 
-    drawBannerShape(ctx, "#ffffff", 1120, 126, 96, 0, 178, 126);
-    drawBannerShape(ctx, "rgba(255,255,255,0.18)", 1210, 126, 160, 0, 250, 126);
-    drawBannerShape(ctx, "rgba(118,0,0,0.24)", 1294, 126, 178, 0, 258, 126);
-    drawBannerShape(ctx, "rgba(118,0,0,0.16)", 1392, 126, 186, 0, 268, 126);
+    drawBannerShape(ctx, "#ffffff", 1145, 126, 104, 0, 180, 126);
+    drawBannerShape(ctx, "rgba(255,255,255,0.16)", 1238, 126, 168, 0, 255, 126);
+    drawBannerShape(ctx, "rgba(84,60,10,0.22)", 1332, 126, 188, 0, 265, 126);
+    drawBannerShape(ctx, "rgba(84,60,10,0.14)", 1434, 126, 188, 0, 265, 126);
 
     ctx.fillStyle = "#ffffff";
-    ctx.font = "700 56px Arial";
+    ctx.font = "700 42px Arial";
     ctx.textBaseline = "alphabetic";
-    ctx.fillText("CORDOBA", 54, 78);
+    ctx.fillText("CORDOBA RESEARCH GROUP", 54, 74);
 
     ctx.fillStyle = "#111111";
     ctx.font = "700 38px Arial";
     ctx.fillText(nomuraDisplayType(meta.noteType), 54, 178);
 
-    ctx.fillStyle = "#cc2d1f";
+    ctx.fillStyle = "#845F0F";
     ctx.textAlign = "right";
     ctx.font = "600 24px Arial";
     ctx.fillText("Global Markets Research", width - 46, 156);
@@ -1524,9 +1563,9 @@ document.addEventListener("DOMContentLoaded", () => {
     ctx.fillText(formatDocDate(publicationDate), width - 46, 193);
 
     const stripGradient = ctx.createLinearGradient(0, 0, width, 0);
-    stripGradient.addColorStop(0, "#b41f14");
-    stripGradient.addColorStop(0.58, "#da4638");
-    stripGradient.addColorStop(1, "#f09a91");
+    stripGradient.addColorStop(0, "#6F500D");
+    stripGradient.addColorStop(0.58, "#9C7420");
+    stripGradient.addColorStop(1, "#CBA65B");
     ctx.fillStyle = stripGradient;
     ctx.fillRect(0, 214, width, 22);
 
@@ -1553,7 +1592,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
   function buildNomuraTitlePanel(docxLib, colors, data, analystNames, publicationDate) {
     const analystDesk = data.deskLine || getDeskLine();
-    const analystNameText = analystNames.length ? analystNames.join(" | ") : "Research Analyst";
+    const analystNameLines = analystNames.length ? analystNames : ["Research Analyst"];
 
     return new docxLib.Table({
       width: { size: 100, type: docxLib.WidthType.PERCENTAGE },
@@ -1656,7 +1695,7 @@ document.addEventListener("DOMContentLoaded", () => {
                   ],
                   spacing: { after: 60 }
                 }),
-                buildAnalystNameTable(docxLib, colors, analystNameText)
+                buildAnalystNameTable(docxLib, colors, analystNameLines)
               ]
             })
           ]
@@ -1665,7 +1704,7 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
-  function buildAnalystNameTable(docxLib, colors, text) {
+  function buildAnalystNameTable(docxLib, colors, lines) {
     return new docxLib.Table({
       width: { size: 100, type: docxLib.WidthType.PERCENTAGE },
       borders: {
@@ -1689,17 +1728,19 @@ document.addEventListener("DOMContentLoaded", () => {
               },
               margins: { top: 80, bottom: 80, left: 110, right: 110 },
               children: [
-                new docxLib.Paragraph({
-                  children: [
-                    new docxLib.TextRun({
-                      text,
-                      color: colors.white,
-                      size: 14,
-                      font: "Arial"
-                    })
-                  ],
-                  spacing: { after: 10 }
-                })
+                ...lines.map((line) =>
+                  new docxLib.Paragraph({
+                    children: [
+                      new docxLib.TextRun({
+                        text: line,
+                        color: colors.white,
+                        size: 14,
+                        font: "Arial"
+                      })
+                    ],
+                    spacing: { after: 10 }
+                  })
+                )
               ]
             })
           ]
@@ -1719,7 +1760,7 @@ document.addEventListener("DOMContentLoaded", () => {
           font: "Arial"
         })
       ],
-      spacing: { before: 75, after: 28 }
+      spacing: { before: 135, after: 34 }
     });
   }
 
