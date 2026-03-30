@@ -1194,6 +1194,17 @@ document.addEventListener("DOMContentLoaded", () => {
     return String(data.priceCurrency || data.equityStats?.providerCurrency || "").trim();
   }
 
+  function formatChartRangeLabel(range) {
+    const labels = {
+      "6mo": "6M",
+      "1y": "1Y",
+      "2y": "2Y",
+      "5y": "5Y"
+    };
+
+    return labels[String(range || "").trim()] || "6M";
+  }
+
   function buildEquityChartConfig({ securitySeries, benchmarkSeries, securityLabel, benchmarkLabel }) {
     if (benchmarkSeries && benchmarkSeries.length) {
       const aligned = alignSeriesByDate(securitySeries, benchmarkSeries);
@@ -1826,6 +1837,19 @@ document.addEventListener("DOMContentLoaded", () => {
       );
     }
 
+    children.push(
+      buildKeyTakeawaysBox(docxLib, colors, lineItems(data.keyTakeaways)),
+      buildNomuraSubhead(docxLib, colors, "Analysis And Commentary"),
+      ...buildNomuraBodyParagraphs(docxLib, data.analysis)
+    );
+
+    if (data.content) {
+      children.push(
+        buildNomuraSubhead(docxLib, colors, "Additional Detail"),
+        ...buildNomuraBodyParagraphs(docxLib, data.content)
+      );
+    }
+
     if (data.cordobaView) {
       children.push(
         buildNomuraSubhead(docxLib, colors, "The Cordoba View"),
@@ -1930,7 +1954,7 @@ document.addEventListener("DOMContentLoaded", () => {
             font: "Arial"
           })
         ],
-        spacing: { before: 80, after: 65 }
+        spacing: { before: 80, after: 54 }
       }),
       new docxLib.Paragraph({
         children: [
@@ -1942,11 +1966,19 @@ document.addEventListener("DOMContentLoaded", () => {
             font: "Arial"
           })
         ],
-        spacing: { after: 70 }
+        spacing: { after: 42 }
       }),
-      ...buildEquityHighlightParagraphs(docxLib, colors, lineItems(data.keyTakeaways)),
-      ...buildEquityBodyParagraphs(docxLib, data.analysis),
-      ...(data.content ? buildEquityBodyParagraphs(docxLib, data.content) : [])
+      new docxLib.Paragraph({
+        children: [
+          new docxLib.TextRun({
+            text: data.topic || data.deskLine || "Equity Research",
+            size: 14,
+            color: colors.muted,
+            font: "Arial"
+          })
+        ],
+        spacing: { after: 0 }
+      })
     ];
 
     const rightColumnChildren = [
@@ -1969,9 +2001,9 @@ document.addEventListener("DOMContentLoaded", () => {
         new docxLib.TableRow({
           children: [
             new docxLib.TableCell({
-              width: { size: 68, type: docxLib.WidthType.PERCENTAGE },
+              width: { size: 66, type: docxLib.WidthType.PERCENTAGE },
               verticalAlign: docxLib.VerticalAlign.TOP,
-              margins: { top: 0, bottom: 0, left: 0, right: 150 },
+              margins: { top: 0, bottom: 0, left: 0, right: 170 },
               borders: {
                 top: { style: docxLib.BorderStyle.NONE },
                 bottom: { style: docxLib.BorderStyle.NONE },
@@ -1981,7 +2013,7 @@ document.addEventListener("DOMContentLoaded", () => {
               children: leftColumnChildren
             }),
             new docxLib.TableCell({
-              width: { size: 32, type: docxLib.WidthType.PERCENTAGE },
+              width: { size: 34, type: docxLib.WidthType.PERCENTAGE },
               verticalAlign: docxLib.VerticalAlign.TOP,
               margins: { top: 0, bottom: 0, left: 0, right: 0 },
               borders: {
@@ -1998,54 +2030,25 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
-  function buildEquityHighlightParagraphs(docxLib, colors, items) {
-    const lines = items.length ? items : ["No key takeaways supplied."];
-    return lines.map((item) =>
-      new docxLib.Paragraph({
-        children: [
-          new docxLib.TextRun({
-            text: item,
-            bold: true,
-            color: colors.red,
-            size: 16,
-            font: "Arial"
-          })
-        ],
-        spacing: { after: 28 }
-      })
-    );
-  }
-
-  function buildEquityBodyParagraphs(docxLib, text) {
-    const blocks = paragraphBlocks(text);
-    if (!blocks.length) return [];
-
-    return blocks.map((block) =>
-      new docxLib.Paragraph({
-        children: [
-          new docxLib.TextRun({
-            text: block.replace(/\s*\n\s*/g, " "),
-            size: 15,
-            color: "1B1F24",
-            font: "Arial"
-          })
-        ],
-        spacing: { after: 26 }
-      })
-    );
-  }
-
   function buildEquityTearSheetTable(docxLib, colors, data, publicationDate) {
     const targetPrice = parseNumber(data.targetPrice);
     const marketPrice = Number.isFinite(data.equityStats.currentPrice) ? data.equityStats.currentPrice : null;
     const upside = computeUpsideToTarget(marketPrice, targetPrice);
     const priceDate = data.equityStats.priceDate ? formatDocDate(new Date(`${data.equityStats.priceDate}T00:00:00`)) : formatDocDate(publicationDate);
     const priceCurrency = resolvePriceCurrency(data);
-    const tearSheetRows = [
+    const rangeLabel = formatChartRangeLabel(data.equityStats.range);
+    const relativeLabel = data.equityStats.chartMode === "relative" && data.equityStats.benchmarkLabel
+      ? `vs ${data.equityStats.benchmarkLabel}`
+      : "Security only";
+    const investmentRows = [
       { label: "Rating", value: data.crgRating || "N/A" },
-      { label: "Target price", value: formatPriceDisplay(targetPrice, priceCurrency) },
-      { label: "Closing price", sublabel: priceDate, value: formatPriceDisplay(marketPrice, priceCurrency) },
-      { label: "Implied upside", value: upside == null ? "N/A" : formatSignedPercent(upside) },
+      { label: "Target Price", value: formatPriceDisplay(targetPrice, priceCurrency), emphasis: true },
+      { label: "Closing Price", sublabel: priceDate, value: formatPriceDisplay(marketPrice, priceCurrency), emphasis: true },
+      { label: "Implied Upside", value: upside == null ? "N/A" : formatSignedPercent(upside), emphasis: true }
+    ];
+    const marketRows = [
+      { label: "Relative Chart", value: relativeLabel },
+      { label: "Chart Range", value: rangeLabel },
       { label: "Market Cap (USD mn)", value: formatPlainMetricValue(data.marketCapUsd) },
       { label: "ADT (USD mn)", value: formatPlainMetricValue(data.adtUsd) }
     ];
@@ -2057,15 +2060,80 @@ document.addEventListener("DOMContentLoaded", () => {
         bottom: { style: docxLib.BorderStyle.NONE },
         left: { style: docxLib.BorderStyle.NONE },
         right: { style: docxLib.BorderStyle.NONE },
-        insideHorizontal: { color: colors.line, style: docxLib.BorderStyle.SINGLE, size: 4 },
+        insideHorizontal: { style: docxLib.BorderStyle.NONE },
         insideVertical: { style: docxLib.BorderStyle.NONE }
       },
-      rows: tearSheetRows.map((row) =>
+      rows: [
         new docxLib.TableRow({
           children: [
             new docxLib.TableCell({
-              width: { size: 56, type: docxLib.WidthType.PERCENTAGE },
-              margins: { top: 55, bottom: 55, left: 0, right: 40 },
+              margins: { top: 90, bottom: 90, left: 110, right: 110 },
+              borders: {
+                top: { color: colors.line, style: docxLib.BorderStyle.SINGLE, size: 4 },
+                bottom: { color: colors.line, style: docxLib.BorderStyle.SINGLE, size: 4 },
+                left: { color: colors.line, style: docxLib.BorderStyle.SINGLE, size: 4 },
+                right: { color: colors.line, style: docxLib.BorderStyle.SINGLE, size: 4 }
+              },
+              children: [
+                new docxLib.Paragraph({
+                  children: [
+                    new docxLib.TextRun({
+                      text: "Tear Sheet",
+                      bold: true,
+                      size: 15,
+                      color: colors.black,
+                      font: "Arial"
+                    })
+                  ],
+                  spacing: { after: 24 }
+                }),
+                buildEquityTearSheetSectionLabel(docxLib, colors, "Investment View"),
+                buildEquityMetricGrid(docxLib, colors, investmentRows),
+                new docxLib.Paragraph({ spacing: { before: 48, after: 10 } }),
+                buildEquityTearSheetSectionLabel(docxLib, colors, "Market Data"),
+                buildEquityMetricGrid(docxLib, colors, marketRows)
+              ]
+            })
+          ]
+        })
+      ]
+    });
+  }
+
+  function buildEquityTearSheetSectionLabel(docxLib, colors, label) {
+    return new docxLib.Paragraph({
+      children: [
+        new docxLib.TextRun({
+          text: label.toUpperCase(),
+          bold: true,
+          size: 11,
+          color: colors.red,
+          font: "Arial"
+        })
+      ],
+      spacing: { after: 22 }
+    });
+  }
+
+  function buildEquityMetricGrid(docxLib, colors, rows) {
+    return new docxLib.Table({
+      width: { size: 100, type: docxLib.WidthType.PERCENTAGE },
+      borders: {
+        top: { style: docxLib.BorderStyle.NONE },
+        bottom: { style: docxLib.BorderStyle.NONE },
+        left: { style: docxLib.BorderStyle.NONE },
+        right: { style: docxLib.BorderStyle.NONE },
+        insideHorizontal: { color: colors.line, style: docxLib.BorderStyle.SINGLE, size: 4 },
+        insideVertical: { style: docxLib.BorderStyle.NONE }
+      },
+      rows: rows.map((row) => {
+        const emphasizeValue = row.emphasis && row.value !== "N/A";
+
+        return new docxLib.TableRow({
+          children: [
+            new docxLib.TableCell({
+              width: { size: 58, type: docxLib.WidthType.PERCENTAGE },
+              margins: { top: 65, bottom: 65, left: 0, right: 45 },
               borders: {
                 top: { style: docxLib.BorderStyle.NONE },
                 bottom: { style: docxLib.BorderStyle.NONE },
@@ -2077,19 +2145,19 @@ document.addEventListener("DOMContentLoaded", () => {
                   children: [
                     new docxLib.TextRun({
                       text: row.label,
-                      size: 12,
+                      size: 11,
                       color: colors.muted,
                       font: "Arial"
                     })
                   ],
-                  spacing: { after: row.sublabel ? 10 : 0 }
+                  spacing: { after: row.sublabel ? 8 : 0 }
                 }),
                 ...(row.sublabel
                   ? [new docxLib.Paragraph({
                     children: [
                       new docxLib.TextRun({
                         text: row.sublabel,
-                        size: 11,
+                        size: 10,
                         color: colors.muted,
                         font: "Arial"
                       })
@@ -2100,8 +2168,8 @@ document.addEventListener("DOMContentLoaded", () => {
               ]
             }),
             new docxLib.TableCell({
-              width: { size: 44, type: docxLib.WidthType.PERCENTAGE },
-              margins: { top: 55, bottom: 55, left: 40, right: 0 },
+              width: { size: 42, type: docxLib.WidthType.PERCENTAGE },
+              margins: { top: 65, bottom: 65, left: 45, right: 0 },
               borders: {
                 top: { style: docxLib.BorderStyle.NONE },
                 bottom: { style: docxLib.BorderStyle.NONE },
@@ -2115,8 +2183,8 @@ document.addEventListener("DOMContentLoaded", () => {
                     new docxLib.TextRun({
                       text: row.value,
                       bold: true,
-                      size: row.label === "Market Cap (USD mn)" || row.label === "ADT (USD mn)" ? 14 : 16,
-                      color: colors.black,
+                      size: emphasizeValue ? 17 : 14,
+                      color: emphasizeValue ? colors.redDark : colors.black,
                       font: "Arial"
                     })
                   ],
@@ -2125,8 +2193,8 @@ document.addEventListener("DOMContentLoaded", () => {
               ]
             })
           ]
-        })
-      )
+        });
+      })
     });
   }
 
@@ -2901,7 +2969,7 @@ document.addEventListener("DOMContentLoaded", () => {
           children: [
             new docxLib.TableCell({
               shading: { fill: colors.takeawayFill },
-              margins: { top: 130, bottom: 130, left: 150, right: 150 },
+              margins: { top: 108, bottom: 108, left: 135, right: 135 },
               borders: {
                 top: { color: colors.takeawayBorder, style: docxLib.BorderStyle.SINGLE, size: 5 },
                 bottom: { color: colors.takeawayBorder, style: docxLib.BorderStyle.SINGLE, size: 5 },
@@ -2919,15 +2987,39 @@ document.addEventListener("DOMContentLoaded", () => {
                       font: "Arial"
                     })
                   ],
-                  spacing: { after: 45 }
+                  spacing: { after: 36 }
                 }),
-                ...buildNomuraBulletParagraphs(docxLib, cleanItems, 36)
+                ...buildKeyTakeawayBoxParagraphs(docxLib, colors, cleanItems)
               ]
             })
           ]
         })
       ]
     });
+  }
+
+  function buildKeyTakeawayBoxParagraphs(docxLib, colors, items) {
+    return items.map((item, index) =>
+      new docxLib.Paragraph({
+        indent: { left: 120, hanging: 84 },
+        children: [
+          new docxLib.TextRun({
+            text: "• ",
+            bold: true,
+            font: "Arial",
+            size: 18,
+            color: colors.redDark
+          }),
+          new docxLib.TextRun({
+            text: item,
+            font: "Arial",
+            size: 17,
+            color: colors.ink
+          })
+        ],
+        spacing: { after: index === items.length - 1 ? 0 : 28 }
+      })
+    );
   }
 
   function buildNomuraBulletParagraphs(docxLib, items, spacingAfter = 42) {
