@@ -11,457 +11,500 @@
   <script defer src="assets/app.js"></script>
 </head>
 <body>
-  <div class="site-frame">
-    <aside class="sidebar">
-      <div class="brand-block">
-        <div class="brand-mark">CRG</div>
-        <div>
-          <p class="eyebrow">Cordoba Research Group</p>
-          <h1 class="brand-title">Research Production Console</h1>
-          <p class="brand-copy">Institutional drafting, formatting, and publication export in one workflow.</p>
-        </div>
-      </div>
-
-      <div class="rail-card">
-        <div class="rail-card-label">Readiness</div>
-        <div class="readiness-score">
-          <span id="readinessPercent">0%</span>
-          <span class="readiness-state" id="noteStateChip">Draft</span>
-        </div>
-        <p class="rail-card-copy" id="readinessCaption">Complete the core note fields to unlock publication-ready export.</p>
-        <div class="progress-track" role="progressbar" aria-label="Document readiness" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
-          <div class="progress-fill" id="completionBar"></div>
-        </div>
-        <p class="rail-meta" id="completionText">0 / 9 required fields complete</p>
-      </div>
-
-      <div class="rail-card">
-        <div class="rail-card-label">Workflow</div>
-        <nav class="section-nav" aria-label="Workflow sections">
-          <button type="button" class="section-nav-link is-active" data-target="section-note">
-            <span>Brief</span>
-            <span class="nav-pill" id="nav-note">0/4</span>
-          </button>
-          <button type="button" class="section-nav-link" data-target="section-authors">
-            <span>Authors</span>
-            <span class="nav-pill" id="nav-authors">0/2</span>
-          </button>
-          <button type="button" class="section-nav-link" data-target="section-equity">
-            <span>Equity</span>
-            <span class="nav-pill" id="nav-equity">Optional</span>
-          </button>
-          <button type="button" class="section-nav-link" data-target="section-body">
-            <span>Research</span>
-            <span class="nav-pill" id="nav-body">0/3</span>
-          </button>
-          <button type="button" class="section-nav-link" data-target="section-exhibits">
-            <span>Exhibits</span>
-            <span class="nav-pill" id="nav-exhibits">Optional</span>
-          </button>
-          <button type="button" class="section-nav-link" data-target="section-output">
-            <span>Output</span>
-            <span class="nav-pill" id="nav-output">Ready</span>
-          </button>
-        </nav>
-      </div>
-
-      <div class="rail-card">
-        <div class="rail-card-label">Missing Inputs</div>
-        <ul class="missing-list" id="missingFields">
-          <li>No blockers yet.</li>
-        </ul>
-      </div>
-
-      <div class="rail-card">
-        <div class="rail-card-label">Draft State</div>
-        <p class="rail-card-copy" id="draftStatus">Autosave idle. Drafts are stored locally in this browser.</p>
-        <p class="rail-note">Text fields and structured metadata autosave automatically. File uploads do not.</p>
-      </div>
-    </aside>
-
-    <main class="main">
-      <header class="masthead">
-        <div class="masthead-copy">
-          <p class="eyebrow">Internal Research Production Platform</p>
-          <h2>Research Document Tool</h2>
-          <p>Structured drafting for analysts, automatic institutional styling for output, and a cleaner handoff into distribution.</p>
-        </div>
-        <div class="masthead-meta">
-          <div class="meta-panel">
-            <span class="meta-label">Export file</span>
-            <span class="meta-value" id="previewFileName">crg_research_note.docx</span>
-          </div>
-          <div class="meta-panel">
-            <span class="meta-label">Rendered</span>
-            <span class="meta-value" id="renderTimestamp">Waiting for draft activity</span>
+  <div class="app-shell">
+    <header class="app-header">
+      <div class="header-brand">
+        <div class="brand-lockup">
+          <div class="brand-mark">CRG</div>
+          <div>
+            <p class="brand-overline">Cordoba Research Group</p>
+            <h1>Research Production Console</h1>
           </div>
         </div>
-      </header>
+        <p class="header-copy">Internal drafting, formatting, and Word export for institutional research production.</p>
+      </div>
 
-      <section class="summary-strip" aria-label="Draft summary">
-        <article class="summary-card">
-          <span class="summary-label">Note</span>
-          <strong class="summary-value" id="summaryType">Select a note type</strong>
-          <span class="summary-detail" id="summaryTopic">Add a topic to anchor the note.</span>
-        </article>
-        <article class="summary-card">
-          <span class="summary-label">Lead Author</span>
-          <strong class="summary-value" id="summaryAuthor">Assign primary author</strong>
-          <span class="summary-detail" id="summaryCoAuthors">No co-authors added.</span>
-        </article>
-        <article class="summary-card">
-          <span class="summary-label">Output Status</span>
-          <strong class="summary-value" id="summaryOutput">Draft in progress</strong>
-          <span class="summary-detail" id="summaryOutputDetail">Word export and email payload update automatically as the note develops.</span>
-        </article>
-      </section>
+      <div class="header-meta">
+        <div class="meta-block">
+          <span class="meta-label">Export File</span>
+          <strong class="meta-value" id="previewFileName">20260330_research_note.docx</strong>
+        </div>
+        <div class="meta-block">
+          <span class="meta-label">Render Status</span>
+          <strong class="meta-value" id="renderTimestamp">Awaiting draft input</strong>
+        </div>
+        <div class="meta-block">
+          <span class="meta-label">Draft State</span>
+          <strong class="meta-value" id="draftStatus">Autosave idle. Drafts are stored locally in this browser.</strong>
+        </div>
+      </div>
+    </header>
 
-      <form id="researchForm" novalidate>
-        <section class="section-card" id="section-note" data-nav="section-note">
-          <div class="section-head">
-            <div>
-              <p class="section-kicker">Brief Setup</p>
-              <h3 class="section-title">Define the note mandate</h3>
-              <p class="section-copy">Set the publishing frame once. The tool carries the classification, metadata, and naming conventions through export automatically.</p>
-            </div>
-            <div class="helper-card">
-              <div class="helper-card-title">Institutional default</div>
-              <p>The UI treats formatting as a system concern. Analysts only manage the research substance, metadata, and evidence.</p>
-            </div>
+    <div class="app-body">
+      <aside class="workflow-rail">
+        <section class="rail-panel rail-panel-accent">
+          <div class="rail-panel-head">
+            <span class="rail-label">Readiness</span>
+            <span class="rail-state" id="noteStateChip">Draft</span>
           </div>
+          <div class="readiness-row">
+            <strong id="readinessPercent">0%</strong>
+            <span id="completionText">0 / 11 required fields complete</span>
+          </div>
+          <div class="progress-track" role="progressbar" aria-label="Document readiness" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
+            <div class="progress-fill" id="completionBar"></div>
+          </div>
+          <p class="rail-copy" id="readinessCaption">Complete the brief, byline, and core body sections before generating the Word note.</p>
+        </section>
 
-          <div class="field-grid field-grid-2">
-            <div class="field">
-              <label for="noteType">Note Type</label>
-              <select id="noteType" name="noteType" required>
-                <option value="">Select note type...</option>
-                <option value="General Note">General Note</option>
-                <option value="Equity Research">Equity Research</option>
-                <option value="Macro Research">Macro Research</option>
-                <option value="Fixed Income Research">Fixed Income Research</option>
-                <option value="Commodity Insights">Commodity Insights</option>
-              </select>
+        <section class="rail-panel">
+          <div class="rail-panel-head">
+            <span class="rail-label">Workflow</span>
+          </div>
+          <nav class="section-nav" aria-label="Workflow sections">
+            <button type="button" class="section-nav-link is-active" data-target="section-note">
+              <span>Brief</span>
+              <span class="nav-pill" id="nav-note">0/6</span>
+            </button>
+            <button type="button" class="section-nav-link" data-target="section-authors">
+              <span>Authors</span>
+              <span class="nav-pill" id="nav-authors">0/2</span>
+            </button>
+            <button type="button" class="section-nav-link" data-target="section-equity">
+              <span>Equity</span>
+              <span class="nav-pill" id="nav-equity">Optional</span>
+            </button>
+            <button type="button" class="section-nav-link" data-target="section-body">
+              <span>Research</span>
+              <span class="nav-pill" id="nav-body">0/3</span>
+            </button>
+            <button type="button" class="section-nav-link" data-target="section-exhibits">
+              <span>Exhibits</span>
+              <span class="nav-pill" id="nav-exhibits">Optional</span>
+            </button>
+            <button type="button" class="section-nav-link" data-target="section-output">
+              <span>Output</span>
+              <span class="nav-pill" id="nav-output">Draft</span>
+            </button>
+          </nav>
+        </section>
+
+        <section class="rail-panel">
+          <div class="rail-panel-head">
+            <span class="rail-label">Current Draft</span>
+          </div>
+          <div class="rail-summary-grid">
+            <div class="rail-summary-item">
+              <span class="rail-summary-label">Note</span>
+              <strong id="summaryType">Select a note type</strong>
+              <span id="summaryTopic">Set the desk line and deck.</span>
             </div>
-
-            <div class="field">
-              <label for="distribution">Distribution</label>
-              <select id="distribution" name="distribution" required>
-                <option value="Internal Working Draft" selected>Internal Working Draft</option>
-                <option value="For Internal Review">For Internal Review</option>
-                <option value="Client-Ready Draft">Client-Ready Draft</option>
-              </select>
+            <div class="rail-summary-item">
+              <span class="rail-summary-label">Lead Analyst</span>
+              <strong id="summaryAuthor">Assign primary author</strong>
+              <span id="summaryCoAuthors">No co-authors added.</span>
             </div>
-
-            <div class="field field-span-2">
-              <label for="title">Research Title</label>
-              <input type="text" id="title" name="title" placeholder="Write the institutional title line exactly as it should appear in the note." required>
-            </div>
-
-            <div class="field field-span-2">
-              <label for="topic">Topic / Coverage Angle</label>
-              <input type="text" id="topic" name="topic" placeholder="Examples: US hyperscaler capex reset, GCC banks, European sovereign spread compression." required>
+            <div class="rail-summary-item">
+              <span class="rail-summary-label">Output Status</span>
+              <strong id="summaryOutput">Draft in progress</strong>
+              <span id="summaryOutputDetail">Word export and email drafting update continuously.</span>
             </div>
           </div>
         </section>
 
-        <section class="section-card" id="section-authors" data-nav="section-authors">
-          <div class="section-head">
-            <div>
-              <p class="section-kicker">Authors And Ownership</p>
-              <h3 class="section-title">Capture analyst attribution cleanly</h3>
-              <p class="section-copy">Author data feeds the note masthead, author lines, and email draft. Phone numbers remain optional but export in a standard international format.</p>
+        <section class="rail-panel">
+          <div class="rail-panel-head">
+            <span class="rail-label">Blocking Fields</span>
+          </div>
+          <ul class="missing-list" id="missingFields">
+            <li>No blockers yet.</li>
+          </ul>
+        </section>
+      </aside>
+
+      <main class="workspace">
+        <section class="workspace-strip" aria-label="Production context">
+          <div class="workspace-chip-group">
+            <div class="workspace-chip">
+              <span class="workspace-chip-label">Template</span>
+              <strong>Institutional Research</strong>
+            </div>
+            <div class="workspace-chip">
+              <span class="workspace-chip-label">Output</span>
+              <strong>DOCX Publication Note</strong>
+            </div>
+            <div class="workspace-chip">
+              <span class="workspace-chip-label">Analyst Workflow</span>
+              <strong>Structured Input</strong>
             </div>
           </div>
+        </section>
 
-          <div class="field-grid field-grid-2">
-            <div class="field">
-              <label for="authorLastName">Primary Author Last Name</label>
-              <input type="text" id="authorLastName" name="authorLastName" placeholder="Surname" autocomplete="family-name" required>
-            </div>
-
-            <div class="field">
-              <label for="authorFirstName">Primary Author First Name</label>
-              <input type="text" id="authorFirstName" name="authorFirstName" placeholder="Given name" autocomplete="given-name" required>
-            </div>
-
-            <div class="field field-span-2">
-              <div class="label-row">
-                <label for="authorPhoneNational">Primary Author Phone</label>
-                <span class="field-tag">Optional</span>
+        <form id="researchForm" novalidate>
+          <section class="section-card" id="section-note" data-nav="section-note">
+            <div class="section-head">
+              <div class="section-head-left">
+                <span class="section-index">01</span>
+                <div>
+                  <p class="section-kicker">Brief Setup</p>
+                  <h2 class="section-title">Define the publication frame</h2>
+                </div>
               </div>
-              <div class="phone-row">
-                <select id="authorPhoneCountry" class="phone-country" aria-label="Primary author country code">
-                  <option value="44" selected>+44 UK</option>
-                  <option value="1">+1 US</option>
-                  <option value="353">+353 IE</option>
-                  <option value="33">+33 FR</option>
-                  <option value="49">+49 DE</option>
-                  <option value="31">+31 NL</option>
-                  <option value="34">+34 ES</option>
-                  <option value="39">+39 IT</option>
-                  <option value="971">+971 AE</option>
-                  <option value="966">+966 SA</option>
-                  <option value="92">+92 PK</option>
-                  <option value="880">+880 BD</option>
-                  <option value="91">+91 IN</option>
-                  <option value="234">+234 NG</option>
-                  <option value="254">+254 KE</option>
-                  <option value="27">+27 ZA</option>
-                  <option value="995">+995 GE</option>
-                  <option value="">Other</option>
+              <p class="section-copy">Establish the note classification, page header metadata, and short-form editorial framing that will drive the final Word layout.</p>
+            </div>
+
+            <div class="field-grid field-grid-4">
+              <div class="field">
+                <label for="noteType">Note Type</label>
+                <select id="noteType" name="noteType" required>
+                  <option value="">Select note type...</option>
+                  <option value="General Note">General Note</option>
+                  <option value="Equity Research">Equity Research</option>
+                  <option value="Macro Research">Macro Research</option>
+                  <option value="Fixed Income Research">Fixed Income Research</option>
+                  <option value="Commodity Insights">Commodity Insights</option>
                 </select>
-                <input type="text" id="authorPhoneNational" class="phone-number" inputmode="numeric" autocomplete="tel-national" placeholder="National number">
               </div>
-              <input type="hidden" id="authorPhone" name="authorPhone">
-            </div>
-          </div>
 
-          <div class="subpanel">
-            <div class="subpanel-head">
-              <div>
-                <h4>Co-Authors</h4>
-                <p>Use co-author entries only where the note should print multiple analyst bylines.</p>
-              </div>
-              <button type="button" class="btn btn-secondary" id="addCoAuthor">Add Co-Author</button>
-            </div>
-            <div class="coauthors-list" id="coAuthorsList"></div>
-          </div>
-        </section>
-
-        <section class="section-card" id="section-equity" data-nav="section-equity" hidden>
-          <div class="section-head">
-            <div>
-              <p class="section-kicker">Equity Research Overlay</p>
-              <h3 class="section-title">Build the market-facing equity package</h3>
-              <p class="section-copy">When the note is equity research, the tool adds ticker intelligence, rating structure, market statistics, charting, and model support to the exported layout.</p>
-            </div>
-            <div class="helper-card helper-card-accent">
-              <div class="helper-card-title">Ticker handling</div>
-              <p>Use a Stooq-compatible symbol. Plain US tickers default to the <strong>.US</strong> suffix. UK and other exchanges should be entered explicitly, for example <strong>VOD.UK</strong>.</p>
-            </div>
-          </div>
-
-          <div class="field-grid field-grid-3">
-            <div class="field">
-              <label for="ticker">Ticker / Company</label>
-              <input type="text" id="ticker" name="ticker" placeholder="MSFT or VOD.UK" required>
-            </div>
-
-            <div class="field">
-              <label for="crgRating">CRG Rating</label>
-              <select id="crgRating" name="crgRating" required>
-                <option value="">Select rating...</option>
-                <option value="Outperform (O)">Outperform (O)</option>
-                <option value="Sector Perform (SP)">Sector Perform (SP)</option>
-                <option value="Underperform (U)">Underperform (U)</option>
-                <option value="Restricted (R)">Restricted (R)</option>
-                <option value="Not Rated (NR)">Not Rated (NR)</option>
-              </select>
-            </div>
-
-            <div class="field">
-              <label for="targetPrice">Target Price</label>
-              <input type="text" id="targetPrice" name="targetPrice" inputmode="decimal" placeholder="520.00" required>
-            </div>
-          </div>
-
-          <div class="subpanel chart-panel">
-            <div class="subpanel-head">
-              <div>
-                <h4>Market Chart</h4>
-                <p>Fetch a clean historical price chart and derived statistics for the note.</p>
-              </div>
-              <div class="chart-actions">
-                <select id="chartRange" class="chart-range" aria-label="Chart range">
-                  <option value="6mo" selected>6M</option>
-                  <option value="1y">1Y</option>
-                  <option value="2y">2Y</option>
-                  <option value="5y">5Y</option>
+              <div class="field">
+                <label for="distribution">Distribution</label>
+                <select id="distribution" name="distribution" required>
+                  <option value="Internal Working Draft" selected>Internal Working Draft</option>
+                  <option value="For Internal Review">For Internal Review</option>
+                  <option value="Client-Ready Draft">Client-Ready Draft</option>
                 </select>
-                <button type="button" class="btn btn-secondary" id="fetchPriceChart">Fetch Chart</button>
+              </div>
+
+              <div class="field">
+                <label for="publicationDate">Publication Date</label>
+                <input type="date" id="publicationDate" name="publicationDate" required>
+              </div>
+
+              <div class="field">
+                <div class="label-row">
+                  <label for="deskLine">Desk Line</label>
+                  <span class="field-tag">Auto</span>
+                </div>
+                <input type="text" id="deskLine" name="deskLine" placeholder="Foreign Exchange - Global">
+              </div>
+
+              <div class="field field-span-4">
+                <label for="title">Research Title</label>
+                <input type="text" id="title" name="title" placeholder="Enter the institutional title exactly as it should print in the note." required>
+              </div>
+
+              <div class="field field-span-4">
+                <label for="deck">Deck / Standfirst</label>
+                <textarea id="deck" name="deck" rows="3" placeholder="Write the short one- or two-line standfirst that sits directly below the title." required></textarea>
+              </div>
+
+              <div class="field field-span-4">
+                <label for="topic">Topic / Coverage Angle</label>
+                <input type="text" id="topic" name="topic" placeholder="Examples: EUR/USD, US banks, GCC real estate, EM debt, oil balances." required>
+              </div>
+            </div>
+          </section>
+
+          <section class="section-card" id="section-authors" data-nav="section-authors">
+            <div class="section-head">
+              <div class="section-head-left">
+                <span class="section-index">02</span>
+                <div>
+                  <p class="section-kicker">Byline Control</p>
+                  <h2 class="section-title">Set the research ownership</h2>
+                </div>
+              </div>
+              <p class="section-copy">Analyst details flow directly into the byline panel, distribution email, and publication metadata.</p>
+            </div>
+
+            <div class="field-grid field-grid-3">
+              <div class="field">
+                <label for="authorLastName">Primary Author Last Name</label>
+                <input type="text" id="authorLastName" name="authorLastName" placeholder="Surname" autocomplete="family-name" required>
+              </div>
+
+              <div class="field">
+                <label for="authorFirstName">Primary Author First Name</label>
+                <input type="text" id="authorFirstName" name="authorFirstName" placeholder="Given name" autocomplete="given-name" required>
+              </div>
+
+              <div class="field">
+                <div class="label-row">
+                  <label for="authorPhoneNational">Primary Author Phone</label>
+                  <span class="field-tag">Optional</span>
+                </div>
+                <div class="phone-row">
+                  <select id="authorPhoneCountry" class="phone-country" aria-label="Primary author country code">
+                    <option value="44" selected>+44 UK</option>
+                    <option value="1">+1 US</option>
+                    <option value="353">+353 IE</option>
+                    <option value="33">+33 FR</option>
+                    <option value="49">+49 DE</option>
+                    <option value="31">+31 NL</option>
+                    <option value="34">+34 ES</option>
+                    <option value="39">+39 IT</option>
+                    <option value="971">+971 AE</option>
+                    <option value="966">+966 SA</option>
+                    <option value="92">+92 PK</option>
+                    <option value="880">+880 BD</option>
+                    <option value="91">+91 IN</option>
+                    <option value="234">+234 NG</option>
+                    <option value="254">+254 KE</option>
+                    <option value="27">+27 ZA</option>
+                    <option value="995">+995 GE</option>
+                    <option value="">Other</option>
+                  </select>
+                  <input type="text" id="authorPhoneNational" class="phone-number" inputmode="numeric" autocomplete="tel-national" placeholder="National number">
+                </div>
+                <input type="hidden" id="authorPhone" name="authorPhone">
               </div>
             </div>
 
-            <p class="chart-status" id="chartStatus">No market chart fetched yet.</p>
-            <div class="chart-wrap">
-              <canvas id="priceChart" height="180"></canvas>
+            <div class="subpanel">
+              <div class="subpanel-head">
+                <div>
+                  <h3>Co-Authors</h3>
+                  <p>Add secondary authors only when the note should carry a multi-analyst byline.</p>
+                </div>
+                <button type="button" class="btn btn-secondary" id="addCoAuthor">Add Co-Author</button>
+              </div>
+              <div class="coauthors-list" id="coAuthorsList"></div>
+            </div>
+          </section>
+
+          <section class="section-card" id="section-equity" data-nav="section-equity" hidden>
+            <div class="section-head">
+              <div class="section-head-left">
+                <span class="section-index">03</span>
+                <div>
+                  <p class="section-kicker">Equity Overlay</p>
+                  <h2 class="section-title">Market data and valuation support</h2>
+                </div>
+              </div>
+              <p class="section-copy">For equity research, the export incorporates a market snapshot, rating context, price target, and attached model support.</p>
             </div>
 
-            <div class="metrics-grid">
-              <article class="metric-card">
-                <span class="metric-label">Current Price</span>
-                <strong class="metric-value" id="currentPrice">-</strong>
+            <div class="field-grid field-grid-4">
+              <div class="field">
+                <label for="ticker">Ticker / Company</label>
+                <input type="text" id="ticker" name="ticker" placeholder="MSFT or VOD.UK" required>
+              </div>
+
+              <div class="field">
+                <label for="crgRating">CRG Rating</label>
+                <select id="crgRating" name="crgRating" required>
+                  <option value="">Select rating...</option>
+                  <option value="Outperform (O)">Outperform (O)</option>
+                  <option value="Sector Perform (SP)">Sector Perform (SP)</option>
+                  <option value="Underperform (U)">Underperform (U)</option>
+                  <option value="Restricted (R)">Restricted (R)</option>
+                  <option value="Not Rated (NR)">Not Rated (NR)</option>
+                </select>
+              </div>
+
+              <div class="field">
+                <label for="targetPrice">Target Price</label>
+                <input type="text" id="targetPrice" name="targetPrice" inputmode="decimal" placeholder="520.00" required>
+              </div>
+
+              <div class="field">
+                <div class="label-row">
+                  <label for="modelLink">Model Link</label>
+                  <span class="field-tag">Optional</span>
+                </div>
+                <input type="text" id="modelLink" name="modelLink" placeholder="SharePoint, Drive, or internal repository link">
+              </div>
+            </div>
+
+            <div class="subpanel chart-panel">
+              <div class="subpanel-head">
+                <div>
+                  <h3>Market Chart</h3>
+                  <p>Fetch a historical price chart and derived market metrics for the note package.</p>
+                </div>
+                <div class="chart-actions">
+                  <select id="chartRange" class="chart-range" aria-label="Chart range">
+                    <option value="6mo" selected>6M</option>
+                    <option value="1y">1Y</option>
+                    <option value="2y">2Y</option>
+                    <option value="5y">5Y</option>
+                  </select>
+                  <button type="button" class="btn btn-secondary" id="fetchPriceChart">Fetch Chart</button>
+                </div>
+              </div>
+
+              <p class="chart-status" id="chartStatus">No market chart fetched yet.</p>
+              <div class="chart-wrap">
+                <canvas id="priceChart" height="180"></canvas>
+              </div>
+
+              <div class="metrics-grid">
+                <article class="metric-card">
+                  <span class="metric-label">Current Price</span>
+                  <strong class="metric-value" id="currentPrice">-</strong>
+                </article>
+                <article class="metric-card">
+                  <span class="metric-label">Volatility (ann.)</span>
+                  <strong class="metric-value" id="realisedVol">-</strong>
+                </article>
+                <article class="metric-card">
+                  <span class="metric-label">Return (range)</span>
+                  <strong class="metric-value" id="rangeReturn">-</strong>
+                </article>
+                <article class="metric-card">
+                  <span class="metric-label">Upside To Target</span>
+                  <strong class="metric-value" id="upsideToTarget">-</strong>
+                </article>
+              </div>
+            </div>
+
+            <div class="field-grid field-grid-2">
+              <div class="field">
+                <div class="label-row">
+                  <label for="modelFiles">Model Files</label>
+                  <span class="field-tag">Optional</span>
+                </div>
+                <input type="file" id="modelFiles" name="modelFiles" multiple accept=".xlsx,.xlsm,.xls,.csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel,application/pdf">
+                <div class="file-summary">
+                  <strong id="modelSummaryHead">No supporting files attached.</strong>
+                  <ul id="modelSummaryList" hidden></ul>
+                </div>
+              </div>
+
+              <div class="field">
+                <div class="label-row">
+                  <label for="valuationSummary">Valuation Summary</label>
+                  <span class="field-tag">Optional</span>
+                </div>
+                <textarea id="valuationSummary" name="valuationSummary" rows="8" placeholder="Summarise fair value, valuation dislocation, and the core driver of the target price."></textarea>
+              </div>
+
+              <div class="field">
+                <div class="label-row">
+                  <label for="keyAssumptions">Key Assumptions</label>
+                  <span class="field-tag">Optional</span>
+                </div>
+                <textarea id="keyAssumptions" name="keyAssumptions" rows="8" placeholder="One assumption per line. For example:&#10;WACC: 8.5%&#10;Terminal growth: 2.0%&#10;EBIT margin: 28%"></textarea>
+              </div>
+
+              <div class="field">
+                <div class="label-row">
+                  <label for="scenarioNotes">Scenario And Sensitivity Notes</label>
+                  <span class="field-tag">Optional</span>
+                </div>
+                <textarea id="scenarioNotes" name="scenarioNotes" rows="8" placeholder="Document the bear/base/bull framing, sensitivities, and what would invalidate the view."></textarea>
+              </div>
+            </div>
+          </section>
+
+          <section class="section-card" id="section-body" data-nav="section-body">
+            <div class="section-head">
+              <div class="section-head-left">
+                <span class="section-index">04</span>
+                <div>
+                  <p class="section-kicker">Research Body</p>
+                  <h2 class="section-title">Write the note substance</h2>
+                </div>
+              </div>
+              <p class="section-copy">The production tool handles typography, layout density, and page rhythm. Analysts only need to supply the research itself.</p>
+            </div>
+
+            <div class="field-grid field-grid-1">
+              <div class="field">
+                <label for="keyTakeaways">Key Takeaways</label>
+                <textarea id="keyTakeaways" name="keyTakeaways" rows="7" placeholder="Write one bullet or one trade line per row." required></textarea>
+              </div>
+
+              <div class="field">
+                <label for="analysis">Analysis And Commentary</label>
+                <textarea id="analysis" name="analysis" rows="12" placeholder="Write the main body of the research note here." required></textarea>
+              </div>
+
+              <div class="field">
+                <div class="label-row">
+                  <label for="content">Additional Detail</label>
+                  <span class="field-tag">Optional</span>
+                </div>
+                <textarea id="content" name="content" rows="8" placeholder="Use this for supporting detail, background, or supplementary commentary."></textarea>
+              </div>
+
+              <div class="field">
+                <label for="cordobaView">The Cordoba View</label>
+                <textarea id="cordobaView" name="cordobaView" rows="7" placeholder="State the house view, recommendation, or synthesis clearly." required></textarea>
+              </div>
+            </div>
+          </section>
+
+          <section class="section-card" id="section-exhibits" data-nav="section-exhibits">
+            <div class="section-head">
+              <div class="section-head-left">
+                <span class="section-index">05</span>
+                <div>
+                  <p class="section-kicker">Exhibits</p>
+                  <h2 class="section-title">Attach supporting figures</h2>
+                </div>
+              </div>
+              <p class="section-copy">Image filenames become captions in the exported note, so name exhibits carefully before attaching them.</p>
+            </div>
+
+            <div class="field-grid field-grid-1">
+              <div class="field">
+                <div class="label-row">
+                  <label for="imageUpload">Figures / Screenshots</label>
+                  <span class="field-tag">Optional</span>
+                </div>
+                <input type="file" id="imageUpload" name="imageUpload" multiple accept="image/*">
+                <div class="file-summary">
+                  <strong id="imageSummaryHead">No figures attached.</strong>
+                  <ul id="imageSummaryList" hidden></ul>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <section class="section-card section-card-output" id="section-output" data-nav="section-output">
+            <div class="section-head">
+              <div class="section-head-left">
+                <span class="section-index">06</span>
+                <div>
+                  <p class="section-kicker">Output</p>
+                  <h2 class="section-title">Review the production package</h2>
+                </div>
+              </div>
+              <p class="section-copy">The output preview updates as the note develops. Generate the Word document when the draft is structurally complete.</p>
+            </div>
+
+            <div class="output-grid">
+              <article class="output-card">
+                <span class="output-label">Title Line</span>
+                <strong class="output-value" id="previewTitle">No title yet</strong>
               </article>
-              <article class="metric-card">
-                <span class="metric-label">Volatility (ann.)</span>
-                <strong class="metric-value" id="realisedVol">-</strong>
+              <article class="output-card">
+                <span class="output-label">Author Line</span>
+                <strong class="output-value" id="previewAuthor">Primary author pending</strong>
               </article>
-              <article class="metric-card">
-                <span class="metric-label">Return (range)</span>
-                <strong class="metric-value" id="rangeReturn">-</strong>
+              <article class="output-card">
+                <span class="output-label">Coverage</span>
+                <strong class="output-value" id="previewCoverage">Desk line not set</strong>
               </article>
-              <article class="metric-card">
-                <span class="metric-label">Upside To Target</span>
-                <strong class="metric-value" id="upsideToTarget">-</strong>
+              <article class="output-card">
+                <span class="output-label">Support Pack</span>
+                <strong class="output-value" id="previewSupport">No attachments yet</strong>
               </article>
             </div>
-          </div>
 
-          <div class="field-grid field-grid-2">
-            <div class="field">
-              <div class="label-row">
-                <label for="modelFiles">Model Files</label>
-                <span class="field-tag">Optional</span>
-              </div>
-              <input type="file" id="modelFiles" name="modelFiles" multiple accept=".xlsx,.xlsm,.xls,.csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel,application/pdf">
-              <div class="file-summary" id="modelSummary">
-                <strong id="modelSummaryHead">No supporting files attached.</strong>
-                <ul id="modelSummaryList" hidden></ul>
-              </div>
+            <div class="action-tray">
+              <button type="submit" class="btn btn-primary" id="generateDocBtn">Generate Word Document</button>
+              <button type="button" class="btn btn-secondary" id="emailToCrgBtn">Draft Email To Research</button>
+              <button type="button" class="btn btn-ghost" id="resetFormBtn">Reset Draft</button>
             </div>
+            <p class="actions-note">Email drafting opens the default mail client with metadata filled in. Attach the generated <code>.docx</code> manually before sending.</p>
+          </section>
+        </form>
 
-            <div class="field">
-              <div class="label-row">
-                <label for="modelLink">Model Link</label>
-                <span class="field-tag">Optional</span>
-              </div>
-              <input type="text" id="modelLink" name="modelLink" placeholder="Drive, SharePoint, or internal repository link">
-            </div>
-
-            <div class="field field-span-2">
-              <div class="label-row">
-                <label for="valuationSummary">Valuation Summary</label>
-                <span class="field-tag">Optional</span>
-              </div>
-              <textarea id="valuationSummary" name="valuationSummary" rows="6" placeholder="Summarise fair value, current valuation dislocation, and the primary driver of the price target."></textarea>
-            </div>
-
-            <div class="field">
-              <div class="label-row">
-                <label for="keyAssumptions">Key Assumptions</label>
-                <span class="field-tag">Optional</span>
-              </div>
-              <textarea id="keyAssumptions" name="keyAssumptions" rows="8" placeholder="One assumption per line. For example:&#10;WACC: 8.5%&#10;Terminal growth: 2.0%&#10;EBIT margin: 28%"></textarea>
-            </div>
-
-            <div class="field">
-              <div class="label-row">
-                <label for="scenarioNotes">Scenario And Sensitivity Notes</label>
-                <span class="field-tag">Optional</span>
-              </div>
-              <textarea id="scenarioNotes" name="scenarioNotes" rows="8" placeholder="Document the bear/base/bull framing, major sensitivities, and what would invalidate the thesis."></textarea>
-            </div>
-          </div>
-        </section>
-
-        <section class="section-card" id="section-body" data-nav="section-body">
-          <div class="section-head">
-            <div>
-              <p class="section-kicker">Research Narrative</p>
-              <h3 class="section-title">Write the substance of the note</h3>
-              <p class="section-copy">The editor stays structured so the document can be formatted consistently. The exported Word file converts this content into a house-style research note automatically.</p>
-            </div>
-          </div>
-
-          <div class="field-grid field-grid-1">
-            <div class="field">
-              <label for="keyTakeaways">Executive Summary / Key Takeaways</label>
-              <textarea id="keyTakeaways" name="keyTakeaways" rows="7" placeholder="Write one takeaway per line. Bullets are generated automatically in the export." required></textarea>
-            </div>
-
-            <div class="field">
-              <label for="analysis">Analysis And Commentary</label>
-              <textarea id="analysis" name="analysis" rows="12" placeholder="Write the main body of the research note here." required></textarea>
-            </div>
-
-            <div class="field">
-              <div class="label-row">
-                <label for="content">Supplementary Analysis</label>
-                <span class="field-tag">Optional</span>
-              </div>
-              <textarea id="content" name="content" rows="9" placeholder="Use this for supporting detail, channel checks, additional background, or appendable commentary."></textarea>
-            </div>
-
-            <div class="field">
-              <label for="cordobaView">The Cordoba View</label>
-              <textarea id="cordobaView" name="cordobaView" rows="7" placeholder="State the house view, recommendation, or synthesis clearly." required></textarea>
-            </div>
-          </div>
-        </section>
-
-        <section class="section-card" id="section-exhibits" data-nav="section-exhibits">
-          <div class="section-head">
-            <div>
-              <p class="section-kicker">Exhibits And Evidence</p>
-              <h3 class="section-title">Attach charts, screenshots, and support materials</h3>
-              <p class="section-copy">Uploaded image filenames become figure captions in the Word output, so name exhibits deliberately before attaching them.</p>
-            </div>
-            <div class="helper-card">
-              <div class="helper-card-title">Best practice</div>
-              <p>For model-backed work, add screenshots of the key tabs or outputs even if the underlying spreadsheet is attached separately.</p>
-            </div>
-          </div>
-
-          <div class="field-grid field-grid-1">
-            <div class="field">
-              <div class="label-row">
-                <label for="imageUpload">Figures / Screenshots</label>
-                <span class="field-tag">Optional</span>
-              </div>
-              <input type="file" id="imageUpload" name="imageUpload" multiple accept="image/*">
-              <div class="file-summary" id="imageSummary">
-                <strong id="imageSummaryHead">No figures attached.</strong>
-                <ul id="imageSummaryList" hidden></ul>
-              </div>
-            </div>
-          </div>
-        </section>
-
-        <section class="section-card" id="section-output" data-nav="section-output">
-          <div class="section-head">
-            <div>
-              <p class="section-kicker">Output And Distribution</p>
-              <h3 class="section-title">Review the production package</h3>
-              <p class="section-copy">The export preview updates continuously. Generate the Word note when the brief is complete, then open a prefilled distribution email if needed.</p>
-            </div>
-          </div>
-
-          <div class="output-grid">
-            <div class="output-card">
-              <span class="output-label">Title Line</span>
-              <strong class="output-value" id="previewTitle">No title yet</strong>
-            </div>
-            <div class="output-card">
-              <span class="output-label">Author Line</span>
-              <strong class="output-value" id="previewAuthor">Primary author pending</strong>
-            </div>
-            <div class="output-card">
-              <span class="output-label">Coverage</span>
-              <strong class="output-value" id="previewCoverage">Note structure not set</strong>
-            </div>
-            <div class="output-card">
-              <span class="output-label">Support Pack</span>
-              <strong class="output-value" id="previewSupport">No attachments yet</strong>
-            </div>
-          </div>
-
-          <div class="actions-row">
-            <button type="submit" class="btn btn-primary" id="generateDocBtn">Generate Word Document</button>
-            <button type="button" class="btn btn-secondary" id="emailToCrgBtn">Draft Email To Research</button>
-            <button type="button" class="btn btn-ghost" id="resetFormBtn">Reset Draft</button>
-          </div>
-
-          <p class="actions-note">Email drafting opens the default mail client with metadata filled in. Attach the generated <code>.docx</code> manually before sending.</p>
-        </section>
-      </form>
-
-      <div class="message" id="message" aria-live="polite"></div>
-
-      <footer class="page-footer">
-        <span>RDT rebuilt for institutional research production.</span>
-        <span>Internal use only. Verify all tickers, figures, and assumptions before circulation.</span>
-      </footer>
-    </main>
+        <div class="message" id="message" aria-live="polite"></div>
+      </main>
+    </div>
   </div>
 </body>
 </html>
