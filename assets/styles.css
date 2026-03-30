@@ -150,22 +150,6 @@ body::before {
   white-space: nowrap;
 }
 
-.rail-toggle {
-  margin-top: 2px;
-  padding: 0;
-  border: 0;
-  background: transparent;
-  color: var(--ink-soft);
-  font: inherit;
-  font-size: 12px;
-  font-weight: 600;
-  cursor: pointer;
-}
-
-.rail-toggle:hover {
-  color: var(--navy);
-}
-
 .app-body {
   display: grid;
   grid-template-columns: 300px minmax(0, 1fr);
@@ -176,6 +160,52 @@ body::before {
 
 .app-body.is-rail-collapsed {
   grid-template-columns: 0 minmax(0, 1fr);
+}
+
+.body-toolbar {
+  grid-column: 1 / -1;
+  display: flex;
+  justify-content: flex-start;
+  padding: 12px 18px 0;
+}
+
+.rail-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: rgba(255, 255, 255, 0.96);
+  color: var(--navy);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: border-color 120ms ease, background 120ms ease, color 120ms ease;
+}
+
+.rail-toggle:hover {
+  border-color: var(--line-strong);
+  background: #fff;
+}
+
+.rail-toggle-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 12px;
+  color: var(--ink-muted);
+  font-size: 13px;
+  line-height: 1;
+}
+
+.rail-toggle-text {
+  white-space: nowrap;
+}
+
+.app-body.is-rail-collapsed .rail-toggle {
+  background: #fff;
 }
 
 .workflow-rail {
@@ -1164,6 +1194,10 @@ code {
   .workflow-rail,
   .workspace {
     padding: 14px;
+  }
+
+  .body-toolbar {
+    padding: 10px 14px 0;
   }
 
   .header-meta {
