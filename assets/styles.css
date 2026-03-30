@@ -429,6 +429,10 @@ form {
   grid-column: span 4;
 }
 
+.field-span-2 {
+  grid-column: span 2;
+}
+
 label {
   font-size: 12px;
   font-weight: 700;
@@ -474,6 +478,13 @@ textarea {
   min-height: 112px;
   resize: vertical;
   line-height: 1.5;
+}
+
+.table-paste-area {
+  min-height: 220px;
+  font-family: "SFMono-Regular", "Cascadia Code", "Consolas", monospace;
+  font-size: 12px;
+  line-height: 1.45;
 }
 
 select {
@@ -565,6 +576,12 @@ input[type="file"]::file-selector-button {
 .actions-note {
   margin: 4px 0 0;
   color: var(--ink-soft);
+}
+
+.field-help {
+  margin: 2px 0 0;
+  color: var(--ink-soft);
+  font-size: 12px;
 }
 
 .coauthors-list {
@@ -829,6 +846,10 @@ code {
   }
 
   .field-span-4 {
+    grid-column: span 1;
+  }
+
+  .field-span-2 {
     grid-column: span 1;
   }
 }
