@@ -1802,7 +1802,6 @@ document.addEventListener("DOMContentLoaded", () => {
       buildEquitySecurityLine(docxLib, colors, data),
       buildEquitySectorStrip(docxLib, colors, data),
       buildEquityFrontPageTable(docxLib, colors, data, publicationDate, analystNames),
-      buildKeyTakeawaysBox(docxLib, colors, lineItems(data.keyTakeaways)),
       ...buildEquityFinancialTable(docxLib, colors, data, publicationDate)
     ];
 
@@ -1982,8 +1981,9 @@ document.addEventListener("DOMContentLoaded", () => {
             font: "Arial"
           })
         ],
-        spacing: { after: 0 }
-      })
+        spacing: { after: 46 }
+      }),
+      buildKeyTakeawaysBox(docxLib, colors, lineItems(data.keyTakeaways))
     ];
 
     const rightColumnChildren = [
