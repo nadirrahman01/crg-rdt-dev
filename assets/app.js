@@ -341,6 +341,14 @@ document.addEventListener("DOMContentLoaded", () => {
       queueDraftSave();
     });
 
+    dom.equityCompanyName.addEventListener("input", () => {
+      dom.equityCompanyName.dataset.autofill = "false";
+    });
+
+    dom.priceCurrency.addEventListener("input", () => {
+      dom.priceCurrency.dataset.autofill = "false";
+    });
+
     dom.targetPrice.addEventListener("input", () => {
       updateUpsideDisplay();
       updateAllUI();
@@ -1648,6 +1656,8 @@ document.addEventListener("DOMContentLoaded", () => {
       (payload.coAuthors || []).forEach((coAuthor) => addCoAuthorCard(coAuthor));
       state.lastSavedAt = payload.savedAt || null;
       dom.deskLine.dataset.autofill = "true";
+      dom.equityCompanyName.dataset.autofill = dom.equityCompanyName.value.trim() ? "false" : "true";
+      dom.priceCurrency.dataset.autofill = dom.priceCurrency.value.trim() ? "false" : "true";
       ensureDeskLineDefault(true);
     } catch (error) {
       console.error("Draft restore failed:", error);
@@ -1663,6 +1673,8 @@ document.addEventListener("DOMContentLoaded", () => {
     state.coAuthorCount = 0;
     state.lastSavedAt = null;
     syncPrimaryPhone();
+    dom.equityCompanyName.dataset.autofill = "true";
+    dom.priceCurrency.dataset.autofill = "true";
     resetChartState({ keepStatusText: false });
     window.localStorage.removeItem(STORAGE_KEY);
     ensurePublicationDate();
@@ -1795,6 +1807,9 @@ document.addEventListener("DOMContentLoaded", () => {
       throw new Error("Not enough price history returned for the selected range.");
     }
 
+    const resolvedProfile = await resolveMarketSecurityProfile(symbol, securityResult.meta);
+    applyResolvedSecurityProfile(resolvedProfile);
+
     let filteredBenchmark = null;
     let benchmarkNotice = "";
 
@@ -1837,7 +1852,7 @@ document.addEventListener("DOMContentLoaded", () => {
       rangeReturn,
       realisedVolAnn,
       priceDate,
-      providerCurrency: normalizeMarketCurrency(securityResult.meta.currency),
+      providerCurrency: normalizeMarketCurrency(resolvedProfile.currency || securityResult.meta.currency),
       benchmarkLabel: chartConfig.mode === "relative" ? benchmarkLabel : "",
       chartMode: chartConfig.mode,
       symbol,
@@ -1955,6 +1970,90 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     throw lastError;
+  }
+
+  async function resolveMarketSecurityProfile(symbol, chartMeta = {}) {
+    const baseProfile = buildMarketSecurityProfile(chartMeta, symbol);
+    const needsQuoteLookup = !baseProfile.companyName || !baseProfile.currency || !baseProfile.exchangeName;
+
+    if (!needsQuoteLookup) return baseProfile;
+
+    try {
+      const quoteProfile = await fetchMarketQuoteProfile(symbol);
+      return {
+        companyName: quoteProfile.companyName || baseProfile.companyName,
+        exchangeName: quoteProfile.exchangeName || baseProfile.exchangeName,
+        currency: quoteProfile.currency || baseProfile.currency
+      };
+    } catch (error) {
+      console.warn(`Unable to resolve quote profile for ${symbol}:`, error);
+      return baseProfile;
+    }
+  }
+
+  function buildMarketSecurityProfile(meta = {}, fallbackSymbol = "") {
+    return {
+      companyName: String(meta.longName || meta.shortName || meta.displayName || "").trim(),
+      exchangeName: String(meta.fullExchangeName || meta.exchangeName || meta.exchange || "").trim(),
+      currency: normalizeMarketCurrency(meta.currency || ""),
+      symbol: String(meta.symbol || fallbackSymbol || "").trim()
+    };
+  }
+
+  async function fetchMarketQuoteProfile(symbol) {
+    const requestPaths = [
+      `https://query1.finance.yahoo.com/v7/finance/quote?symbols=${encodeURIComponent(symbol)}`,
+      `https://query2.finance.yahoo.com/v7/finance/quote?symbols=${encodeURIComponent(symbol)}`,
+      `https://r.jina.ai/http://query1.finance.yahoo.com/v7/finance/quote?symbols=${encodeURIComponent(symbol)}`,
+      `https://r.jina.ai/http://query2.finance.yahoo.com/v7/finance/quote?symbols=${encodeURIComponent(symbol)}`
+    ];
+
+    let lastError = new Error(`Quote profile request failed for ${symbol.toUpperCase()}.`);
+
+    for (const url of requestPaths) {
+      try {
+        const response = await fetchWithTimeout(url, {
+          cache: "no-store",
+          headers: {
+            Accept: "application/json, text/plain;q=0.9, */*;q=0.8"
+          }
+        }, 12000);
+
+        if (!response.ok) throw new Error(`Quote profile request returned ${response.status}.`);
+
+        const rawText = await response.text();
+        return parseYahooQuoteResponse(rawText, symbol);
+      } catch (error) {
+        lastError = error;
+      }
+    }
+
+    throw lastError;
+  }
+
+  function parseYahooQuoteResponse(rawText, symbol) {
+    const payloadText = extractJsonObject(rawText);
+    if (!payloadText) {
+      throw new Error("The quote profile feed returned an unexpected response.");
+    }
+
+    let payload = null;
+    try {
+      payload = JSON.parse(payloadText);
+    } catch (error) {
+      throw new Error("The quote profile feed returned malformed JSON.");
+    }
+
+    const quote = payload?.quoteResponse?.result?.[0];
+    if (!quote) {
+      throw new Error(`No quote profile was found for ${symbol.toUpperCase()}.`);
+    }
+
+    return {
+      companyName: String(quote.longName || quote.shortName || quote.displayName || "").trim(),
+      exchangeName: String(quote.fullExchangeName || quote.exchange || quote.exchangeName || "").trim(),
+      currency: normalizeMarketCurrency(quote.currency || "")
+    };
   }
 
   function parseYahooChartResponse(rawText, symbol) {
@@ -2082,6 +2181,40 @@ document.addEventListener("DOMContentLoaded", () => {
     };
 
     return currencyMap[normalized] || normalized;
+  }
+
+  function canAutoFillField(input) {
+    if (!input) return false;
+    const currentValue = input.value.trim();
+    if (!currentValue) return true;
+    return input.dataset.autofill === "true";
+  }
+
+  function setAutoFilledField(input, value) {
+    const resolvedValue = String(value || "").trim();
+    if (!input || !resolvedValue || !canAutoFillField(input)) return false;
+
+    const changed = input.value !== resolvedValue;
+    input.value = resolvedValue;
+    input.dataset.autofill = "true";
+    return changed;
+  }
+
+  function applyResolvedSecurityProfile(profile = {}) {
+    let changed = false;
+
+    if (profile.companyName) {
+      changed = setAutoFilledField(dom.equityCompanyName, profile.companyName) || changed;
+    }
+
+    if (profile.currency) {
+      changed = setAutoFilledField(dom.priceCurrency, profile.currency) || changed;
+    }
+
+    if (changed) {
+      updateAllUI();
+      queueDraftSave();
+    }
   }
 
   function resolvePriceCurrency(data) {
