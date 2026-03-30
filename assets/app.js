@@ -26,6 +26,8 @@ document.addEventListener("DOMContentLoaded", () => {
   const FIELD_LABELS = {
     noteType: "Note type",
     distribution: "Distribution",
+    publicationDate: "Publication date",
+    deck: "Deck / standfirst",
     title: "Research title",
     topic: "Topic / coverage angle",
     authorLastName: "Primary author last name",
@@ -41,6 +43,8 @@ document.addEventListener("DOMContentLoaded", () => {
   const FIELD_SECTION = {
     noteType: "Brief",
     distribution: "Brief",
+    publicationDate: "Brief",
+    deck: "Brief",
     title: "Brief",
     topic: "Brief",
     authorLastName: "Authors",
@@ -56,7 +60,9 @@ document.addEventListener("DOMContentLoaded", () => {
   const BASE_REQUIRED_IDS = [
     "noteType",
     "distribution",
+    "publicationDate",
     "title",
+    "deck",
     "topic",
     "authorLastName",
     "authorFirstName",
@@ -68,7 +74,7 @@ document.addEventListener("DOMContentLoaded", () => {
   const EQUITY_REQUIRED_IDS = ["ticker", "crgRating", "targetPrice"];
 
   const SECTION_REQUIREMENTS = {
-    note: ["noteType", "distribution", "title", "topic"],
+    note: ["noteType", "distribution", "publicationDate", "title", "deck", "topic"],
     authors: ["authorLastName", "authorFirstName"],
     equity: EQUITY_REQUIRED_IDS,
     body: ["keyTakeaways", "analysis", "cordobaView"]
@@ -81,7 +87,10 @@ document.addEventListener("DOMContentLoaded", () => {
     form,
     noteType: document.getElementById("noteType"),
     distribution: document.getElementById("distribution"),
+    publicationDate: document.getElementById("publicationDate"),
+    deskLine: document.getElementById("deskLine"),
     title: document.getElementById("title"),
+    deck: document.getElementById("deck"),
     topic: document.getElementById("topic"),
     authorLastName: document.getElementById("authorLastName"),
     authorFirstName: document.getElementById("authorFirstName"),
@@ -163,7 +172,10 @@ document.addEventListener("DOMContentLoaded", () => {
   const draftFieldIds = [
     "noteType",
     "distribution",
+    "publicationDate",
+    "deskLine",
     "title",
+    "deck",
     "topic",
     "authorLastName",
     "authorFirstName",
@@ -191,6 +203,8 @@ document.addEventListener("DOMContentLoaded", () => {
     wirePrimaryPhone();
     wireFormEvents();
     restoreDraft();
+    ensurePublicationDate();
+    ensureDeskLineDefault();
     syncPrimaryPhone();
     toggleEquitySection();
     updateFileSummary(dom.modelFiles, dom.modelSummaryHead, dom.modelSummaryList, "No supporting files attached.");
@@ -246,8 +260,15 @@ document.addEventListener("DOMContentLoaded", () => {
 
   function wireFormEvents() {
     dom.noteType.addEventListener("change", () => {
+      ensureDeskLineDefault();
       toggleEquitySection();
       resetChartState({ keepStatusText: false });
+      updateAllUI();
+      queueDraftSave();
+    });
+
+    dom.deskLine.addEventListener("input", () => {
+      dom.deskLine.dataset.autofill = "false";
       updateAllUI();
       queueDraftSave();
     });
@@ -306,6 +327,38 @@ document.addEventListener("DOMContentLoaded", () => {
 
   function digitsOnly(value) {
     return String(value || "").replace(/\D/g, "");
+  }
+
+  function todayIsoDate() {
+    const now = new Date();
+    const month = String(now.getMonth() + 1).padStart(2, "0");
+    const day = String(now.getDate()).padStart(2, "0");
+    return `${now.getFullYear()}-${month}-${day}`;
+  }
+
+  function defaultDeskLine(noteType) {
+    const map = {
+      "General Note": "Strategy - Global",
+      "Equity Research": "Equity Research - Global",
+      "Macro Research": "Macro Strategy - Global",
+      "Fixed Income Research": "Fixed Income - Global",
+      "Commodity Insights": "Commodities - Global"
+    };
+
+    return noteType ? (map[noteType] || "Research - Global") : "";
+  }
+
+  function ensurePublicationDate() {
+    if (!dom.publicationDate.value) dom.publicationDate.value = todayIsoDate();
+  }
+
+  function ensureDeskLineDefault(force = false) {
+    const current = dom.deskLine.value.trim();
+    const currentAuto = dom.deskLine.dataset.autofill !== "false";
+    if (force || !current || currentAuto) {
+      dom.deskLine.value = defaultDeskLine(dom.noteType.value);
+      dom.deskLine.dataset.autofill = "true";
+    }
   }
 
   function formatNationalLoose(rawValue) {
@@ -482,7 +535,12 @@ document.addEventListener("DOMContentLoaded", () => {
   function buildSectionCompletion(sectionKey) {
     const ids = SECTION_REQUIREMENTS[sectionKey] || [];
     if (sectionKey === "equity" && !isEquitySelected()) return "Optional";
-    const complete = ids.filter((id) => isFilled(document.getElementById(id))).length;
+    const complete = ids.filter((id) => {
+      const element = document.getElementById(id);
+      if (!isFilled(element)) return false;
+      if (id === "targetPrice") return parseNumber(element.value) != null;
+      return true;
+    }).length;
     return `${complete}/${ids.length}`;
   }
 
@@ -503,18 +561,19 @@ document.addEventListener("DOMContentLoaded", () => {
     dom.completionText.textContent = `${validation.complete} / ${validation.total} required fields complete`;
     dom.readinessPercent.textContent = `${validation.percent}%`;
     dom.noteStateChip.textContent = validation.valid ? "Ready" : validation.percent >= 55 ? "In Build" : "Draft";
-    dom.noteStateChip.style.background = validation.valid ? "rgba(47, 133, 90, 0.16)" : validation.percent >= 55 ? "rgba(177, 138, 65, 0.14)" : "rgba(255, 255, 255, 0.06)";
-    dom.noteStateChip.style.borderColor = validation.valid ? "rgba(47, 133, 90, 0.24)" : validation.percent >= 55 ? "rgba(177, 138, 65, 0.24)" : "rgba(255, 255, 255, 0.12)";
+    dom.noteStateChip.style.background = validation.valid ? "rgba(37, 115, 75, 0.12)" : validation.percent >= 55 ? "rgba(204, 45, 31, 0.08)" : "rgba(109, 118, 130, 0.12)";
+    dom.noteStateChip.style.color = validation.valid ? "#25734b" : validation.percent >= 55 ? "#b62417" : "#5d6570";
+    dom.noteStateChip.style.borderColor = validation.valid ? "rgba(37, 115, 75, 0.2)" : validation.percent >= 55 ? "rgba(204, 45, 31, 0.2)" : "rgba(109, 118, 130, 0.16)";
 
     const progressTrack = dom.completionBar.parentElement;
     if (progressTrack) progressTrack.setAttribute("aria-valuenow", String(validation.percent));
 
     if (validation.valid) {
-      dom.readinessCaption.textContent = "The note is structurally complete. Word export will render the institutional layout and metadata package.";
+      dom.readinessCaption.textContent = "The brief, narrative, and author metadata are complete. The Word note can now render cleanly in the publication template.";
     } else if (validation.percent >= 55) {
-      dom.readinessCaption.textContent = "The research package is taking shape. Complete the remaining core fields to move into export.";
+      dom.readinessCaption.textContent = "The draft is structurally taking shape. Complete the remaining mandatory fields before export.";
     } else {
-      dom.readinessCaption.textContent = "Complete the core note fields to unlock publication-ready export.";
+      dom.readinessCaption.textContent = "Complete the brief, byline, and core body sections before generating the Word note.";
     }
 
     renderMissingFields(validation.missing);
@@ -542,19 +601,19 @@ document.addEventListener("DOMContentLoaded", () => {
 
   function updateSummaryCards() {
     const noteType = dom.noteType.value.trim();
-    const title = dom.title.value.trim();
-    const topic = dom.topic.value.trim();
+    const deskLine = getDeskLine();
+    const deck = dom.deck.value.trim();
     const authorLine = buildPrimaryAuthorLine();
     const coAuthors = getCoAuthors();
     const validation = validateForm(false);
 
     dom.summaryType.textContent = noteType || "Select a note type";
-    dom.summaryTopic.textContent = topic || "Add a topic to anchor the note.";
+    dom.summaryTopic.textContent = deck || `${deskLine || "Set the desk line"}${dom.publicationDate.value ? ` | ${formatInputDateLabel(dom.publicationDate.value)}` : ""}`;
     dom.summaryAuthor.textContent = authorLine || "Assign primary author";
     dom.summaryCoAuthors.textContent = coAuthors.length
       ? `${coAuthors.length} co-author${coAuthors.length > 1 ? "s" : ""} added.`
       : "No co-authors added.";
-    dom.summaryOutput.textContent = validation.valid ? "Export-ready package" : title ? "Draft in progress" : "Draft in progress";
+    dom.summaryOutput.textContent = validation.valid ? "Publication package ready" : "Draft in progress";
 
     const attachmentBits = [];
     const modelCount = Array.from(dom.modelFiles.files || []).length;
@@ -576,10 +635,20 @@ document.addEventListener("DOMContentLoaded", () => {
     dom.previewAuthor.textContent = buildPrimaryAuthorLine() || "Primary author pending";
 
     if (isEquitySelected()) {
-      const coverageBits = [data.ticker || "Ticker pending", data.crgRating || "Rating pending"];
+      const coverageBits = [
+        data.deskLine || "Desk line pending",
+        data.publicationDate ? formatInputDateLabel(data.publicationDate) : "Date pending",
+        data.ticker || "Ticker pending",
+        data.crgRating || "Rating pending"
+      ];
       dom.previewCoverage.textContent = coverageBits.join(" | ");
     } else {
-      dom.previewCoverage.textContent = data.noteType || "Note structure not set";
+      const coverageBits = [
+        data.deskLine || data.noteType || "Desk line not set",
+        data.publicationDate ? formatInputDateLabel(data.publicationDate) : "Date pending",
+        data.topic || "Topic pending"
+      ];
+      dom.previewCoverage.textContent = coverageBits.join(" | ");
     }
 
     const supportBits = [];
@@ -596,6 +665,10 @@ document.addEventListener("DOMContentLoaded", () => {
     const firstName = dom.authorFirstName.value.trim();
     const combined = [firstName, lastName].filter(Boolean).join(" ").trim();
     return combined;
+  }
+
+  function getDeskLine() {
+    return dom.deskLine.value.trim() || defaultDeskLine(dom.noteType.value);
   }
 
   function updateAllUI() {
@@ -653,6 +726,7 @@ document.addEventListener("DOMContentLoaded", () => {
       state.coAuthorCount = 0;
       (payload.coAuthors || []).forEach((coAuthor) => addCoAuthorCard(coAuthor));
       state.lastSavedAt = payload.savedAt || null;
+      dom.deskLine.dataset.autofill = dom.deskLine.value.trim() ? "false" : "true";
 
       if (state.lastSavedAt) {
         dom.draftStatus.textContent = `Draft restored from ${formatDateTime(new Date(state.lastSavedAt))}.`;
@@ -675,6 +749,8 @@ document.addEventListener("DOMContentLoaded", () => {
     resetChartState({ keepStatusText: false });
     window.localStorage.removeItem(STORAGE_KEY);
     dom.draftStatus.textContent = "Autosave idle. Drafts are stored locally in this browser.";
+    ensurePublicationDate();
+    ensureDeskLineDefault(true);
     updateFileSummary(dom.modelFiles, dom.modelSummaryHead, dom.modelSummaryList, "No supporting files attached.");
     updateFileSummary(dom.imageUpload, dom.imageSummaryHead, dom.imageSummaryList, "No figures attached.");
     toggleEquitySection();
@@ -1020,8 +1096,9 @@ document.addEventListener("DOMContentLoaded", () => {
     if (isEquitySelected()) support.push(state.priceChartImageBytes ? "price chart included in export" : "price chart not yet pulled");
     if (data.modelFiles.length) support.push(`${data.modelFiles.length} model file${data.modelFiles.length > 1 ? "s" : ""}`);
     if (data.imageFiles.length) support.push(`${data.imageFiles.length} figure${data.imageFiles.length > 1 ? "s" : ""}`);
+    const publicationDate = parseInputDate(data.publicationDate) || data.generatedAt || new Date();
 
-    const subject = [data.noteType || "Research Note", formatDateShort(new Date()), data.title ? `- ${data.title}` : ""]
+    const subject = [data.noteType || "Research Note", formatDateShort(publicationDate), data.title ? `- ${data.title}` : ""]
       .filter(Boolean)
       .join(" ");
 
@@ -1032,7 +1109,10 @@ document.addEventListener("DOMContentLoaded", () => {
       "",
       `Note type: ${data.noteType || "N/A"}`,
       `Distribution: ${data.distribution || "N/A"}`,
+      `Publication date: ${formatDocDate(publicationDate)}`,
+      `Desk line: ${data.deskLine || "N/A"}`,
       `Title: ${data.title || "N/A"}`,
+      `Deck: ${data.deck || "N/A"}`,
       `Topic: ${data.topic || "N/A"}`,
       data.ticker ? `Ticker / company: ${data.ticker}` : null,
       data.crgRating ? `CRG rating: ${data.crgRating}` : null,
@@ -1108,7 +1188,10 @@ document.addEventListener("DOMContentLoaded", () => {
     return {
       noteType: dom.noteType.value.trim(),
       distribution: dom.distribution.value.trim(),
+      publicationDate: dom.publicationDate.value.trim(),
+      deskLine: getDeskLine(),
       title: dom.title.value.trim(),
+      deck: dom.deck.value.trim(),
       topic: dom.topic.value.trim(),
       authorLastName: dom.authorLastName.value.trim(),
       authorFirstName: dom.authorFirstName.value.trim(),
@@ -1136,7 +1219,7 @@ document.addEventListener("DOMContentLoaded", () => {
   function buildDocumentFileName(data) {
     const titleSlug = slugify(data.title || "research-note");
     const typeSlug = slugify(data.noteType || "note");
-    const dateSlug = formatDateShort(data.generatedAt || new Date());
+    const dateSlug = formatDateShort(parseInputDate(data.publicationDate) || data.generatedAt || new Date());
     return `${dateSlug}_${titleSlug}_${typeSlug}.docx`;
   }
 
@@ -1180,6 +1263,18 @@ document.addEventListener("DOMContentLoaded", () => {
     }).format(date);
   }
 
+  function parseInputDate(value) {
+    if (!value) return null;
+    const [year, month, day] = String(value).split("-").map(Number);
+    if (!year || !month || !day) return null;
+    return new Date(year, month - 1, day);
+  }
+
+  function formatInputDateLabel(value) {
+    const date = parseInputDate(value);
+    return date ? formatDocDate(date) : "Date pending";
+  }
+
   function escapeAttribute(value) {
     return String(value)
       .replace(/&/g, "&amp;")
@@ -1205,219 +1300,114 @@ document.addEventListener("DOMContentLoaded", () => {
   async function createDocument(data) {
     const docxLib = window.docx;
     const colors = {
-      navy: "10233B",
-      gold: "9B7A36",
-      ink: "1A2333",
-      muted: "5A677A",
-      line: "D8E0EA",
-      soft: "F3F6F9",
-      sand: "FAF6EF",
+      red: "CC2D1F",
+      redDark: "B62417",
+      redDeep: "9E1E15",
+      black: "111111",
+      ink: "1B1F24",
+      muted: "5D636D",
+      line: "D8DCE2",
+      soft: "F5F6F8",
       white: "FFFFFF"
     };
 
-    const authorLines = [
-      buildDocAuthorLine(data.authorLastName, data.authorFirstName, data.authorPhone),
+    const publicationDate = parseInputDate(data.publicationDate) || data.generatedAt || new Date();
+    const bannerBytes = await buildNomuraBannerImageBytes({
+      noteType: data.noteType,
+      deskLine: data.deskLine,
+      publicationDate
+    });
+
+    const analystNames = [
+      buildDocAuthorLine(data.authorLastName, data.authorFirstName),
       ...data.coAuthors
         .filter((coAuthor) => coAuthor.lastName || coAuthor.firstName)
-        .map((coAuthor) => buildDocAuthorLine(coAuthor.lastName, coAuthor.firstName, coAuthor.phone))
+        .map((coAuthor) => buildDocAuthorLine(coAuthor.lastName, coAuthor.firstName))
     ].filter(Boolean);
-
-    const summaryBullets = lineItems(data.keyTakeaways).map((line) =>
-      new docxLib.Paragraph({
-        text: line,
-        bullet: { level: 0 },
-        spacing: { after: 100 }
-      })
-    );
 
     const documentChildren = [
       new docxLib.Paragraph({
         children: [
-          new docxLib.TextRun({
-            text: "CORDOBA RESEARCH GROUP",
-            allCaps: true,
-            bold: true,
-            color: colors.gold,
-            size: 18,
-            font: "Aptos"
+          new docxLib.ImageRun({
+            data: bannerBytes,
+            transformation: { width: 645, height: 112 }
           })
         ],
-        spacing: { after: 80 }
+        spacing: { after: 110 }
       }),
-      new docxLib.Paragraph({
-        children: [
-          new docxLib.TextRun({
-            text: data.noteType || "Research Note",
-            allCaps: true,
-            bold: true,
-            color: colors.navy,
-            size: 18,
-            font: "Aptos"
-          })
-        ],
-        spacing: { after: 120 }
-      }),
-      new docxLib.Paragraph({
-        children: [
-          new docxLib.TextRun({
-            text: data.title || "Untitled Research Note",
-            bold: true,
-            color: colors.navy,
-            size: 34,
-            font: "Cambria"
-          })
-        ],
-        spacing: { after: 120 }
-      }),
-      new docxLib.Paragraph({
-        children: [
-          new docxLib.TextRun({
-            text: data.topic || "No topic supplied",
-            italics: true,
-            color: colors.muted,
-            size: 24,
-            font: "Cambria"
-          })
-        ],
-        spacing: { after: 220 }
-      }),
-      new docxLib.Paragraph({
-        border: {
-          bottom: {
-            color: colors.gold,
-            style: docxLib.BorderStyle.SINGLE,
-            size: 8
-          }
-        },
-        spacing: { after: 260 }
-      }),
-      buildMetadataTable(docxLib, colors, {
-        authorLines,
-        distribution: data.distribution,
-        generatedAt: data.generatedAt,
-        noteType: data.noteType,
-        topic: data.topic,
-        ticker: data.ticker,
-        crgRating: data.crgRating,
-        targetPrice: data.targetPrice
-      }),
-      new docxLib.Paragraph({ spacing: { after: 220 } }),
-      buildCalloutTable(docxLib, colors, "Executive Summary", summaryBullets.length ? summaryBullets : [new docxLib.Paragraph({ text: "No executive summary supplied." })])
+      buildNomuraTitlePanel(docxLib, colors, data, analystNames, publicationDate),
+      new docxLib.Paragraph({ spacing: { after: 70 } }),
+      buildNomuraSubhead(docxLib, colors, "Idea trades:"),
+      ...buildNomuraBulletParagraphs(docxLib, lineItems(data.keyTakeaways))
     ];
 
     if (data.noteType === "Equity Research") {
-      documentChildren.push(
-        new docxLib.Paragraph({ spacing: { after: 160 } }),
-        buildSectionHeading(docxLib, colors, "Equity Snapshot"),
-        buildEquitySnapshotTable(docxLib, colors, data)
-      );
+      const marketRows = [];
+      const targetPrice = parseNumber(data.targetPrice);
+      const upside = computeUpsideToTarget(data.equityStats.currentPrice, targetPrice);
 
-      if (data.modelLink) {
-        documentChildren.push(
-          new docxLib.Paragraph({
-            children: [
-              new docxLib.TextRun({ text: "Model link: ", bold: true, color: colors.ink }),
-              new docxLib.ExternalHyperlink({
-                children: [new docxLib.TextRun({ text: data.modelLink, style: "Hyperlink" })],
-                link: data.modelLink
-              })
-            ],
-            spacing: { before: 100, after: 160 }
-          })
-        );
-      } else {
-        documentChildren.push(new docxLib.Paragraph({ spacing: { after: 100 } }));
-      }
+      marketRows.push(["Ticker / company", data.ticker || "N/A"]);
+      marketRows.push(["CRG rating", data.crgRating || "N/A"]);
+      marketRows.push(["Target price", data.targetPrice || "N/A"]);
+      if (data.equityStats.currentPrice != null) marketRows.push(["Current price", data.equityStats.currentPrice.toFixed(2)]);
+      if (data.equityStats.rangeReturn != null) marketRows.push(["Range return", formatPercent(data.equityStats.rangeReturn)]);
+      if (data.equityStats.realisedVolAnn != null) marketRows.push(["Volatility (ann.)", formatPercent(data.equityStats.realisedVolAnn)]);
+      if (upside != null) marketRows.push(["Upside / downside", formatPercent(upside)]);
 
-      if (data.priceChartImageBytes) {
+      if (marketRows.length) {
         documentChildren.push(
-          buildSectionHeading(docxLib, colors, "Market Performance"),
-          new docxLib.Paragraph({
-            children: [
-              new docxLib.ImageRun({
-                data: data.priceChartImageBytes,
-                transformation: { width: 590, height: 245 }
-              })
-            ],
-            alignment: docxLib.AlignmentType.CENTER,
-            spacing: { after: 120 }
-          }),
-          new docxLib.Paragraph({
-            children: [
-              new docxLib.TextRun({
-                text: `${(data.ticker || "Security").toUpperCase()} closing price history`,
-                italics: true,
-                color: colors.muted,
-                size: 18
-              })
-            ],
-            alignment: docxLib.AlignmentType.CENTER,
-            spacing: { after: 180 }
-          })
+          buildNomuraSubhead(docxLib, colors, "Market context:"),
+          buildNomuraMetricTable(docxLib, colors, marketRows)
         );
       }
 
       if (data.valuationSummary) {
         documentChildren.push(
-          buildSectionHeading(docxLib, colors, "Valuation Summary"),
-          ...buildBodyParagraphs(docxLib, data.valuationSummary)
+          buildNomuraSubhead(docxLib, colors, "Valuation:"),
+          ...buildNomuraBodyParagraphs(docxLib, data.valuationSummary)
         );
       }
 
       if (data.keyAssumptions) {
-        documentChildren.push(buildSectionHeading(docxLib, colors, "Key Assumptions"));
-        lineItems(data.keyAssumptions).forEach((line) => {
-          documentChildren.push(
-            new docxLib.Paragraph({
-              text: line,
-              bullet: { level: 0 },
-              spacing: { after: 90 }
-            })
-          );
-        });
+        documentChildren.push(
+          buildNomuraSubhead(docxLib, colors, "Key assumptions:"),
+          ...buildNomuraBulletParagraphs(docxLib, lineItems(data.keyAssumptions))
+        );
       }
 
       if (data.scenarioNotes) {
         documentChildren.push(
-          buildSectionHeading(docxLib, colors, "Scenario And Sensitivity Notes"),
-          ...buildBodyParagraphs(docxLib, data.scenarioNotes)
+          buildNomuraSubhead(docxLib, colors, "Scenario and sensitivity:"),
+          ...buildNomuraBodyParagraphs(docxLib, data.scenarioNotes)
         );
-      }
-
-      if (data.modelFiles.length) {
-        documentChildren.push(buildSectionHeading(docxLib, colors, "Model Support"));
-        data.modelFiles.forEach((file) => {
-          documentChildren.push(
-            new docxLib.Paragraph({
-              text: file.name,
-              bullet: { level: 0 },
-              spacing: { after: 90 }
-            })
-          );
-        });
       }
     }
 
     documentChildren.push(
-      buildSectionHeading(docxLib, colors, "Analysis And Commentary"),
-      ...buildBodyParagraphs(docxLib, data.analysis)
+      buildNomuraSubhead(docxLib, colors, "Why this view:"),
+      ...buildNomuraBodyParagraphs(docxLib, data.analysis)
     );
 
     if (data.content) {
       documentChildren.push(
-        buildSectionHeading(docxLib, colors, "Supplementary Analysis"),
-        ...buildBodyParagraphs(docxLib, data.content)
+        buildNomuraSubhead(docxLib, colors, "Additional detail:"),
+        ...buildNomuraBodyParagraphs(docxLib, data.content)
       );
     }
 
     documentChildren.push(
-      buildSectionHeading(docxLib, colors, "The Cordoba View"),
-      ...buildBodyParagraphs(docxLib, data.cordobaView)
+      buildNomuraSubhead(docxLib, colors, "Catalysts ahead:"),
+      ...buildNomuraBodyParagraphs(docxLib, data.cordobaView)
     );
 
-    const exhibitParagraphs = await buildImageParagraphs(docxLib, data.imageFiles, colors);
+    const exhibitParagraphs = await buildNomuraExhibitParagraphs(docxLib, colors, data);
     if (exhibitParagraphs.length) {
-      documentChildren.push(buildSectionHeading(docxLib, colors, "Figures And Exhibits"), ...exhibitParagraphs);
+      documentChildren.push(buildNomuraSubhead(docxLib, colors, "Charts and exhibits:"), ...exhibitParagraphs);
+    }
+
+    const supportParagraphs = buildSupportingMaterialParagraphs(docxLib, colors, data);
+    if (supportParagraphs.length) {
+      documentChildren.push(buildNomuraSubhead(docxLib, colors, "Supporting material:"), ...supportParagraphs);
     }
 
     return new docxLib.Document({
@@ -1425,14 +1415,14 @@ document.addEventListener("DOMContentLoaded", () => {
         default: {
           document: {
             run: {
-              font: "Aptos",
-              size: 21,
+              font: "Arial",
+              size: 18,
               color: colors.ink
             },
             paragraph: {
               spacing: {
-                line: 300,
-                after: 120
+                line: 220,
+                after: 40
               }
             }
           }
@@ -1442,34 +1432,9 @@ document.addEventListener("DOMContentLoaded", () => {
         {
           properties: {
             page: {
-              margin: { top: 900, right: 900, bottom: 900, left: 900 },
+              margin: { top: 520, right: 660, bottom: 660, left: 660 },
               pageSize: { width: 11906, height: 16838 }
             }
-          },
-          headers: {
-            default: new docxLib.Header({
-              children: [
-                new docxLib.Paragraph({
-                  children: [
-                    new docxLib.TextRun({
-                      text: `Cordoba Research Group | ${data.noteType || "Research Note"} | ${formatDocDate(data.generatedAt)}`,
-                      size: 16,
-                      color: colors.muted,
-                      font: "Aptos"
-                    })
-                  ],
-                  alignment: docxLib.AlignmentType.RIGHT,
-                  spacing: { after: 100 },
-                  border: {
-                    bottom: {
-                      color: colors.line,
-                      style: docxLib.BorderStyle.SINGLE,
-                      size: 6
-                    }
-                  }
-                })
-              ]
-            })
           },
           footers: {
             default: new docxLib.Footer({
@@ -1479,26 +1444,19 @@ document.addEventListener("DOMContentLoaded", () => {
                     top: {
                       color: colors.line,
                       style: docxLib.BorderStyle.SINGLE,
-                      size: 6
+                      size: 4
                     }
                   },
-                  spacing: { after: 40 }
+                  spacing: { after: 25 }
                 }),
                 new docxLib.Paragraph({
-                  tabStops: [{ type: docxLib.TabStopType.RIGHT, position: 9300 }],
+                  alignment: docxLib.AlignmentType.RIGHT,
                   children: [
                     new docxLib.TextRun({
-                      text: `Internal use only | ${data.distribution}`,
-                      size: 16,
+                      text: `Production Complete: ${formatProductionTimestamp(data.generatedAt)}`,
+                      size: 12,
                       color: colors.muted,
-                      italics: true
-                    }),
-                    new docxLib.TextRun({ text: "\t" }),
-                    new docxLib.TextRun({
-                      children: ["Page ", docxLib.PageNumber.CURRENT],
-                      size: 16,
-                      color: colors.muted,
-                      italics: true
+                      font: "Arial"
                     })
                   ]
                 })
@@ -1511,73 +1469,92 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
-  function buildDocAuthorLine(lastName, firstName, phone) {
-    const name = [String(lastName || "").toUpperCase(), String(firstName || "").toUpperCase()].filter(Boolean).join(", ");
-    const printablePhone = phone ? ` (${phone})` : "";
-    return `${name}${printablePhone}`.trim();
+  function nomuraDisplayType(noteType) {
+    const map = {
+      "General Note": "Strategy Trade",
+      "Equity Research": "Equity Research",
+      "Macro Research": "Macro View",
+      "Fixed Income Research": "Fixed Income View",
+      "Commodity Insights": "Commodities View"
+    };
+
+    return map[noteType] || "Research Note";
   }
 
-  function buildMetadataTable(docxLib, colors, meta) {
-    return new docxLib.Table({
-      width: { size: 100, type: docxLib.WidthType.PERCENTAGE },
-      borders: {
-        top: { style: docxLib.BorderStyle.NONE },
-        bottom: { style: docxLib.BorderStyle.NONE },
-        left: { style: docxLib.BorderStyle.NONE },
-        right: { style: docxLib.BorderStyle.NONE },
-        insideHorizontal: { style: docxLib.BorderStyle.NONE },
-        insideVertical: { style: docxLib.BorderStyle.NONE }
-      },
-      rows: [
-        new docxLib.TableRow({
-          children: [
-            buildMetaCell(docxLib, colors, "Authors", meta.authorLines.length ? meta.authorLines : ["N/A"]),
-            buildMetaCell(docxLib, colors, "Distribution", [meta.distribution || "N/A", formatDocDate(meta.generatedAt)]),
-            buildMetaCell(docxLib, colors, "Coverage", [
-              meta.noteType || "N/A",
-              meta.ticker || meta.topic || "N/A",
-              meta.crgRating ? `Rating: ${meta.crgRating}` : meta.targetPrice ? `Target: ${meta.targetPrice}` : ""
-            ].filter(Boolean))
-          ]
-        })
-      ]
-    });
+  function buildDocAuthorLine(lastName, firstName) {
+    return [firstName, lastName].filter(Boolean).join(" ").trim();
   }
 
-  function buildMetaCell(docxLib, colors, label, lines) {
-    return new docxLib.TableCell({
-      width: { size: 33.33, type: docxLib.WidthType.PERCENTAGE },
-      shading: { fill: colors.soft },
-      margins: { top: 140, bottom: 140, left: 160, right: 160 },
-      borders: {
-        top: { color: colors.line, style: docxLib.BorderStyle.SINGLE, size: 4 },
-        bottom: { color: colors.line, style: docxLib.BorderStyle.SINGLE, size: 4 },
-        left: { color: colors.line, style: docxLib.BorderStyle.SINGLE, size: 4 },
-        right: { color: colors.line, style: docxLib.BorderStyle.SINGLE, size: 4 }
-      },
-      children: [
-        new docxLib.Paragraph({
-          children: [
-            new docxLib.TextRun({
-              text: label.toUpperCase(),
-              bold: true,
-              size: 16,
-              color: colors.gold
-            })
-          ],
-          spacing: { after: 70 }
-        }),
-        ...lines.map((line) =>
-          new docxLib.Paragraph({
-            text: line,
-            spacing: { after: 60 }
-          })
-        )
-      ]
-    });
+  async function buildNomuraBannerImageBytes(meta) {
+    const canvas = document.createElement("canvas");
+    const width = 1600;
+    const height = 260;
+    const ctx = canvas.getContext("2d");
+    canvas.width = width;
+    canvas.height = height;
+
+    const publicationDate = meta.publicationDate || new Date();
+    const deskLine = meta.deskLine || "Research - Global";
+
+    ctx.fillStyle = "#ffffff";
+    ctx.fillRect(0, 0, width, height);
+
+    ctx.fillStyle = "#cc2d1f";
+    ctx.fillRect(0, 0, width, 126);
+
+    drawBannerShape(ctx, "#ffffff", 1120, 126, 96, 0, 178, 126);
+    drawBannerShape(ctx, "rgba(255,255,255,0.18)", 1210, 126, 160, 0, 250, 126);
+    drawBannerShape(ctx, "rgba(118,0,0,0.24)", 1294, 126, 178, 0, 258, 126);
+    drawBannerShape(ctx, "rgba(118,0,0,0.16)", 1392, 126, 186, 0, 268, 126);
+
+    ctx.fillStyle = "#ffffff";
+    ctx.font = "700 56px Arial";
+    ctx.textBaseline = "alphabetic";
+    ctx.fillText("CORDOBA", 54, 78);
+
+    ctx.fillStyle = "#111111";
+    ctx.font = "700 38px Arial";
+    ctx.fillText(nomuraDisplayType(meta.noteType), 54, 178);
+
+    ctx.fillStyle = "#cc2d1f";
+    ctx.textAlign = "right";
+    ctx.font = "600 24px Arial";
+    ctx.fillText("Global Markets Research", width - 46, 156);
+    ctx.font = "700 30px Arial";
+    ctx.fillText(formatDocDate(publicationDate), width - 46, 193);
+
+    const stripGradient = ctx.createLinearGradient(0, 0, width, 0);
+    stripGradient.addColorStop(0, "#b41f14");
+    stripGradient.addColorStop(0.58, "#da4638");
+    stripGradient.addColorStop(1, "#f09a91");
+    ctx.fillStyle = stripGradient;
+    ctx.fillRect(0, 214, width, 22);
+
+    ctx.textAlign = "left";
+    ctx.fillStyle = "#ffffff";
+    ctx.font = "600 14px Arial";
+    ctx.fillText(deskLine, 56, 229);
+
+    return canvasToPngBytes(canvas);
   }
 
-  function buildCalloutTable(docxLib, colors, title, paragraphs) {
+  function drawBannerShape(ctx, color, startX, baseY, width, topInset, skew, height) {
+    ctx.save();
+    ctx.fillStyle = color;
+    ctx.beginPath();
+    ctx.moveTo(startX, baseY);
+    ctx.lineTo(startX + width, baseY);
+    ctx.lineTo(startX + width - skew, topInset);
+    ctx.lineTo(startX - skew, topInset);
+    ctx.closePath();
+    ctx.fill();
+    ctx.restore();
+  }
+
+  function buildNomuraTitlePanel(docxLib, colors, data, analystNames, publicationDate) {
+    const analystDesk = data.deskLine || getDeskLine();
+    const analystNameText = analystNames.length ? analystNames.join(" | ") : "Research Analyst";
+
     return new docxLib.Table({
       width: { size: 100, type: docxLib.WidthType.PERCENTAGE },
       borders: {
@@ -1592,27 +1569,94 @@ document.addEventListener("DOMContentLoaded", () => {
         new docxLib.TableRow({
           children: [
             new docxLib.TableCell({
-              shading: { fill: colors.sand },
-              margins: { top: 180, bottom: 180, left: 180, right: 180 },
+              width: { size: 72, type: docxLib.WidthType.PERCENTAGE },
               borders: {
-                top: { color: colors.gold, style: docxLib.BorderStyle.SINGLE, size: 6 },
-                bottom: { color: colors.gold, style: docxLib.BorderStyle.SINGLE, size: 6 },
-                left: { color: colors.gold, style: docxLib.BorderStyle.SINGLE, size: 6 },
-                right: { color: colors.gold, style: docxLib.BorderStyle.SINGLE, size: 6 }
+                top: { style: docxLib.BorderStyle.NONE },
+                bottom: { style: docxLib.BorderStyle.NONE },
+                left: { style: docxLib.BorderStyle.NONE },
+                right: { style: docxLib.BorderStyle.NONE }
               },
+              margins: { top: 0, bottom: 0, left: 0, right: 160 },
               children: [
                 new docxLib.Paragraph({
                   children: [
                     new docxLib.TextRun({
-                      text: title.toUpperCase(),
+                      text: data.title || "Untitled Research Note",
                       bold: true,
-                      color: colors.navy,
-                      size: 18
+                      size: 30,
+                      color: colors.black,
+                      font: "Arial"
                     })
                   ],
-                  spacing: { after: 90 }
+                  spacing: { after: 95 }
                 }),
-                ...paragraphs
+                new docxLib.Paragraph({
+                  children: [
+                    new docxLib.TextRun({
+                      text: data.deck || "No deck supplied",
+                      bold: true,
+                      size: 20,
+                      color: colors.ink,
+                      font: "Arial"
+                    })
+                  ],
+                  spacing: { after: 65 }
+                }),
+                new docxLib.Paragraph({
+                  children: [
+                    new docxLib.TextRun({
+                      text: `${data.topic || "Topic pending"} | ${formatDocDate(publicationDate)}`,
+                      size: 17,
+                      color: colors.muted,
+                      font: "Arial"
+                    })
+                  ],
+                  spacing: { after: 20 }
+                })
+              ]
+            }),
+            new docxLib.TableCell({
+              width: { size: 28, type: docxLib.WidthType.PERCENTAGE },
+              borders: {
+                top: { style: docxLib.BorderStyle.NONE },
+                bottom: { style: docxLib.BorderStyle.NONE },
+                left: { style: docxLib.BorderStyle.NONE },
+                right: { style: docxLib.BorderStyle.NONE }
+              },
+              margins: { top: 0, bottom: 0, left: 0, right: 0 },
+              children: [
+                new docxLib.Paragraph({
+                  children: [
+                    new docxLib.TextRun({
+                      text: "Research Analysts",
+                      bold: true,
+                      size: 15,
+                      color: colors.black,
+                      font: "Arial"
+                    })
+                  ],
+                  spacing: { after: 45 }
+                }),
+                new docxLib.Paragraph({
+                  border: {
+                    bottom: {
+                      color: colors.red,
+                      style: docxLib.BorderStyle.SINGLE,
+                      size: 6
+                    }
+                  },
+                  children: [
+                    new docxLib.TextRun({
+                      text: analystDesk,
+                      color: colors.red,
+                      underline: {},
+                      size: 15,
+                      font: "Arial"
+                    })
+                  ],
+                  spacing: { after: 60 }
+                }),
+                buildAnalystNameTable(docxLib, colors, analystNameText)
               ]
             })
           ]
@@ -1621,56 +1665,139 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
-  function buildSectionHeading(docxLib, colors, title) {
-    return new docxLib.Paragraph({
-      children: [
-        new docxLib.TextRun({
-          text: title,
-          bold: true,
-          color: colors.navy,
-          size: 26,
-          font: "Cambria"
+  function buildAnalystNameTable(docxLib, colors, text) {
+    return new docxLib.Table({
+      width: { size: 100, type: docxLib.WidthType.PERCENTAGE },
+      borders: {
+        top: { style: docxLib.BorderStyle.NONE },
+        bottom: { style: docxLib.BorderStyle.NONE },
+        left: { style: docxLib.BorderStyle.NONE },
+        right: { style: docxLib.BorderStyle.NONE },
+        insideHorizontal: { style: docxLib.BorderStyle.NONE },
+        insideVertical: { style: docxLib.BorderStyle.NONE }
+      },
+      rows: [
+        new docxLib.TableRow({
+          children: [
+            new docxLib.TableCell({
+              shading: { fill: colors.black },
+              borders: {
+                top: { style: docxLib.BorderStyle.NONE },
+                bottom: { style: docxLib.BorderStyle.NONE },
+                left: { style: docxLib.BorderStyle.NONE },
+                right: { style: docxLib.BorderStyle.NONE }
+              },
+              margins: { top: 80, bottom: 80, left: 110, right: 110 },
+              children: [
+                new docxLib.Paragraph({
+                  children: [
+                    new docxLib.TextRun({
+                      text,
+                      color: colors.white,
+                      size: 14,
+                      font: "Arial"
+                    })
+                  ],
+                  spacing: { after: 10 }
+                })
+              ]
+            })
+          ]
         })
-      ],
-      spacing: { before: 240, after: 120 }
+      ]
     });
   }
 
-  function buildEquitySnapshotTable(docxLib, colors, data) {
-    const targetPrice = parseNumber(data.targetPrice);
-    const upside = computeUpsideToTarget(data.equityStats.currentPrice, targetPrice);
-    const rows = [
-      ["Ticker / Company", data.ticker || "N/A", "CRG Rating", data.crgRating || "N/A"],
-      ["Target Price", data.targetPrice || "N/A", "Current Price", data.equityStats.currentPrice != null ? data.equityStats.currentPrice.toFixed(2) : "N/A"],
-      ["Upside / Downside", upside != null ? formatPercent(upside) : "N/A", "Volatility (ann.)", data.equityStats.realisedVolAnn != null ? formatPercent(data.equityStats.realisedVolAnn) : "N/A"],
-      ["Return (range)", data.equityStats.rangeReturn != null ? formatPercent(data.equityStats.rangeReturn) : "N/A", "Model Files", data.modelFiles.length ? `${data.modelFiles.length} attached` : "None"]
-    ];
+  function buildNomuraSubhead(docxLib, colors, label) {
+    return new docxLib.Paragraph({
+      children: [
+        new docxLib.TextRun({
+          text: label,
+          bold: true,
+          color: colors.red,
+          size: 18,
+          font: "Arial"
+        })
+      ],
+      spacing: { before: 75, after: 28 }
+    });
+  }
 
+  function buildNomuraBulletParagraphs(docxLib, items) {
+    const cleanItems = items.length ? items : ["No key takeaways supplied."];
+
+    return cleanItems.map((item) =>
+      new docxLib.Paragraph({
+        indent: { left: 180, hanging: 120 },
+        children: [
+          new docxLib.TextRun({
+            text: "• ",
+            bold: true,
+            font: "Arial",
+            size: 18
+          }),
+          new docxLib.TextRun({
+            text: item,
+            font: "Arial",
+            size: 18,
+            color: "1B1F24"
+          })
+        ],
+        spacing: { after: 42 }
+      })
+    );
+  }
+
+  function buildNomuraBodyParagraphs(docxLib, text) {
+    const blocks = paragraphBlocks(text);
+    if (!blocks.length) {
+      return [new docxLib.Paragraph({ text: "No content supplied.", spacing: { after: 44 } })];
+    }
+
+    return blocks.map((block) =>
+      new docxLib.Paragraph({
+        children: [
+          new docxLib.TextRun({
+            text: block.replace(/\s*\n\s*/g, " "),
+            font: "Arial",
+            size: 18,
+            color: "1B1F24"
+          })
+        ],
+        spacing: { after: 58 }
+      })
+    );
+  }
+
+  function buildNomuraMetricTable(docxLib, colors, rows) {
     return new docxLib.Table({
       width: { size: 100, type: docxLib.WidthType.PERCENTAGE },
-      rows: rows.map((row) =>
+      borders: {
+        top: { color: colors.line, style: docxLib.BorderStyle.SINGLE, size: 4 },
+        bottom: { color: colors.line, style: docxLib.BorderStyle.SINGLE, size: 4 },
+        left: { color: colors.line, style: docxLib.BorderStyle.SINGLE, size: 4 },
+        right: { color: colors.line, style: docxLib.BorderStyle.SINGLE, size: 4 },
+        insideHorizontal: { color: colors.line, style: docxLib.BorderStyle.SINGLE, size: 4 },
+        insideVertical: { color: colors.line, style: docxLib.BorderStyle.SINGLE, size: 4 }
+      },
+      rows: rows.map((row, index) =>
         new docxLib.TableRow({
-          children: row.map((cell, index) =>
+          children: row.map((cell, cellIndex) =>
             new docxLib.TableCell({
-              width: { size: 25, type: docxLib.WidthType.PERCENTAGE },
-              shading: { fill: index % 2 === 0 ? colors.soft : colors.white },
-              margins: { top: 110, bottom: 110, left: 140, right: 140 },
-              borders: {
-                top: { color: colors.line, style: docxLib.BorderStyle.SINGLE, size: 4 },
-                bottom: { color: colors.line, style: docxLib.BorderStyle.SINGLE, size: 4 },
-                left: { color: colors.line, style: docxLib.BorderStyle.SINGLE, size: 4 },
-                right: { color: colors.line, style: docxLib.BorderStyle.SINGLE, size: 4 }
-              },
+              shading: { fill: cellIndex === 0 ? colors.soft : colors.white },
+              margins: { top: 65, bottom: 65, left: 90, right: 90 },
               children: [
                 new docxLib.Paragraph({
                   children: [
                     new docxLib.TextRun({
                       text: cell,
-                      bold: index % 2 === 0,
-                      color: index % 2 === 0 ? colors.navy : colors.ink
+                      bold: cellIndex === 0,
+                      color: cellIndex === 0 ? colors.black : colors.ink,
+                      size: 17,
+                      font: "Arial"
                     })
                   ],
-                  spacing: { after: 40 }
+                  spacing: { after: 10 }
                 })
               ]
             })
@@ -1680,33 +1807,100 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
-  function buildBodyParagraphs(docxLib, text) {
-    return paragraphBlocks(text).flatMap((block) => {
-      const lines = block
-        .split("\n")
-        .map((line) => line.trim())
-        .filter(Boolean);
+  async function buildNomuraExhibitParagraphs(docxLib, colors, data) {
+    const output = [];
 
-      if (!lines.length) {
-        return [new docxLib.Paragraph({ text: "" })];
-      }
-
-      return [
+    if (data.priceChartImageBytes) {
+      output.push(
         new docxLib.Paragraph({
-          children: [new docxLib.TextRun({ text: lines.join(" "), color: "1A2333" })],
-          spacing: { after: 140 }
+          children: [
+            new docxLib.ImageRun({
+              data: data.priceChartImageBytes,
+              transformation: { width: 560, height: 235 }
+            })
+          ],
+          alignment: docxLib.AlignmentType.CENTER,
+          spacing: { before: 60, after: 45 }
+        }),
+        new docxLib.Paragraph({
+          alignment: docxLib.AlignmentType.CENTER,
+          children: [
+            new docxLib.TextRun({
+              text: `Figure 1. ${(data.ticker || "Security").toUpperCase()} price performance`,
+              italics: true,
+              color: colors.muted,
+              size: 15,
+              font: "Arial"
+            })
+          ],
+          spacing: { after: 90 }
         })
-      ];
-    });
+      );
+    }
+
+    const startIndex = output.length ? 2 : 1;
+    const imageParagraphs = await buildImageParagraphs(docxLib, data.imageFiles, colors, startIndex);
+    output.push(...imageParagraphs);
+
+    return output;
   }
 
-  async function buildImageParagraphs(docxLib, files, colors) {
+  function buildSupportingMaterialParagraphs(docxLib, colors, data) {
+    const paragraphs = [];
+
+    if (data.modelLink) {
+      paragraphs.push(
+        new docxLib.Paragraph({
+          children: [
+            new docxLib.TextRun({
+              text: "Model link: ",
+              bold: true,
+              font: "Arial",
+              size: 18
+            }),
+            new docxLib.ExternalHyperlink({
+              children: [new docxLib.TextRun({ text: data.modelLink, style: "Hyperlink" })],
+              link: data.modelLink
+            })
+          ],
+          spacing: { after: 45 }
+        })
+      );
+    }
+
+    data.modelFiles.forEach((file) => {
+      paragraphs.push(
+        new docxLib.Paragraph({
+          indent: { left: 180, hanging: 120 },
+          children: [
+            new docxLib.TextRun({
+              text: "• ",
+              bold: true,
+              font: "Arial",
+              size: 18
+            }),
+            new docxLib.TextRun({
+              text: file.name,
+              font: "Arial",
+              size: 18,
+              color: colors.ink
+            })
+          ],
+          spacing: { after: 40 }
+        })
+      );
+    });
+
+    return paragraphs;
+  }
+
+  async function buildImageParagraphs(docxLib, files, colors, startIndex = 1) {
     const output = [];
 
     for (let index = 0; index < files.length; index += 1) {
       const file = files[index];
       const buffer = await file.arrayBuffer();
-      const size = await getImageFit(file, 560, 340);
+      const size = await getImageFit(file, 560, 320);
       const caption = file.name.replace(/\.[^.]+$/, "");
 
       output.push(
@@ -1718,24 +1912,35 @@ document.addEventListener("DOMContentLoaded", () => {
             })
           ],
           alignment: docxLib.AlignmentType.CENTER,
-          spacing: { before: 100, after: 100 }
+          spacing: { before: 45, after: 45 }
         }),
         new docxLib.Paragraph({
+          alignment: docxLib.AlignmentType.CENTER,
           children: [
             new docxLib.TextRun({
-              text: `Figure ${index + 1}. ${caption}`,
+              text: `Figure ${startIndex + index}. ${caption}`,
               italics: true,
               color: colors.muted,
-              size: 18
+              size: 15,
+              font: "Arial"
             })
           ],
-          alignment: docxLib.AlignmentType.CENTER,
-          spacing: { after: 180 }
+          spacing: { after: 85 }
         })
       );
     }
 
     return output;
+  }
+
+  function formatProductionTimestamp(date) {
+    const d = date instanceof Date ? date : new Date(date);
+    const year = d.getUTCFullYear();
+    const month = String(d.getUTCMonth() + 1).padStart(2, "0");
+    const day = String(d.getUTCDate()).padStart(2, "0");
+    const hours = String(d.getUTCHours()).padStart(2, "0");
+    const minutes = String(d.getUTCMinutes()).padStart(2, "0");
+    return `${year}-${month}-${day} ${hours}:${minutes} UTC`;
   }
 
   function getImageFit(file, maxWidth, maxHeight) {
