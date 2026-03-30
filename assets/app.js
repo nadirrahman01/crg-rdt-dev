@@ -131,9 +131,6 @@ document.addEventListener("DOMContentLoaded", () => {
     readinessCaption: document.getElementById("readinessCaption"),
     noteStateChip: document.getElementById("noteStateChip"),
     missingFields: document.getElementById("missingFields"),
-    draftStatus: document.getElementById("draftStatus"),
-    previewFileName: document.getElementById("previewFileName"),
-    renderTimestamp: document.getElementById("renderTimestamp"),
     summaryType: document.getElementById("summaryType"),
     summaryTopic: document.getElementById("summaryTopic"),
     summaryAuthor: document.getElementById("summaryAuthor"),
@@ -379,9 +376,8 @@ document.addEventListener("DOMContentLoaded", () => {
     const cc = digitsOnly(countryCode);
     const nn = digitsOnly(nationalNumber);
 
-    if (!cc && !nn) return "";
+    if (!nn) return "";
     if (!cc) return nn;
-    if (!nn) return `${cc}-`;
     return `${cc}-${nn}`;
   }
 
@@ -635,8 +631,6 @@ document.addEventListener("DOMContentLoaded", () => {
 
   function updatePreview() {
     const data = collectFormData();
-    dom.previewFileName.textContent = buildDocumentFileName(data);
-    dom.renderTimestamp.textContent = `Last refreshed ${formatDateTime(new Date())}`;
     dom.previewTitle.textContent = data.title || "No title yet";
     dom.previewAuthor.textContent = buildPrimaryAuthorLine() || "Primary author pending";
 
@@ -710,9 +704,7 @@ document.addEventListener("DOMContentLoaded", () => {
       const payload = serializeDraft();
       window.localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
       state.lastSavedAt = payload.savedAt;
-      dom.draftStatus.textContent = `Draft saved locally at ${formatClock(new Date(payload.savedAt))}.`;
     } catch (error) {
-      dom.draftStatus.textContent = "Local autosave could not write to storage in this browser session.";
       console.error("Autosave failed:", error);
     }
   }
@@ -735,13 +727,8 @@ document.addEventListener("DOMContentLoaded", () => {
       state.lastSavedAt = payload.savedAt || null;
       dom.deskLine.dataset.autofill = "true";
       ensureDeskLineDefault(true);
-
-      if (state.lastSavedAt) {
-        dom.draftStatus.textContent = `Draft restored from ${formatDateTime(new Date(state.lastSavedAt))}.`;
-      }
     } catch (error) {
       console.error("Draft restore failed:", error);
-      dom.draftStatus.textContent = "A saved draft existed but could not be restored cleanly.";
     }
   }
 
@@ -756,7 +743,6 @@ document.addEventListener("DOMContentLoaded", () => {
     syncPrimaryPhone();
     resetChartState({ keepStatusText: false });
     window.localStorage.removeItem(STORAGE_KEY);
-    dom.draftStatus.textContent = "Autosave idle. Drafts are stored locally in this browser.";
     ensurePublicationDate();
     ensureDeskLineDefault(true);
     updateFileSummary(dom.modelFiles, dom.modelSummaryHead, dom.modelSummaryList, "No supporting files attached.");
@@ -1244,13 +1230,6 @@ document.addEventListener("DOMContentLoaded", () => {
     const month = String(date.getMonth() + 1).padStart(2, "0");
     const day = String(date.getDate()).padStart(2, "0");
     return `${year}${month}${day}`;
-  }
-
-  function formatClock(date) {
-    return new Intl.DateTimeFormat("en-GB", {
-      hour: "numeric",
-      minute: "2-digit"
-    }).format(date);
   }
 
   function formatDateTime(date) {
