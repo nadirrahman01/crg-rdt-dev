@@ -136,8 +136,6 @@ document.addEventListener("DOMContentLoaded", () => {
     financialTableHead: document.getElementById("financialTableHead"),
     financialTableBody: document.getElementById("financialTableBody"),
     financialTableInput: document.getElementById("financialTableInput"),
-    financialTablePaste: document.getElementById("financialTablePaste"),
-    financialImportBtn: document.getElementById("financialImportBtn"),
     financialDownloadTemplateBtn: document.getElementById("financialDownloadTemplateBtn"),
     financialUploadTriggerBtn: document.getElementById("financialUploadTriggerBtn"),
     financialTemplateUpload: document.getElementById("financialTemplateUpload"),
@@ -362,7 +360,6 @@ document.addEventListener("DOMContentLoaded", () => {
     dom.financialAddColumnBtn.addEventListener("click", addFinancialPeriodColumn);
     dom.financialAddRowBtn.addEventListener("click", addFinancialLineItem);
     dom.financialResetBtn.addEventListener("click", resetFinancialTableGrid);
-    dom.financialImportBtn.addEventListener("click", importFinancialTableFromPaste);
     dom.financialDownloadTemplateBtn.addEventListener("click", downloadFinancialTemplate);
     dom.financialUploadTriggerBtn.addEventListener("click", () => {
       if (!ensureXlsxAvailable("import the completed Excel template")) return;
@@ -593,8 +590,6 @@ document.addEventListener("DOMContentLoaded", () => {
     formatEntireFinancialTableDisplay();
     syncFinancialTableStorage();
     renderFinancialTableEditor();
-
-    if (forceReset && dom.financialTablePaste) dom.financialTablePaste.value = "";
   }
 
   function syncFinancialTableStorage() {
@@ -793,21 +788,6 @@ document.addEventListener("DOMContentLoaded", () => {
     if (!shouldReset) return;
 
     initializeFinancialTableEditor(true);
-    updateAllUI();
-    queueDraftSave();
-  }
-
-  function importFinancialTableFromPaste() {
-    const raw = String(dom.financialTablePaste.value || "").trim();
-    if (!raw) {
-      setMessage("error", "Paste a forecast table before importing it into the grid.");
-      return;
-    }
-
-    state.financialTable = parseFinancialTableInput(raw, parseInputDate(dom.publicationDate.value) || new Date());
-    formatEntireFinancialTableDisplay();
-    syncFinancialTableStorage();
-    renderFinancialTableEditor();
     updateAllUI();
     queueDraftSave();
   }
