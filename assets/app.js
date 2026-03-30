@@ -85,6 +85,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
   const dom = {
     form,
+    headerDateTime: document.getElementById("headerDateTime"),
     noteType: document.getElementById("noteType"),
     distribution: document.getElementById("distribution"),
     publicationDate: document.getElementById("publicationDate"),
@@ -225,6 +226,7 @@ document.addEventListener("DOMContentLoaded", () => {
   init();
 
   function init() {
+    startHeaderClock();
     wireSectionNavigation();
     wirePrimaryPhone();
     wireFormEvents();
@@ -237,6 +239,24 @@ document.addEventListener("DOMContentLoaded", () => {
     updateFileSummary(dom.imageUpload, dom.imageSummaryHead, dom.imageSummaryList, "No figures attached.");
     updateAllUI();
     checkLibraries();
+  }
+
+  function startHeaderClock() {
+    updateHeaderDateTime();
+    window.setInterval(updateHeaderDateTime, 30000);
+  }
+
+  function updateHeaderDateTime() {
+    if (!dom.headerDateTime) return;
+
+    const now = new Date();
+    dom.headerDateTime.textContent = new Intl.DateTimeFormat("en-GB", {
+      day: "2-digit",
+      month: "short",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit"
+    }).format(now).replace(",", " |");
   }
 
   function wireSectionNavigation() {
