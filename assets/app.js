@@ -173,6 +173,7 @@ document.addEventListener("DOMContentLoaded", () => {
       realisedVolAnn: null,
       rangeReturn: null,
       priceDate: null,
+      providerCurrency: "",
       benchmarkLabel: "",
       chartMode: "price",
       symbol: "",
@@ -821,6 +822,7 @@ document.addEventListener("DOMContentLoaded", () => {
       realisedVolAnn: null,
       rangeReturn: null,
       priceDate: null,
+      providerCurrency: "",
       benchmarkLabel: "",
       chartMode: "price",
       symbol: "",
@@ -884,18 +886,17 @@ document.addEventListener("DOMContentLoaded", () => {
     dom.ticker.classList.remove("is-invalid");
 
     const range = dom.chartRange.value || "6mo";
-    const symbol = stooqSymbolFromTicker(ticker);
+    const symbol = marketDataSymbolFromTicker(ticker);
     const benchmarkInput = dom.benchmarkTicker.value.trim();
-    const benchmarkSymbol = benchmarkInput ? stooqSymbolFromTicker(benchmarkInput) : "";
-    const benchmarkLabel = dom.benchmarkName.value.trim() || benchmarkInput.toUpperCase();
-    const startDate = computeStartDate(range);
+    const benchmarkSymbol = benchmarkInput ? marketDataSymbolFromTicker(benchmarkInput) : "";
+    const benchmarkLabel = dom.benchmarkName.value.trim() || benchmarkSymbol || benchmarkInput.toUpperCase();
 
     dom.chartStatus.textContent = benchmarkSymbol
       ? "Fetching security and benchmark history for the tear sheet..."
       : "Fetching security history for the tear sheet...";
 
-    const securitySeries = await fetchStooqDaily(symbol);
-    const filteredSecurity = filterSeriesFromDate(securitySeries, startDate);
+    const securityResult = await fetchMarketHistory(symbol, range);
+    const filteredSecurity = securityResult.rows;
     if (filteredSecurity.length < 10) {
       throw new Error("Not enough price history returned for the selected range.");
     }
@@ -905,8 +906,8 @@ document.addEventListener("DOMContentLoaded", () => {
 
     if (benchmarkSymbol) {
       try {
-        const benchmarkSeries = await fetchStooqDaily(benchmarkSymbol);
-        const candidateSeries = filterSeriesFromDate(benchmarkSeries, startDate);
+        const benchmarkResult = await fetchMarketHistory(benchmarkSymbol, range);
+        const candidateSeries = benchmarkResult.rows;
         if (candidateSeries.length >= 10) {
           filteredBenchmark = candidateSeries;
         } else {
@@ -942,6 +943,7 @@ document.addEventListener("DOMContentLoaded", () => {
       rangeReturn,
       realisedVolAnn,
       priceDate,
+      providerCurrency: normalizeMarketCurrency(securityResult.meta.currency),
       benchmarkLabel: chartConfig.mode === "relative" ? benchmarkLabel : "",
       chartMode: chartConfig.mode,
       symbol,
@@ -949,7 +951,10 @@ document.addEventListener("DOMContentLoaded", () => {
       range
     };
 
-    setMetric(dom.currentPrice, currentPrice != null ? formatPriceDisplay(currentPrice, dom.priceCurrency.value.trim()) : "-");
+    setMetric(dom.currentPrice, currentPrice != null ? formatPriceDisplay(currentPrice, resolvePriceCurrency({
+      priceCurrency: dom.priceCurrency.value.trim(),
+      equityStats: state.equityStats
+    })) : "-");
     setMetric(dom.priceDate, priceDate ? formatShortDisplayDate(priceDate) : "-");
     setMetric(dom.rangeReturn, rangeReturn != null ? formatPercent(rangeReturn) : "-");
     updateUpsideDisplay();
@@ -966,35 +971,90 @@ document.addEventListener("DOMContentLoaded", () => {
     updateAllUI();
   }
 
-  function stooqSymbolFromTicker(rawTicker) {
-    const ticker = rawTicker.trim().toLowerCase().replace(/\s+/g, "");
-    if (!ticker) return "";
-    if (ticker.startsWith("^")) return ticker;
-    return ticker.includes(".") ? ticker : `${ticker}.us`;
+  function marketDataSymbolFromTicker(rawTicker) {
+    const cleaned = String(rawTicker || "")
+      .trim()
+      .split(/\s+/)[0]
+      .replace(/^[A-Z]+:/i, "")
+      .replace(/,+$/, "");
+
+    if (!cleaned) return "";
+    if (cleaned.startsWith("^")) return cleaned.toUpperCase();
+
+    const dotIndex = cleaned.lastIndexOf(".");
+    if (dotIndex === -1) return cleaned.toUpperCase();
+
+    const base = cleaned.slice(0, dotIndex).toUpperCase();
+    const suffix = cleaned.slice(dotIndex + 1).toUpperCase();
+    const suffixMap = {
+      US: "",
+      UK: ".L",
+      LN: ".L",
+      L: ".L",
+      TW: ".TW",
+      TT: ".TW",
+      JP: ".T",
+      T: ".T",
+      HK: ".HK",
+      AU: ".AX",
+      AX: ".AX",
+      CA: ".TO",
+      TO: ".TO",
+      FR: ".PA",
+      PA: ".PA",
+      DE: ".DE",
+      GR: ".DE",
+      SW: ".SW",
+      CH: ".SW",
+      NL: ".AS",
+      AS: ".AS",
+      ES: ".MC",
+      MC: ".MC",
+      IT: ".MI",
+      MI: ".MI",
+      SE: ".ST",
+      ST: ".ST",
+      DK: ".CO",
+      CO: ".CO",
+      FI: ".HE",
+      HE: ".HE",
+      BR: ".BR",
+      BE: ".BR",
+      IR: ".IR",
+      IE: ".IR",
+      WA: ".WA",
+      PL: ".WA"
+    };
+
+    return `${base}${suffixMap[suffix] ?? `.${suffix}`}`;
   }
 
-  async function fetchStooqDaily(symbol) {
-    const urls = [
-      `https://stooq.com/q/d/l/?s=${encodeURIComponent(symbol)}&i=d`,
-      `https://stooq.pl/q/d/l/?s=${encodeURIComponent(symbol)}&i=d`,
-      `https://r.jina.ai/http://stooq.com/q/d/l/?s=${encodeURIComponent(symbol)}&i=d`,
-      `https://r.jina.ai/http://stooq.pl/q/d/l/?s=${encodeURIComponent(symbol)}&i=d`
+  async function fetchMarketHistory(symbol, range) {
+    const normalizedRange = ["6mo", "1y", "2y", "5y"].includes(range) ? range : "6mo";
+    const requestPaths = [
+      `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}?interval=1d&range=${encodeURIComponent(normalizedRange)}&includeAdjustedClose=true`,
+      `https://query2.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}?interval=1d&range=${encodeURIComponent(normalizedRange)}&includeAdjustedClose=true`,
+      `https://r.jina.ai/http://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}?interval=1d&range=${encodeURIComponent(normalizedRange)}&includeAdjustedClose=true`,
+      `https://r.jina.ai/http://query2.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}?interval=1d&range=${encodeURIComponent(normalizedRange)}&includeAdjustedClose=true`
     ];
 
     let lastError = new Error(`Market data request failed for ${symbol.toUpperCase()}.`);
 
-    for (const url of urls) {
+    for (const url of requestPaths) {
       try {
-        const response = await fetchWithTimeout(url, { cache: "no-store" }, 12000);
+        const response = await fetchWithTimeout(url, {
+          cache: "no-store",
+          headers: {
+            Accept: "application/json, text/plain;q=0.9, */*;q=0.8"
+          }
+        }, 14000);
+
         if (!response.ok) throw new Error(`Market data request returned ${response.status}.`);
 
         const rawText = await response.text();
-        const csv = extractStooqCsv(rawText);
-        if (!csv) throw new Error("The market data feed returned an unexpected response.");
-        const rows = parseStooqDailyCsv(csv);
-
-        if (rows.length < 5) throw new Error("The market data feed did not return enough observations.");
-        return rows;
+        const result = parseYahooChartResponse(rawText, symbol);
+        if (result.rows.length < 5) throw new Error("The market data feed did not return enough observations.");
+        return result;
       } catch (error) {
         lastError = error;
       }
@@ -1003,61 +1063,135 @@ document.addEventListener("DOMContentLoaded", () => {
     throw lastError;
   }
 
-  function extractStooqCsv(text) {
-    const normalized = String(text || "")
-      .replace(/\r/g, "")
-      .replace(/```(?:csv)?/gi, "")
-      .replace(/^\s*>+\s?/gm, "")
-      .trim();
+  function parseYahooChartResponse(rawText, symbol) {
+    const payloadText = extractJsonObject(rawText);
+    if (!payloadText) {
+      throw new Error("The market data feed returned an unexpected response.");
+    }
 
-    const headerLiteral = "date,open,high,low,close,volume";
-    const headerIndex = normalized.toLowerCase().indexOf(headerLiteral);
-    if (headerIndex === -1) return "";
+    let payload = null;
+    try {
+      payload = JSON.parse(payloadText);
+    } catch (error) {
+      throw new Error("The market data feed returned malformed JSON.");
+    }
 
-    const candidateLines = normalized
-      .slice(headerIndex)
-      .split("\n")
-      .map((line) => line.trim())
-      .filter(Boolean);
+    const chart = payload?.chart;
+    if (!chart) {
+      throw new Error("The market data feed returned an unexpected schema.");
+    }
 
-    const csvLines = [];
-    let sawHeader = false;
+    if (chart.error?.description) {
+      throw new Error(chart.error.description);
+    }
 
-    candidateLines.forEach((line) => {
-      const cleanLine = line.replace(/^\|+|\|+$/g, "").trim();
-      const compact = cleanLine.toLowerCase().replace(/\s+/g, "");
+    const result = Array.isArray(chart.result) ? chart.result[0] : null;
+    if (!result) {
+      throw new Error(`No market data was found for ${symbol.toUpperCase()}.`);
+    }
 
-      if (!sawHeader) {
-        if (compact.startsWith(headerLiteral)) {
-          csvLines.push("Date,Open,High,Low,Close,Volume");
-          sawHeader = true;
-        }
-        return;
-      }
+    const timestamps = Array.isArray(result.timestamp) ? result.timestamp : [];
+    const quoteClose = result?.indicators?.quote?.[0]?.close;
+    const adjustedClose = result?.indicators?.adjclose?.[0]?.adjclose;
+    const closeValues = Array.isArray(adjustedClose) && adjustedClose.length ? adjustedClose : (Array.isArray(quoteClose) ? quoteClose : []);
 
-      if (/^\d{4}-\d{2}-\d{2},/.test(cleanLine)) {
-        csvLines.push(cleanLine);
-      }
-    });
+    if (!timestamps.length || !closeValues.length) {
+      throw new Error("The market data feed returned no usable price history.");
+    }
 
-    return csvLines.length > 1 ? csvLines.join("\n") : "";
-  }
-
-  function parseStooqDailyCsv(csvText) {
-    return csvText
-      .trim()
-      .split("\n")
-      .slice(1)
-      .map((line) => line.split(","))
-      .map((parts) => ({
-        date: String(parts[0] || "").trim(),
-        close: Number(parts[4])
+    const rows = timestamps
+      .map((timestamp, index) => ({
+        date: formatUnixDate(timestamp),
+        close: Number(closeValues[index])
       }))
       .filter((row) => /^\d{4}-\d{2}-\d{2}$/.test(row.date) && Number.isFinite(row.close) && row.close > 0);
+
+    if (!rows.length) {
+      throw new Error("The market data feed returned no usable observations.");
+    }
+
+    return {
+      rows,
+      meta: result.meta || {}
+    };
   }
 
-  function filterSeriesFromDate(series, startDate) {
-    return series.filter((item) => new Date(item.date) >= startDate);
+  function extractJsonObject(rawText) {
+    const source = String(rawText || "").trim();
+    if (!source) return "";
+
+    const start = source.indexOf("{");
+    if (start === -1) return "";
+
+    let depth = 0;
+    let inString = false;
+    let escaped = false;
+
+    for (let index = start; index < source.length; index += 1) {
+      const char = source[index];
+
+      if (escaped) {
+        escaped = false;
+        continue;
+      }
+
+      if (char === "\\") {
+        escaped = true;
+        continue;
+      }
+
+      if (char === "\"") {
+        inString = !inString;
+        continue;
+      }
+
+      if (inString) continue;
+
+      if (char === "{") depth += 1;
+      if (char === "}") depth -= 1;
+
+      if (depth === 0) {
+        return source.slice(start, index + 1);
+      }
+    }
+
+    return source.slice(start);
+  }
+
+  function formatUnixDate(timestamp) {
+    const date = new Date(Number(timestamp) * 1000);
+    if (Number.isNaN(date.getTime())) return "";
+
+    const year = date.getUTCFullYear();
+    const month = String(date.getUTCMonth() + 1).padStart(2, "0");
+    const day = String(date.getUTCDate()).padStart(2, "0");
+    return `${year}-${month}-${day}`;
+  }
+
+  function normalizeMarketCurrency(value) {
+    const normalized = String(value || "").trim();
+    if (!normalized) return "";
+
+    const currencyMap = {
+      USD: "USD",
+      EUR: "EUR",
+      GBP: "GBP",
+      GBX: "GBp",
+      GBPX: "GBp",
+      GBp: "GBp",
+      JPY: "JPY",
+      TWD: "TWD",
+      HKD: "HKD",
+      CAD: "CAD",
+      AUD: "AUD",
+      CHF: "CHF"
+    };
+
+    return currencyMap[normalized] || normalized;
+  }
+
+  function resolvePriceCurrency(data) {
+    return String(data.priceCurrency || data.equityStats?.providerCurrency || "").trim();
   }
 
   function buildEquityChartConfig({ securitySeries, benchmarkSeries, securityLabel, benchmarkLabel }) {
@@ -1125,15 +1259,6 @@ document.addEventListener("DOMContentLoaded", () => {
       ...options,
       signal: controller.signal
     }).finally(() => window.clearTimeout(timeout));
-  }
-
-  function computeStartDate(range) {
-    const date = new Date();
-    if (range === "6mo") date.setMonth(date.getMonth() - 6);
-    else if (range === "1y") date.setFullYear(date.getFullYear() - 1);
-    else if (range === "2y") date.setFullYear(date.getFullYear() - 2);
-    else if (range === "5y") date.setFullYear(date.getFullYear() - 5);
-    return date;
   }
 
   function renderChart(config) {
@@ -1384,8 +1509,8 @@ document.addEventListener("DOMContentLoaded", () => {
     try {
       syncPrimaryPhone();
       if (isEquitySelected()) {
-        const activeSymbol = stooqSymbolFromTicker(dom.ticker.value.trim());
-        const activeBenchmarkSymbol = dom.benchmarkTicker.value.trim() ? stooqSymbolFromTicker(dom.benchmarkTicker.value.trim()) : "";
+        const activeSymbol = marketDataSymbolFromTicker(dom.ticker.value.trim());
+        const activeBenchmarkSymbol = dom.benchmarkTicker.value.trim() ? marketDataSymbolFromTicker(dom.benchmarkTicker.value.trim()) : "";
         const activeRange = dom.chartRange.value || "6mo";
         const needsFreshTearSheet =
           !state.priceChartImageBytes ||
@@ -1915,10 +2040,11 @@ document.addEventListener("DOMContentLoaded", () => {
     const marketPrice = Number.isFinite(data.equityStats.currentPrice) ? data.equityStats.currentPrice : null;
     const upside = computeUpsideToTarget(marketPrice, targetPrice);
     const priceDate = data.equityStats.priceDate ? formatDocDate(new Date(`${data.equityStats.priceDate}T00:00:00`)) : formatDocDate(publicationDate);
+    const priceCurrency = resolvePriceCurrency(data);
     const tearSheetRows = [
       { label: "Rating", value: data.crgRating || "N/A" },
-      { label: "Target price", value: formatPriceDisplay(targetPrice, data.priceCurrency) },
-      { label: "Closing price", sublabel: priceDate, value: formatPriceDisplay(marketPrice, data.priceCurrency) },
+      { label: "Target price", value: formatPriceDisplay(targetPrice, priceCurrency) },
+      { label: "Closing price", sublabel: priceDate, value: formatPriceDisplay(marketPrice, priceCurrency) },
       { label: "Implied upside", value: upside == null ? "N/A" : formatSignedPercent(upside) },
       { label: "Market Cap (USD mn)", value: formatPlainMetricValue(data.marketCapUsd) },
       { label: "ADT (USD mn)", value: formatPlainMetricValue(data.adtUsd) }
@@ -2060,7 +2186,7 @@ document.addEventListener("DOMContentLoaded", () => {
       new docxLib.Paragraph({
         children: [
           new docxLib.TextRun({
-            text: `Source: Stooq${data.equityStats.benchmarkLabel ? `, ${data.equityStats.benchmarkLabel}` : ""}`,
+            text: `Source: Yahoo Finance market data${data.equityStats.benchmarkLabel ? `, benchmarked against ${data.equityStats.benchmarkLabel}` : ""}`,
             size: 11,
             color: colors.muted,
             font: "Arial"
