@@ -162,11 +162,10 @@ body::before {
   grid-template-columns: 0 minmax(0, 1fr);
 }
 
-.body-toolbar {
-  grid-column: 1 / -1;
+.app-tools {
   display: flex;
   justify-content: flex-start;
-  padding: 12px 18px 0;
+  padding: 10px 18px 0;
 }
 
 .rail-toggle {
@@ -1196,7 +1195,7 @@ code {
     padding: 14px;
   }
 
-  .body-toolbar {
+  .app-tools {
     padding: 10px 14px 0;
   }
 
