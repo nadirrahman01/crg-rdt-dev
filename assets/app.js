@@ -2,6 +2,7 @@ console.log("CRG Research Production Console loaded");
 
 document.addEventListener("DOMContentLoaded", () => {
   const STORAGE_KEY = "crg-rdt-draft-v2";
+  const NOTE_SEQUENCE_STORAGE_KEY = "crg-rdt-note-seq-v1";
   const COUNTRY_CODES = [
     { value: "44", label: "+44 UK" },
     { value: "1", label: "+1 US" },
@@ -2075,24 +2076,50 @@ document.addEventListener("DOMContentLoaded", () => {
 
   function noteTypeCode(noteType) {
     const map = {
-      "General Note": "GEN",
+      "General Note": "GN",
       "Equity Research": "EQ",
-      "Macro Research": "MAC",
+      "Macro Research": "MA",
       "Fixed Income Research": "FI",
-      "Commodity Insights": "COM",
-      "Commodity Research": "COM"
+      "Commodity Insights": "CO",
+      "Commodity Research": "CO"
     };
 
-    return map[noteType] || "RSC";
+    return map[noteType] || "RS";
   }
 
   function buildNoteId(data) {
-    const publicationDate = parseInputDate(data.publicationDate) || data.generatedAt || new Date();
     const generatedAt = data.generatedAt || new Date();
-    const hh = String(generatedAt.getHours()).padStart(2, "0");
-    const mm = String(generatedAt.getMinutes()).padStart(2, "0");
-    const ss = String(generatedAt.getSeconds()).padStart(2, "0");
-    return `CRG-${noteTypeCode(data.noteType)}-${formatDateShort(publicationDate)}-${hh}${mm}${ss}`;
+    const dateStamp = formatCompactDateStamp(generatedAt);
+    const sequence = getNextNoteSequence(noteTypeCode(data.noteType), dateStamp);
+    return `CRG-${noteTypeCode(data.noteType)}-${dateStamp}-${sequence}`;
+  }
+
+  function formatCompactDateStamp(date) {
+    const day = String(date.getDate()).padStart(2, "0");
+    const month = String(date.getMonth() + 1).padStart(2, "0");
+    const year = String(date.getFullYear()).slice(-2);
+    return `${day}${month}${year}`;
+  }
+
+  function getNextNoteSequence(typeCode, dateStamp) {
+    try {
+      const raw = window.localStorage.getItem(NOTE_SEQUENCE_STORAGE_KEY);
+      const store = raw ? JSON.parse(raw) : {};
+      const key = `${typeCode}-${dateStamp}`;
+      const nextValue = Number(store[key] || 0) + 1;
+      store[key] = nextValue;
+      window.localStorage.setItem(NOTE_SEQUENCE_STORAGE_KEY, JSON.stringify(store));
+      return String(nextValue).padStart(2, "0");
+    } catch (error) {
+      console.warn("Unable to persist note sequence:", error);
+      const fallback = generatedSequenceFromClock();
+      return String(fallback).padStart(2, "0");
+    }
+  }
+
+  function generatedSequenceFromClock() {
+    const now = new Date();
+    return ((now.getHours() * 60) + now.getMinutes()) % 99 || 1;
   }
 
   function slugify(value) {
@@ -3043,7 +3070,7 @@ document.addEventListener("DOMContentLoaded", () => {
         new docxLib.TableRow({
           children: [
             new docxLib.TableCell({
-              width: { size: 33.33, type: docxLib.WidthType.PERCENTAGE },
+              width: { size: 35, type: docxLib.WidthType.PERCENTAGE },
               borders: {
                 top: { style: docxLib.BorderStyle.NONE },
                 bottom: { style: docxLib.BorderStyle.NONE },
@@ -3056,8 +3083,8 @@ document.addEventListener("DOMContentLoaded", () => {
                   alignment: docxLib.AlignmentType.LEFT,
                   children: [
                     new docxLib.TextRun({
-                      text: `Published: ${formatDocDate(publicationDate)}`,
-                      size: 12,
+                      text: `Note ID: ${noteId || "Pending"}`,
+                      size: 11,
                       color: colors.muted,
                       font: "Arial"
                     })
@@ -3067,7 +3094,7 @@ document.addEventListener("DOMContentLoaded", () => {
               ]
             }),
             new docxLib.TableCell({
-              width: { size: 33.34, type: docxLib.WidthType.PERCENTAGE },
+              width: { size: 41, type: docxLib.WidthType.PERCENTAGE },
               borders: {
                 top: { style: docxLib.BorderStyle.NONE },
                 bottom: { style: docxLib.BorderStyle.NONE },
@@ -3080,8 +3107,8 @@ document.addEventListener("DOMContentLoaded", () => {
                   alignment: docxLib.AlignmentType.CENTER,
                   children: [
                     new docxLib.TextRun({
-                      text: `${noteId ? `Note ID: ${noteId} | ` : ""}Generated ${formatProductionTimestamp(generatedAt)}`,
-                      size: 12,
+                      text: `Published: ${formatProductionTimestamp(generatedAt)}`,
+                      size: 11,
                       color: colors.muted,
                       font: "Arial"
                     })
@@ -3091,7 +3118,7 @@ document.addEventListener("DOMContentLoaded", () => {
               ]
             }),
             new docxLib.TableCell({
-              width: { size: 33.33, type: docxLib.WidthType.PERCENTAGE },
+              width: { size: 24, type: docxLib.WidthType.PERCENTAGE },
               borders: {
                 top: { style: docxLib.BorderStyle.NONE },
                 bottom: { style: docxLib.BorderStyle.NONE },
@@ -3105,7 +3132,7 @@ document.addEventListener("DOMContentLoaded", () => {
                   children: [
                     new docxLib.TextRun({
                       children: ["Page ", docxLib.PageNumber.CURRENT, " of ", docxLib.PageNumber.TOTAL_PAGES],
-                      size: 12,
+                      size: 11,
                       color: colors.muted,
                       font: "Arial"
                     })
