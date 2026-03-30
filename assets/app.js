@@ -128,7 +128,15 @@ document.addEventListener("DOMContentLoaded", () => {
     scenarioNotes: document.getElementById("scenarioNotes"),
     financialTableTitle: document.getElementById("financialTableTitle"),
     financialSourceNote: document.getElementById("financialSourceNote"),
+    financialTableEditor: document.getElementById("financialTableEditor"),
+    financialTableHead: document.getElementById("financialTableHead"),
+    financialTableBody: document.getElementById("financialTableBody"),
     financialTableInput: document.getElementById("financialTableInput"),
+    financialTablePaste: document.getElementById("financialTablePaste"),
+    financialImportBtn: document.getElementById("financialImportBtn"),
+    financialAddColumnBtn: document.getElementById("financialAddColumnBtn"),
+    financialAddRowBtn: document.getElementById("financialAddRowBtn"),
+    financialResetBtn: document.getElementById("financialResetBtn"),
     keyTakeaways: document.getElementById("keyTakeaways"),
     analysis: document.getElementById("analysis"),
     content: document.getElementById("content"),
@@ -182,6 +190,7 @@ document.addEventListener("DOMContentLoaded", () => {
       benchmarkSymbol: "",
       range: ""
     },
+    financialTable: null,
     saveTimer: null,
     lastSavedAt: null
   };
@@ -233,6 +242,7 @@ document.addEventListener("DOMContentLoaded", () => {
     wireFormEvents();
     restoreDraft();
     ensurePublicationDate();
+    initializeFinancialTableEditor();
     ensureDeskLineDefault();
     syncPrimaryPhone();
     toggleEquitySection();
@@ -314,6 +324,11 @@ document.addEventListener("DOMContentLoaded", () => {
       queueDraftSave();
     });
 
+    dom.publicationDate.addEventListener("change", () => {
+      updateAllUI();
+      queueDraftSave();
+    });
+
     dom.deskLine.addEventListener("input", () => {
       dom.deskLine.dataset.autofill = "false";
       updateAllUI();
@@ -335,6 +350,14 @@ document.addEventListener("DOMContentLoaded", () => {
       updateFileSummary(dom.imageUpload, dom.imageSummaryHead, dom.imageSummaryList, "No figures attached.");
       updateAllUI();
     });
+
+    dom.financialAddColumnBtn.addEventListener("click", addFinancialPeriodColumn);
+    dom.financialAddRowBtn.addEventListener("click", addFinancialLineItem);
+    dom.financialResetBtn.addEventListener("click", resetFinancialTableGrid);
+    dom.financialImportBtn.addEventListener("click", importFinancialTableFromPaste);
+
+    dom.financialTableEditor.addEventListener("input", handleFinancialGridInput);
+    dom.financialTableEditor.addEventListener("click", handleFinancialGridClick);
 
     dom.addCoAuthor.addEventListener("click", () => {
       addCoAuthorCard();
@@ -529,6 +552,245 @@ document.addEventListener("DOMContentLoaded", () => {
       .filter((coAuthor) => coAuthor.lastName || coAuthor.firstName || coAuthor.phone);
   }
 
+  function initializeFinancialTableEditor(forceReset = false) {
+    const publicationDate = parseInputDate(dom.publicationDate.value) || new Date();
+    const rawValue = forceReset ? "" : dom.financialTableInput.value.trim();
+    state.financialTable = parseFinancialTableInput(rawValue, publicationDate);
+    syncFinancialTableStorage();
+    renderFinancialTableEditor();
+
+    if (forceReset && dom.financialTablePaste) dom.financialTablePaste.value = "";
+  }
+
+  function syncFinancialTableStorage() {
+    const publicationDate = parseInputDate(dom.publicationDate.value) || new Date();
+    state.financialTable = normalizeFinancialMatrix(state.financialTable, publicationDate);
+    dom.financialTableInput.value = JSON.stringify(state.financialTable);
+  }
+
+  function renderFinancialTableEditor() {
+    if (!dom.financialTableHead || !dom.financialTableBody) return;
+
+    const matrix = normalizeFinancialMatrix(state.financialTable, parseInputDate(dom.publicationDate.value) || new Date());
+    state.financialTable = matrix;
+
+    dom.financialTableHead.innerHTML = `
+      <tr>
+        <th class="financial-grid-metric-col">
+          <span class="financial-grid-label">Line Item</span>
+        </th>
+        ${matrix.headers.map((header, index) => `
+          <th class="financial-grid-period-col">
+            <div class="financial-header-cell">
+              <span class="financial-grid-label">Period ${index + 1}</span>
+              <input
+                type="text"
+                value="${escapeAttribute(header)}"
+                data-kind="header"
+                data-col-index="${index}"
+                placeholder="FY26F"
+              >
+              <div class="financial-header-actions">
+                <button type="button" class="btn btn-ghost btn-xs" data-action="move-col-left" data-col-index="${index}" ${index === 0 ? "disabled" : ""}>&lt;</button>
+                <button type="button" class="btn btn-ghost btn-xs" data-action="move-col-right" data-col-index="${index}" ${index === matrix.headers.length - 1 ? "disabled" : ""}>&gt;</button>
+                <button type="button" class="btn btn-ghost btn-xs" data-action="delete-col" data-col-index="${index}" ${matrix.headers.length === 1 ? "disabled" : ""}>Del</button>
+              </div>
+            </div>
+          </th>
+        `).join("")}
+        <th class="financial-grid-actions-col">
+          <span class="financial-grid-label">Row Order</span>
+        </th>
+      </tr>
+    `;
+
+    dom.financialTableBody.innerHTML = matrix.rows.map((row, rowIndex) => `
+      <tr>
+        <td class="financial-grid-metric-col">
+          <div class="financial-row-cell">
+            <span class="financial-grid-label">Metric ${rowIndex + 1}</span>
+            <input
+              type="text"
+              class="financial-row-label"
+              value="${escapeAttribute(row.label)}"
+              data-kind="row-label"
+              data-row-index="${rowIndex}"
+              placeholder="Revenue (mn)"
+            >
+          </div>
+        </td>
+        ${row.values.map((value, colIndex) => `
+          <td class="financial-grid-period-col">
+            <input
+              type="text"
+              class="financial-cell-input"
+              value="${escapeAttribute(value)}"
+              data-kind="value"
+              data-row-index="${rowIndex}"
+              data-col-index="${colIndex}"
+              placeholder="-"
+            >
+          </td>
+        `).join("")}
+        <td class="financial-grid-actions-col">
+          <div class="financial-row-actions">
+            <button type="button" class="btn btn-ghost btn-xs" data-action="move-row-up" data-row-index="${rowIndex}" ${rowIndex === 0 ? "disabled" : ""}>Up</button>
+            <button type="button" class="btn btn-ghost btn-xs" data-action="move-row-down" data-row-index="${rowIndex}" ${rowIndex === matrix.rows.length - 1 ? "disabled" : ""}>Dn</button>
+            <button type="button" class="btn btn-ghost btn-xs" data-action="delete-row" data-row-index="${rowIndex}" ${matrix.rows.length === 1 ? "disabled" : ""}>Del</button>
+          </div>
+        </td>
+      </tr>
+    `).join("");
+
+    dom.financialAddColumnBtn.disabled = matrix.headers.length >= 6;
+  }
+
+  function handleFinancialGridInput(event) {
+    const target = event.target;
+    if (!(target instanceof HTMLInputElement)) return;
+
+    const kind = target.getAttribute("data-kind");
+    if (!kind || !state.financialTable) return;
+
+    const rowIndex = Number(target.getAttribute("data-row-index"));
+    const colIndex = Number(target.getAttribute("data-col-index"));
+
+    if (kind === "header" && Number.isInteger(colIndex)) {
+      state.financialTable.headers[colIndex] = target.value.trim() || `Period ${colIndex + 1}`;
+    } else if (kind === "row-label" && Number.isInteger(rowIndex)) {
+      state.financialTable.rows[rowIndex].label = target.value;
+    } else if (kind === "value" && Number.isInteger(rowIndex) && Number.isInteger(colIndex)) {
+      state.financialTable.rows[rowIndex].values[colIndex] = target.value;
+    }
+
+    syncFinancialTableStorage();
+  }
+
+  function handleFinancialGridClick(event) {
+    const actionButton = event.target.closest("[data-action]");
+    if (!actionButton || !state.financialTable) return;
+
+    const action = actionButton.getAttribute("data-action");
+    const rowIndex = Number(actionButton.getAttribute("data-row-index"));
+    const colIndex = Number(actionButton.getAttribute("data-col-index"));
+
+    if (action === "move-col-left" && colIndex > 0) {
+      moveFinancialColumn(colIndex, colIndex - 1);
+    } else if (action === "move-col-right" && colIndex < state.financialTable.headers.length - 1) {
+      moveFinancialColumn(colIndex, colIndex + 1);
+    } else if (action === "delete-col") {
+      removeFinancialColumn(colIndex);
+    } else if (action === "move-row-up" && rowIndex > 0) {
+      moveFinancialRow(rowIndex, rowIndex - 1);
+    } else if (action === "move-row-down" && rowIndex < state.financialTable.rows.length - 1) {
+      moveFinancialRow(rowIndex, rowIndex + 1);
+    } else if (action === "delete-row") {
+      removeFinancialRow(rowIndex);
+    } else {
+      return;
+    }
+
+    syncFinancialTableStorage();
+    renderFinancialTableEditor();
+    updateAllUI();
+    queueDraftSave();
+  }
+
+  function addFinancialPeriodColumn() {
+    if (!state.financialTable) initializeFinancialTableEditor();
+    if (state.financialTable.headers.length >= 6) {
+      setMessage("error", "Financial forecast export supports up to six period columns in the current layout.");
+      return;
+    }
+
+    const nextHeader = buildNextFinancialHeaderLabel(state.financialTable.headers, parseInputDate(dom.publicationDate.value) || new Date());
+    state.financialTable.headers.push(nextHeader);
+    state.financialTable.rows.forEach((row) => row.values.push(""));
+    syncFinancialTableStorage();
+    renderFinancialTableEditor();
+    updateAllUI();
+    queueDraftSave();
+  }
+
+  function addFinancialLineItem() {
+    if (!state.financialTable) initializeFinancialTableEditor();
+    state.financialTable.rows.push({
+      label: "",
+      values: Array.from({ length: state.financialTable.headers.length }, () => "")
+    });
+    syncFinancialTableStorage();
+    renderFinancialTableEditor();
+    updateAllUI();
+    queueDraftSave();
+  }
+
+  function resetFinancialTableGrid() {
+    const shouldReset = !state.financialTable || !hasMeaningfulFinancialData(state.financialTable)
+      ? true
+      : window.confirm("Reset the financial forecast grid to the default institutional template?");
+
+    if (!shouldReset) return;
+
+    initializeFinancialTableEditor(true);
+    updateAllUI();
+    queueDraftSave();
+  }
+
+  function importFinancialTableFromPaste() {
+    const raw = String(dom.financialTablePaste.value || "").trim();
+    if (!raw) {
+      setMessage("error", "Paste a forecast table before importing it into the grid.");
+      return;
+    }
+
+    state.financialTable = parseFinancialTableInput(raw, parseInputDate(dom.publicationDate.value) || new Date());
+    syncFinancialTableStorage();
+    renderFinancialTableEditor();
+    updateAllUI();
+    queueDraftSave();
+  }
+
+  function moveFinancialColumn(fromIndex, toIndex) {
+    const headers = state.financialTable.headers;
+    const [header] = headers.splice(fromIndex, 1);
+    headers.splice(toIndex, 0, header);
+
+    state.financialTable.rows.forEach((row) => {
+      const [value] = row.values.splice(fromIndex, 1);
+      row.values.splice(toIndex, 0, value);
+    });
+  }
+
+  function removeFinancialColumn(index) {
+    if (state.financialTable.headers.length === 1) return;
+    state.financialTable.headers.splice(index, 1);
+    state.financialTable.rows.forEach((row) => {
+      row.values.splice(index, 1);
+    });
+  }
+
+  function moveFinancialRow(fromIndex, toIndex) {
+    const [row] = state.financialTable.rows.splice(fromIndex, 1);
+    state.financialTable.rows.splice(toIndex, 0, row);
+  }
+
+  function removeFinancialRow(index) {
+    if (state.financialTable.rows.length === 1) {
+      state.financialTable.rows = [{
+        label: "",
+        values: Array.from({ length: state.financialTable.headers.length }, () => "")
+      }];
+      return;
+    }
+    state.financialTable.rows.splice(index, 1);
+  }
+
+  function buildNextFinancialHeaderLabel(headers, publicationDate) {
+    const years = extractFinancialHeaderYears(headers);
+    const nextYear = years.length ? Math.max(...years) + 1 : publicationDate.getFullYear() + 1;
+    return `FY${String(nextYear).slice(-2)}F`;
+  }
+
   function isEquitySelected() {
     return dom.noteType.value === "Equity Research";
   }
@@ -686,6 +948,7 @@ document.addEventListener("DOMContentLoaded", () => {
     if (isEquitySelected()) {
       const targetPrice = parseNumber(data.targetPrice);
       const valuationWordCount = countMeaningfulWords(data.valuationSummary);
+      const financialMatrix = parseFinancialTableInput(data.financialTableInput, publicationDate);
       if (targetPrice != null && valuationWordCount < 18) {
         findings.push(
           buildFinding(
@@ -734,29 +997,26 @@ document.addEventListener("DOMContentLoaded", () => {
         );
       }
 
-      if (!data.financialTableInput.trim()) {
+      if (!hasMeaningfulFinancialData(financialMatrix)) {
         findings.push(
           buildFinding(
             "warning",
             "Financial table not populated",
-            "Paste a live forecast table from the model so the equity note prints with actual financial estimates rather than placeholders.",
+            "Add live forecast values into the financial grid so the equity note prints with actual financial estimates rather than placeholders.",
             "Equity",
-            { focusId: "financialTableInput" }
+            { focusId: "financialTableEditor" }
           )
         );
-      } else {
-        const matrix = parseFinancialTableInput(data.financialTableInput, publicationDate);
-        if (isFinancialTableStale(matrix, publicationDate)) {
-          findings.push(
-            buildFinding(
-              "warning",
-              "Financial table may be stale",
-              "The financial headers look historical-only or do not extend far enough beyond the publication year.",
-              "Equity",
-              { focusId: "financialTableInput" }
-            )
-          );
-        }
+      } else if (isFinancialTableStale(financialMatrix, publicationDate)) {
+        findings.push(
+          buildFinding(
+            "warning",
+            "Financial table may be stale",
+            "The financial headers look historical-only or do not extend far enough beyond the publication year.",
+            "Equity",
+            { focusId: "financialTableEditor" }
+          )
+        );
       }
     }
 
@@ -1171,6 +1431,7 @@ document.addEventListener("DOMContentLoaded", () => {
     resetChartState({ keepStatusText: false });
     window.localStorage.removeItem(STORAGE_KEY);
     ensurePublicationDate();
+    initializeFinancialTableEditor(true);
     ensureDeskLineDefault(true);
     updateFileSummary(dom.modelFiles, dom.modelSummaryHead, dom.modelSummaryList, "No supporting files attached.");
     updateFileSummary(dom.imageUpload, dom.imageSummaryHead, dom.imageSummaryList, "No figures attached.");
@@ -2795,7 +3056,7 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   function buildEquityFinancialTable(docxLib, colors, data, publicationDate) {
-    const matrix = parseFinancialTableInput(data.financialTableInput, publicationDate);
+    const matrix = pruneEmptyFinancialRows(parseFinancialTableInput(data.financialTableInput, publicationDate));
     const title = data.financialTableTitle || "Year-end 31 Dec";
     const sourceNote = data.financialSourceNote || "Source: Company data, Cordoba Research Group estimates";
     const columnCount = matrix.headers.length;
@@ -2877,7 +3138,7 @@ document.addEventListener("DOMContentLoaded", () => {
                   alignment: docxLib.AlignmentType.CENTER,
                   children: [
                     new docxLib.TextRun({
-                      text: value || "-",
+                      text: formatFinancialCellForExport(value),
                       size: 11,
                       color: colors.black,
                       font: "Arial"
@@ -2921,31 +3182,49 @@ document.addEventListener("DOMContentLoaded", () => {
     ];
   }
 
+  function pruneEmptyFinancialRows(matrix) {
+    const rows = (matrix?.rows || []).filter((row) =>
+      String(row?.label || "").trim() ||
+      (row?.values || []).some((value) => String(value || "").trim())
+    );
+
+    return {
+      headers: matrix?.headers || [],
+      rows: rows.length ? rows : buildDefaultFinancialRows((matrix?.headers || []).length || 4)
+    };
+  }
+
   function parseFinancialTableInput(text, publicationDate) {
-    const maxColumns = 6;
-    const fallbackHeaders = buildDefaultFinancialHeaders(publicationDate);
-    const fallbackRows = buildDefaultFinancialRows(fallbackHeaders.length);
     const raw = String(text || "").trim();
-    if (!raw) {
-      return { headers: fallbackHeaders, rows: fallbackRows };
+    if (!raw) return normalizeFinancialMatrix(null, publicationDate);
+
+    if (raw.startsWith("{")) {
+      try {
+        const parsed = JSON.parse(raw);
+        return normalizeFinancialMatrix(parsed, publicationDate);
+      } catch (error) {
+        console.warn("Unable to parse structured financial grid data, falling back to delimited parsing:", error);
+      }
     }
 
-    const lines = raw
+    return parseDelimitedFinancialTable(raw, publicationDate);
+  }
+
+  function parseDelimitedFinancialTable(text, publicationDate) {
+    const lines = String(text || "")
       .split(/\r?\n/)
       .map((line) => line.trim())
       .filter(Boolean);
 
-    if (!lines.length) {
-      return { headers: fallbackHeaders, rows: fallbackRows };
-    }
+    if (!lines.length) return normalizeFinancialMatrix(null, publicationDate);
 
     const delimiter = detectTableDelimiter(lines[0]);
     const parsedLines = lines.map((line) => splitDelimitedLine(line, delimiter).map((cell) => cell.trim()));
     const headerCells = parsedLines[0];
     const hasExplicitHeader = headerCells.length > 1;
     const headers = hasExplicitHeader
-      ? headerCells.slice(1, maxColumns + 1).filter(Boolean)
-      : fallbackHeaders;
+      ? headerCells.slice(1, 7).filter(Boolean)
+      : buildDefaultFinancialHeaders(publicationDate);
 
     const rows = parsedLines
       .slice(hasExplicitHeader ? 1 : 0)
@@ -2953,11 +3232,25 @@ document.addEventListener("DOMContentLoaded", () => {
         label: cells[0] || "",
         values: normalizeFinancialValues(cells.slice(1), headers.length)
       }))
-      .filter((row) => row.label);
+      .filter((row) => row.label || row.values.some((value) => String(value || "").trim()));
+
+    return normalizeFinancialMatrix({ headers, rows }, publicationDate);
+  }
+
+  function normalizeFinancialMatrix(matrix, publicationDate) {
+    const fallbackHeaders = buildDefaultFinancialHeaders(publicationDate);
+    const inputHeaders = Array.isArray(matrix?.headers) && matrix.headers.length ? matrix.headers.slice(0, 6) : fallbackHeaders;
+    const normalizedHeaders = inputHeaders.map((header, index) => String(header || "").trim() || fallbackHeaders[index] || `Period ${index + 1}`);
+    const rawRows = Array.isArray(matrix?.rows) && matrix.rows.length ? matrix.rows : buildDefaultFinancialRows(normalizedHeaders.length);
+    const rows = rawRows
+      .map((row) => ({
+        label: String(row?.label || ""),
+        values: normalizeFinancialValues(Array.isArray(row?.values) ? row.values : [], normalizedHeaders.length)
+      }));
 
     return {
-      headers: headers.length ? headers : fallbackHeaders,
-      rows: rows.length ? rows : fallbackRows
+      headers: normalizedHeaders,
+      rows: rows.length ? rows : buildDefaultFinancialRows(normalizedHeaders.length)
     };
   }
 
@@ -2987,7 +3280,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
     return metrics.map((label) => ({
       label,
-      values: Array.from({ length: columnCount }, () => "-")
+      values: Array.from({ length: columnCount }, () => "")
     }));
   }
 
@@ -3033,9 +3326,30 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   function normalizeFinancialValues(values, targetLength) {
-    const normalized = values.slice(0, targetLength).map((value) => value || "-");
-    while (normalized.length < targetLength) normalized.push("-");
+    const normalized = values
+      .slice(0, targetLength)
+      .map((value) => normalizeFinancialCellValue(value));
+    while (normalized.length < targetLength) normalized.push("");
     return normalized;
+  }
+
+  function normalizeFinancialCellValue(value) {
+    const text = String(value ?? "").trim();
+    return text === "-" ? "" : text;
+  }
+
+  function hasMeaningfulFinancialData(matrix) {
+    return (matrix?.rows || []).some((row) =>
+      (row.values || []).some((value) => {
+        const text = String(value || "").trim();
+        return text && text !== "-";
+      })
+    );
+  }
+
+  function formatFinancialCellForExport(value) {
+    const text = String(value || "").trim();
+    return text || "-";
   }
 
   function formatPlainMetricValue(value) {
