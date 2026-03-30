@@ -90,6 +90,8 @@ document.addEventListener("DOMContentLoaded", () => {
     appBody: document.getElementById("appBody"),
     workflowRail: document.getElementById("workflowRail"),
     toggleRailBtn: document.getElementById("toggleRailBtn"),
+    toggleRailIcon: document.getElementById("toggleRailIcon"),
+    toggleRailText: document.getElementById("toggleRailText"),
     headerDateTime: document.getElementById("headerDateTime"),
     noteType: document.getElementById("noteType"),
     distribution: document.getElementById("distribution"),
@@ -426,8 +428,11 @@ document.addEventListener("DOMContentLoaded", () => {
   function applyRailState(collapsed) {
     state.railCollapsed = Boolean(collapsed);
     dom.appBody.classList.toggle("is-rail-collapsed", state.railCollapsed);
-    dom.toggleRailBtn.textContent = state.railCollapsed ? "Show Panel" : "Hide Panel";
+    dom.toggleRailBtn.classList.toggle("is-collapsed", state.railCollapsed);
+    dom.toggleRailIcon.textContent = state.railCollapsed ? ">" : "<";
+    dom.toggleRailText.textContent = state.railCollapsed ? "Show Workflow Panel" : "Hide Workflow Panel";
     dom.toggleRailBtn.setAttribute("aria-expanded", String(!state.railCollapsed));
+    dom.toggleRailBtn.setAttribute("aria-label", state.railCollapsed ? "Show workflow side panel" : "Hide workflow side panel");
 
     try {
       window.localStorage.setItem(RAIL_STATE_STORAGE_KEY, state.railCollapsed ? "1" : "0");
