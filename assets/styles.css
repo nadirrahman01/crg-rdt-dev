@@ -102,6 +102,10 @@ body::before {
   color: var(--ink-soft);
 }
 
+.header-brand .header-copy:empty {
+  display: none;
+}
+
 .header-meta {
   display: grid;
   grid-template-columns: repeat(3, minmax(170px, 1fr));
@@ -428,6 +432,17 @@ form {
   display: flex;
   flex-direction: column;
   gap: 6px;
+}
+
+.field-highlight {
+  padding: 12px;
+  border: 1px solid #ead8c0;
+  border-radius: var(--radius-md);
+  background: #fff7ef;
+}
+
+.field-highlight textarea {
+  background: #fffdfb;
 }
 
 .field-span-4 {
