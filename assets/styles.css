@@ -150,11 +150,32 @@ body::before {
   white-space: nowrap;
 }
 
+.rail-toggle {
+  margin-top: 2px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--ink-soft);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.rail-toggle:hover {
+  color: var(--navy);
+}
+
 .app-body {
   display: grid;
   grid-template-columns: 300px minmax(0, 1fr);
   gap: 0;
   min-height: calc(100vh - 91px);
+  transition: grid-template-columns 180ms ease;
+}
+
+.app-body.is-rail-collapsed {
+  grid-template-columns: 0 minmax(0, 1fr);
 }
 
 .workflow-rail {
@@ -166,6 +187,14 @@ body::before {
   overflow: auto;
   border-right: 1px solid var(--line);
   background: #f6f7f9;
+  transition: opacity 140ms ease, padding 180ms ease, border-color 180ms ease;
+}
+
+.app-body.is-rail-collapsed .workflow-rail {
+  padding: 0;
+  overflow: hidden;
+  opacity: 0;
+  border-right-color: transparent;
 }
 
 .rail-panel {
@@ -429,9 +458,9 @@ form {
 }
 
 .section-card-output {
-  position: sticky;
-  bottom: 14px;
-  z-index: 5;
+  position: static;
+  bottom: auto;
+  z-index: auto;
 }
 
 .section-head {
@@ -775,6 +804,14 @@ input[type="file"]::file-selector-button {
 .financial-grid-table input[type="text"] {
   padding: 8px 9px;
   font-size: 12px;
+}
+
+.financial-grid-table input[type="text"].financial-cell-input.is-monetary,
+.financial-grid-table input[type="text"].financial-cell-input.is-percent,
+.financial-grid-table input[type="text"].financial-cell-input.is-multiple,
+.financial-grid-table input[type="text"].financial-cell-input.is-eps,
+.financial-grid-table input[type="text"].financial-cell-input.is-ratio {
+  font-variant-numeric: tabular-nums;
 }
 
 .financial-header-actions,
