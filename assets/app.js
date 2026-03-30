@@ -342,7 +342,9 @@ document.addEventListener("DOMContentLoaded", () => {
       "Equity Research": "Global Equity Strategy",
       "Macro Research": "Global Macro Strategy",
       "Fixed Income Research": "Global Fixed Income Strategy",
-      "Commodity Insights": "Global Commodities Strategy"
+      "Commodity Insights": "Global Commodity Strategy",
+      "Commodity Research": "Global Commodity Strategy",
+      Commodity: "Global Commodity Strategy"
     };
 
     return noteType ? (map[noteType] || "Research - Global") : "";
@@ -731,7 +733,8 @@ document.addEventListener("DOMContentLoaded", () => {
       state.coAuthorCount = 0;
       (payload.coAuthors || []).forEach((coAuthor) => addCoAuthorCard(coAuthor));
       state.lastSavedAt = payload.savedAt || null;
-      dom.deskLine.dataset.autofill = dom.deskLine.value.trim() ? "false" : "true";
+      dom.deskLine.dataset.autofill = "true";
+      ensureDeskLineDefault(true);
 
       if (state.lastSavedAt) {
         dom.draftStatus.textContent = `Draft restored from ${formatDateTime(new Date(state.lastSavedAt))}.`;
@@ -1313,8 +1316,8 @@ document.addEventListener("DOMContentLoaded", () => {
       muted: "5D636D",
       line: "D8DCE2",
       soft: "F5F6F8",
-      takeawayFill: "FFF3E8",
-      takeawayBorder: "E6D1B7",
+      takeawayFill: "FFF9F4",
+      takeawayBorder: "EADCCD",
       white: "FFFFFF"
     };
 
