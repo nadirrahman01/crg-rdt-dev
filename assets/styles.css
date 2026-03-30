@@ -9,9 +9,9 @@
   --ink-soft: #4f5966;
   --ink-muted: #6d7682;
   --navy: #1d2734;
-  --red: #cc2d1f;
-  --red-dark: #b62417;
-  --red-soft: rgba(204, 45, 31, 0.08);
+  --red: #845f0f;
+  --red-dark: #6f500d;
+  --red-soft: rgba(132, 95, 15, 0.1);
   --green: #25734b;
   --shadow: 0 10px 24px rgba(15, 23, 42, 0.06);
   --radius-sm: 6px;
@@ -72,22 +72,7 @@ body::before {
 }
 
 .brand-lockup {
-  display: flex;
-  align-items: center;
-  gap: 14px;
-}
-
-.brand-mark {
-  width: 46px;
-  height: 46px;
-  display: grid;
-  place-items: center;
-  background: var(--red);
-  color: #fff;
-  font-weight: 700;
-  font-size: 15px;
-  letter-spacing: 0.08em;
-  border-radius: var(--radius-sm);
+  display: block;
 }
 
 .brand-overline,
@@ -221,7 +206,7 @@ body::before {
 .progress-fill {
   width: 0;
   height: 100%;
-  background: linear-gradient(90deg, var(--red), #e06b61);
+  background: linear-gradient(90deg, var(--red), #b48b33);
   transition: width 180ms ease;
 }
 
@@ -257,7 +242,7 @@ body::before {
 }
 
 .section-nav-link.is-active {
-  border-color: rgba(204, 45, 31, 0.22);
+  border-color: rgba(132, 95, 15, 0.22);
   background: var(--red-soft);
   color: var(--red-dark);
 }
@@ -522,13 +507,13 @@ input[type="date"]:focus,
 textarea:focus,
 select:focus,
 input[type="file"]:focus {
-  border-color: rgba(204, 45, 31, 0.65);
-  box-shadow: 0 0 0 3px rgba(204, 45, 31, 0.1);
+  border-color: rgba(132, 95, 15, 0.65);
+  box-shadow: 0 0 0 3px rgba(132, 95, 15, 0.1);
 }
 
 .is-invalid {
-  border-color: rgba(182, 36, 23, 0.76) !important;
-  box-shadow: 0 0 0 3px rgba(204, 45, 31, 0.08) !important;
+  border-color: rgba(132, 95, 15, 0.76) !important;
+  box-shadow: 0 0 0 3px rgba(132, 95, 15, 0.08) !important;
 }
 
 input[type="file"] {
@@ -799,8 +784,8 @@ input[type="file"]::file-selector-button {
 }
 
 .message.is-error {
-  border-color: rgba(204, 45, 31, 0.25);
-  background: rgba(204, 45, 31, 0.06);
+  border-color: rgba(132, 95, 15, 0.25);
+  background: rgba(132, 95, 15, 0.06);
 }
 
 code {
