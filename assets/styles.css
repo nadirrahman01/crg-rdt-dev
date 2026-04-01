@@ -612,6 +612,54 @@ label {
   color: var(--red-dark);
 }
 
+.info-help {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+}
+
+.info-dot {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border: 1px solid var(--line-strong);
+  border-radius: 50%;
+  background: #fff;
+  color: var(--ink-muted);
+  font-size: 11px;
+  font-weight: 700;
+  cursor: help;
+}
+
+.info-tooltip {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  width: 280px;
+  padding: 10px 11px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: #fff;
+  box-shadow: var(--shadow);
+  color: var(--ink-soft);
+  font-size: 12px;
+  line-height: 1.5;
+  opacity: 0;
+  visibility: hidden;
+  transform: translateY(-4px);
+  transition: opacity 120ms ease, transform 120ms ease, visibility 120ms ease;
+  z-index: 8;
+}
+
+.info-help:hover .info-tooltip,
+.info-help:focus-within .info-tooltip {
+  opacity: 1;
+  visibility: visible;
+  transform: translateY(0);
+}
+
 input[type="text"],
 input[type="date"],
 textarea,
@@ -759,6 +807,23 @@ input[type="file"]::file-selector-button {
   padding: 12px;
 }
 
+.ratings-profile-extra {
+  padding: 0 12px 12px;
+  display: grid;
+  gap: 10px;
+}
+
+.ratings-profile-list {
+  display: grid;
+  gap: 8px;
+}
+
+.ratings-profile-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1fr) auto;
+  gap: 8px;
+}
+
 .body-sections-shell {
   display: grid;
   gap: 12px;
@@ -832,6 +897,22 @@ input[type="file"]::file-selector-button {
   margin: 2px 0 0;
   color: var(--ink-soft);
   font-size: 12px;
+}
+
+.methodology-panel {
+  background: #fbfbfc;
+}
+
+.methodology-copy {
+  display: grid;
+  gap: 8px;
+  color: var(--ink-soft);
+  font-size: 12px;
+  line-height: 1.55;
+}
+
+.methodology-copy p {
+  margin: 0;
 }
 
 .financial-editor {
@@ -955,6 +1036,10 @@ input[type="file"]::file-selector-button {
 
 .financial-row-label {
   font-weight: 600;
+}
+
+#coverageCountryDisplay::-webkit-calendar-picker-indicator {
+  opacity: 0;
 }
 
 .financial-grid-label {
@@ -1291,7 +1376,8 @@ code {
   .metrics-grid,
   .output-grid,
   .coauthor-card,
-  .ratings-table-grid {
+  .ratings-table-grid,
+  .ratings-profile-row {
     grid-template-columns: 1fr;
   }
 
