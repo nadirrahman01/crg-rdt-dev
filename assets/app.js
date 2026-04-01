@@ -29,6 +29,75 @@ document.addEventListener("DOMContentLoaded", () => {
   ];
 
   const WORLD_COUNTRIES = buildWorldCountryOptions();
+  const EQUITY_INDUSTRIES = [
+    "Aerospace & Defense",
+    "Air Freight & Logistics",
+    "Airlines",
+    "Auto Components",
+    "Automobiles",
+    "Banks",
+    "Beverages",
+    "Biotechnology",
+    "Broadline Retail",
+    "Building Products",
+    "Capital Markets",
+    "Chemicals",
+    "Commercial Services & Supplies",
+    "Communications Equipment",
+    "Construction & Engineering",
+    "Construction Materials",
+    "Consumer Finance",
+    "Consumer Staples Distribution & Retail",
+    "Containers & Packaging",
+    "Diversified Consumer Services",
+    "Diversified Financial Services",
+    "Diversified Telecommunication Services",
+    "Distributors",
+    "Electric Utilities",
+    "Electrical Equipment",
+    "Electronic Equipment, Instruments & Components",
+    "Energy Equipment & Services",
+    "Entertainment",
+    "Equity Real Estate Investment Trusts (REITs)",
+    "Food Products",
+    "Gas Utilities",
+    "Health Care Equipment & Supplies",
+    "Health Care Providers & Services",
+    "Health Care Technology",
+    "Hotels, Restaurants & Leisure",
+    "Household Durables",
+    "Household Products",
+    "Independent Power and Renewable Electricity Producers",
+    "Industrial Conglomerates",
+    "Insurance",
+    "Interactive Media & Services",
+    "IT Services",
+    "Leisure Products",
+    "Life Sciences Tools & Services",
+    "Machinery",
+    "Marine Transportation",
+    "Media",
+    "Metals & Mining",
+    "Multi-Utilities",
+    "Oil, Gas & Consumable Fuels",
+    "Paper & Forest Products",
+    "Personal Care Products",
+    "Pharmaceuticals",
+    "Professional Services",
+    "Real Estate Management & Development",
+    "Renewable Energy",
+    "Road & Rail",
+    "Semiconductors & Semiconductor Equipment",
+    "Software",
+    "Technology Hardware, Storage & Peripherals",
+    "Textiles, Apparel & Luxury Goods",
+    "Thrifts & Mortgage Finance",
+    "Tobacco",
+    "Trading Companies & Distributors",
+    "Transportation Infrastructure",
+    "Water Utilities",
+    "Wireless Telecommunication Services"
+  ];
 
   const ISSUER_COUNTRY_MAP = {
     US: "923213",
@@ -143,6 +212,10 @@ document.addEventListener("DOMContentLoaded", () => {
     coverageCountryDisplay: document.getElementById("coverageCountryDisplay"),
     coverageCountryOptions: document.getElementById("coverageCountryOptions"),
     coverageCountry: document.getElementById("coverageCountry"),
+    industryPanel: document.getElementById("industryPanel"),
+    industryToggle: document.getElementById("industryToggle"),
+    industrySearch: document.getElementById("industrySearch"),
+    industryOptions: document.getElementById("industryOptions"),
     issuerId: document.getElementById("issuerId"),
     macroFiHeading: document.getElementById("macroFiHeading"),
     agencyRating: document.getElementById("agencyRating"),
@@ -335,6 +408,7 @@ document.addEventListener("DOMContentLoaded", () => {
     startHeaderClock();
     restoreRailState();
     populateCoverageCountryOptions();
+    populateIndustryOptions();
     wireSectionNavigation();
     wirePrimaryPhone();
     initializeBodySectionEditor();
@@ -438,10 +512,28 @@ document.addEventListener("DOMContentLoaded", () => {
       if (!option) return;
       selectCoverageCountry(option.getAttribute("data-country-code"));
     });
+    dom.equitySectorLine?.addEventListener("click", openIndustryPanel);
+    dom.industryToggle?.addEventListener("click", () => {
+      if (dom.industryPanel?.hidden) openIndustryPanel();
+      else closeIndustryPanel();
+    });
+    dom.industrySearch?.addEventListener("input", () => {
+      renderIndustryOptions(dom.industrySearch.value);
+    });
+    dom.industryOptions?.addEventListener("click", (event) => {
+      const option = event.target.closest("[data-industry-value]");
+      if (!option) return;
+      selectIndustry(option.getAttribute("data-industry-value"));
+    });
     document.addEventListener("click", (event) => {
-      if (!dom.coverageCountryPanel || dom.coverageCountryPanel.hidden) return;
-      const picker = document.getElementById("coverageCountryPicker");
-      if (picker && !picker.contains(event.target)) closeCoverageCountryPanel();
+      if (dom.coverageCountryPanel && !dom.coverageCountryPanel.hidden) {
+        const picker = document.getElementById("coverageCountryPicker");
+        if (picker && !picker.contains(event.target)) closeCoverageCountryPanel();
+      }
+      if (dom.industryPanel && !dom.industryPanel.hidden) {
+        const picker = document.getElementById("industryPicker");
+        if (picker && !picker.contains(event.target)) closeIndustryPanel();
+      }
     });
 
     dom.macroFiHeading?.addEventListener("input", syncFigurePlacementControls);
@@ -687,6 +779,65 @@ document.addEventListener("DOMContentLoaded", () => {
     syncIssuerId();
     renderCoverageCountryOptions(dom.coverageCountrySearch?.value || "");
     closeCoverageCountryPanel();
+    updateAllUI();
+    queueDraftSave();
+  }
+
+  function populateIndustryOptions() {
+    if (!dom.industryOptions) return;
+    renderIndustryOptions("");
+  }
+
+  function renderIndustryOptions(filterText = "") {
+    if (!dom.industryOptions) return;
+    const normalizedFilter = normalizeComparableText(filterText);
+    const matches = EQUITY_INDUSTRIES.filter((industry) => {
+      if (!normalizedFilter) return true;
+      return normalizeComparableText(industry).includes(normalizedFilter);
+    });
+
+    dom.industryOptions.innerHTML = "";
+    if (!matches.length) {
+      const empty = document.createElement("div");
+      empty.className = "country-picker-empty";
+      empty.textContent = "No matching industries";
+      dom.industryOptions.appendChild(empty);
+      return;
+    }
+
+    matches.forEach((industry) => {
+      const option = document.createElement("button");
+      option.type = "button";
+      option.className = "country-picker-option";
+      option.textContent = industry;
+      option.setAttribute("data-industry-value", industry);
+      if (industry === String(dom.equitySectorLine?.value || "").trim()) option.classList.add("is-selected");
+      dom.industryOptions.appendChild(option);
+    });
+  }
+
+  function openIndustryPanel() {
+    if (!dom.industryPanel) return;
+    dom.industryPanel.hidden = false;
+    if (dom.industrySearch) {
+      dom.industrySearch.value = "";
+      renderIndustryOptions("");
+      window.setTimeout(() => dom.industrySearch.focus(), 0);
+    }
+  }
+
+  function closeIndustryPanel() {
+    if (!dom.industryPanel) return;
+    dom.industryPanel.hidden = true;
+  }
+
+  function selectIndustry(industry) {
+    const normalized = String(industry || "").trim();
+    if (!dom.equitySectorLine) return;
+    dom.equitySectorLine.value = normalized;
+    dom.equitySectorLine.dataset.autofill = "false";
+    renderIndustryOptions(dom.industrySearch?.value || "");
+    closeIndustryPanel();
     updateAllUI();
     queueDraftSave();
   }
@@ -2319,6 +2470,7 @@ document.addEventListener("DOMContentLoaded", () => {
       dom.priceCurrency.dataset.autofill = dom.priceCurrency.value.trim() ? "false" : "true";
       syncIssuerId();
       updateCoverageCountryDisplayFromCode();
+      renderIndustryOptions("");
       syncBodySectionVisibility();
       ensureDeskLineDefault(true);
     } catch (error) {
@@ -2348,6 +2500,7 @@ document.addEventListener("DOMContentLoaded", () => {
     initializeFinancialTableEditor(true);
     ensureDeskLineDefault(true);
     updateCoverageCountryDisplayFromCode();
+    renderIndustryOptions("");
     restoreBodySectionLayout([]);
     updateFileSummary(dom.modelFiles, dom.modelSummaryHead, dom.modelSummaryList, "No supporting files attached.");
     updateFigureSummary();
@@ -4093,30 +4246,187 @@ document.addEventListener("DOMContentLoaded", () => {
     `;
   }
 
-  function buildPreviewFooterHtml(noteId, data) {
+  function buildPreviewFooterHtml(noteId, data, pageNumber = 1, totalPages = 1) {
     return `
       <footer class="preview-export-footer">
         <span>Note ID: ${escapeHtml(noteId)}</span>
         <span>Published: ${escapeHtml(formatProductionTimestamp(data.generatedAt))}</span>
-        <span>Page 1 of 1</span>
+        <span>Page ${pageNumber} of ${totalPages}</span>
       </footer>
     `;
   }
 
-  function openPreviewModal() {
-    if (!dom.previewModal || !dom.previewModalBody) return;
+  function buildPreviewEquityCrgRatingDefinitionsPageHtml(data, pageNumber, totalPages) {
+    const introParagraphs = [
+      "CRG equity research ratings are relative opinion classifications intended to frame expected share-price performance over a 12-month horizon against the relevant sector opportunity set and the valuation case presented in the note. Target prices and valuation ranges reflect analytical judgment based on assumptions, scenario weighting, and market inputs that may change without notice.",
+      "The definitions below are explanatory only. They are not statements of fact, do not constitute regulated investment advice, and should be read together with the valuation discussion, catalysts, and risk factors set out in the note."
+    ];
 
-    cleanupPreviewAssets();
-    const data = collectFormData();
-    data.noteId = buildPreviewNoteId(data);
-    const publicationDate = parseInputDate(data.publicationDate) || data.generatedAt || new Date();
-    const analystContacts = collectAnalystContacts(data);
-    const availablePlacements = new Set(getFigurePlacementOptions(data.noteType).map((option) => option.value));
-    const sections = normalizeBodySectionLayoutForExport(data).filter((entry) => !entry.hidden && entry.content);
+    return `
+      <article class="preview-export-page preview-reference-page">
+        <section class="preview-reference-head">
+          <h1>CRG Equity Research Rating Definitions</h1>
+          ${introParagraphs.map((paragraph) => `<p>${escapeHtml(paragraph)}</p>`).join("")}
+        </section>
+        <section class="preview-reference-section">
+          <h2>STOCKS</h2>
+          ${getCrgRatingDefinitionRows().map((row) => `
+            <p><strong>${escapeHtml(row[0])}:</strong> ${escapeHtml(row[1])}</p>
+          `).join("")}
+          <p><strong>Benchmark interpretation:</strong> Unless stated otherwise in the note, rating language should be read in the context of 12-month total return potential relative to sector alternatives, the market-implied base case, and the benchmark context identified in the valuation discussion.</p>
+        </section>
+        ${buildPreviewFooterHtml(data.noteId, data, pageNumber, totalPages)}
+      </article>
+    `;
+  }
+
+  function buildComplianceNoticeModel(data) {
+    const noteReference = [data.title || "Research note", data.noteId ? `Note ID ${data.noteId}` : ""].filter(Boolean).join(" | ");
+    const analystNames = collectComplianceAnalystNames(data);
+    const analystLabel = analystNames.length ? formatHumanList(analystNames) : "the named analyst(s)";
+    const analystVerb = analystNames.length === 1 ? "is" : "are";
+    const analystPronoun = analystNames.length === 1 ? "that individual" : "those individuals";
+    const publicationTimestamp = formatProductionTimestamp(data.generatedAt);
+    const sections = [
+      {
+        heading: "Status of Publisher",
+        subheading: "Regulatory perimeter and institutional status",
+        paragraphs: [
+          `${noteReference} has been prepared and circulated by Cordoba Research Group solely in connection with its educational, editorial, and training activities. Cordoba Research Group is not authorised, approved, supervised, or otherwise regulated by the Financial Conduct Authority and is not a company registered with the Financial Conduct Authority for the carrying on of investment business, research distribution, brokerage, advisory, arranging, dealing, discretionary management, or any other regulated activity. Cordoba Research Group is not a registered investment firm, broker, investment adviser, wealth manager, regulated research provider, or financial intermediary, and no statement in this note should be read as suggesting otherwise.`,
+          `Cordoba Research Group is an educational platform and research group intended to provide students and developing analysts with opportunities to practise institutional-style writing, analytical discipline, editorial judgment, and structured market commentary. The note has therefore been produced within an educational context and must be understood as such. The fact that the note adopts institutional conventions of structure, tone, layout, valuation language, or market terminology does not alter its educational character and does not convert it into regulated investment research, financial advice, or any communication approved by an authorised person for investment purposes.`
+        ]
+      },
+      {
+        heading: "Nature of the Material",
+        subheading: "Educational and informational publication only",
+        paragraphs: [
+          `This material is provided strictly for educational and informational purposes. It is intended to illustrate how a research note may be framed, structured, edited, and presented, including the handling of market data, valuation concepts, scenario analysis, risk articulation, and analytical narrative. It is not intended to provide personalised or general investment advice; it does not constitute legal, tax, accounting, regulatory, or financial advice; and it must not be treated as a substitute for advice from a properly authorised or qualified professional adviser.`,
+          `Nothing in this note constitutes, or should be construed as constituting, investment advice, a personal recommendation, a regulated investment recommendation, independent research, or investment research prepared in accordance with legal or regulatory requirements designed to promote the independence of investment research. The note is not prepared subject to the rules, controls, separations, monitoring arrangements, research independence safeguards, or dealing restrictions that may apply to research produced by an authorised investment firm or broker-dealer.`
+        ]
+      },
+      {
+        heading: "No Offer, No Solicitation, No Financial Promotion",
+        subheading: "No invitation to transact and no approved marketing communication",
+        paragraphs: [
+          `This note does not constitute an offer, invitation, solicitation, inducement, marketing communication, approval communication, placing document, offering memorandum, prospectus, term sheet, dealing instruction, or call to action in relation to any issuer, security, derivative, fund, commodity, rate product, credit instrument, currency, or investment strategy. It must not be treated as an offer to buy or sell, or as a solicitation of an offer to buy or sell, any financial instrument or to participate in any transaction, placement, underwriting, financing, syndication, hedging arrangement, or capital-markets activity.`,
+          `This note is not intended to be, and must not be relied upon as, a financial promotion for the purposes of the Financial Services and Markets Act 2000 or any corresponding law or regulation in another jurisdiction. It has not been approved by an authorised person for communication to persons who may require that level of approval, and it must not be circulated in a manner that would cause it to be characterised as an externally approved marketing, distribution, or promotional document. Any ratings, target prices, catalysts, valuation outputs, trade illustrations, or scenario outcomes mentioned in the note are included solely within an educational framework and do not amount to a recommendation or inducement.`
+        ]
+      },
+      {
+        heading: "No Advice, Recommendation, Suitability Assessment, or Fiduciary Relationship",
+        subheading: "Recipient responsibility for judgment and decision-making",
+        paragraphs: [
+          `Cordoba Research Group does not provide investment advice and does not make investment recommendations. No statement, chart, scenario, rating, target price, valuation range, market comment, or analytical conclusion in this note should be relied upon as a basis for any investment decision, portfolio construction decision, asset-allocation decision, hedging decision, lending decision, treasury action, suitability assessment, mandate decision, or execution instruction. This material does not take into account the investment objectives, financial situation, regulatory status, legal constraints, tax position, risk tolerance, or portfolio composition of any particular person.`,
+          `No fiduciary duty, advisory duty, suitability duty, execution duty, monitoring duty, or continuing duty is owed by Cordoba Research Group or by the named analyst authors to any reader, recipient, institution, or third party by reason of the preparation, circulation, availability, or use of this note. Recipients remain solely responsible for exercising their own independent judgment. Any person considering any action in relation to a market, issuer, or instrument referred to in the note should obtain advice from properly authorised legal, tax, accounting, regulatory, and investment professionals before acting or refraining from acting.`
+        ]
+      },
+      {
+        heading: "Sources, Verification, Accuracy, Completeness, and Timeliness",
+        subheading: "Public and third-party information; no guarantee of independent verification",
+        paragraphs: [
+          `Information used in the preparation of this note may have been derived from public filings, company announcements, exchange data, price feeds, benchmark providers, market vendors, published commentary, consensus estimates, analyst presentations, official statistics, third-party databases, and other sources believed, but not guaranteed, to be reliable. Such information may be incomplete, abbreviated, reformatted, rounded, selectively presented, translated, delayed, stale, superseded, or otherwise affected by the limitations of the original source material or by the way in which it has been incorporated into the note.`,
+          `Cordoba Research Group does not represent, warrant, or guarantee that any information, statement, chart, table, model output, estimate, assumption, or summary contained in this note is accurate, complete, fair, balanced, timely, reliable, suitable, or fit for any particular purpose, nor that it has been independently verified in every respect. There may be errors, omissions, transcription issues, formatting discrepancies, stale data, or missing contextual information. The absence of any express qualification within the body of the note should not be taken to imply that a statement has been independently verified or remains current at the time of reading.`
+        ]
+      },
+      {
+        heading: "Valuations, Forecasts, Forward-Looking Statements, and Market Variables",
+        subheading: "Assumption-driven analysis and uncertainty of outcomes",
+        paragraphs: [
+          `Any forecast, estimate, projection, expected return, target price, scenario, sensitivity, probability, valuation output, implied upside, downside estimate, or other forward-looking statement in this note is inherently uncertain and dependent upon assumptions, methodologies, judgments, simplifications, model choices, and market inputs that may prove to be incorrect, incomplete, or unstable. Different assumptions, data selections, discount rates, benchmark choices, macro views, or analytical frameworks may produce materially different results. Forward-looking statements are not statements of fact and should not be interpreted as assurances or guarantees of future performance or future market levels.`,
+          `Actual outcomes may differ materially from any forward-looking view expressed in the note as a result of changes in issuer fundamentals, policy, regulation, rates, currencies, liquidity, funding conditions, market structure, competitive dynamics, geopolitical events, management decisions, commodity prices, spreads, implied volatilities, credit conditions, or broader macroeconomic developments. Prices, yields, spreads, valuations, exchange rates, and market-implied metrics may move adversely and rapidly. Past performance is not indicative of future results. Capital is at risk. Investments may fall as well as rise in value, income may vary, and investors may receive back less than originally invested. Instruments involving leverage, options, swaps, futures, or other derivatives may expose participants to amplified gains and losses and may entail losses in excess of initial capital committed or collateral posted.`
+        ]
+      },
+      {
+        heading: "Views, Opinions, Changes Without Notice, and No Duty to Update",
+        subheading: "Current only as of publication and subject to revision",
+        paragraphs: [
+          `Any view, opinion, interpretation, analytical judgment, or conclusion contained in this note is current only as of the publication timestamp stated below or the relevant drafting date reflected in the note and may change at any time without notice. Markets evolve, information changes, company circumstances develop, and analytical judgments may be revised as new information becomes available. Cordoba Research Group and the named analyst authors reserve the right to alter, withdraw, replace, or discontinue any view expressed in the note without any duty to notify readers, recipients, or third parties.`,
+          `Neither Cordoba Research Group nor the named analyst authors undertake any obligation to revise, supplement, correct, amend, republish, or update the note, whether as a result of subsequent events, new information, changes in assumptions, data revisions, market developments, or otherwise. Continued storage, forwarding, availability, download, or possession of the note should not be taken to imply that the content remains current, accurate, or complete after the publication date.`
+        ]
+      },
+      {
+        heading: "Authorship, Editorial Responsibility, and Internal Divergence of Views",
+        subheading: "Named authorship and limits of attribution",
+        paragraphs: [
+          `${analystLabel} ${analystVerb} responsible for the authorship and substantive content of this note, and the views, observations, interpretations, estimates, and analytical judgments expressed in the note are attributable to ${analystPronoun} in an editorial sense. That attribution reflects authorship responsibility only. It does not imply that the named analyst authors are regulated analysts, approved persons, authorised advisers, or persons producing research under a regulated investment-research regime. It also does not create any duty on the part of the named analyst authors toward any reader or recipient.`,
+          `Views expressed in this note may differ from views expressed elsewhere by Cordoba Research Group participants, contributors, reviewers, students, mentors, editors, or associated parties. The existence of named authors should not be read as implying institutional unanimity, house view consistency, supervisory approval of an investment thesis, or endorsement by any external institution. Cordoba Research Group may host, circulate, or archive materials containing different, inconsistent, or subsequently revised viewpoints relating to the same issuer, market, instrument, or macro theme without any obligation to reconcile those views across documents.`
+        ]
+      },
+      {
+        heading: "Distribution, Circulation, Audience, and Use Restrictions",
+        subheading: "Limitations on onward circulation and jurisdictional use",
+        paragraphs: [
+          `This note is not directed at retail investors and is not prepared for general public distribution as regulated investment material. It should not be distributed, transmitted, published, excerpted, syndicated, marketed, or relied upon in any jurisdiction or circumstance in which such use would be unlawful or would require registration, authorisation, approval, licensing, filing, or review not obtained by Cordoba Research Group. Each recipient is responsible for satisfying itself that receipt, possession, use, and onward circulation of the note is lawful in the relevant jurisdiction and context.`,
+          `Recipients must not circulate this note externally as client research, approved sales material, issuer marketing, a due-diligence substitute, or a regulated communication without first obtaining any editorial, legal, compliance, and supervisory approvals that may be necessary. The note is intended for limited educational use and should be treated accordingly. No recipient may imply that the note has been approved, endorsed, or issued by an authorised investment firm, broker, bank, or regulator merely because it adopts the structure or tone of institutional-style research.`
+        ]
+      },
+      {
+        heading: "Intellectual Property and Restrictions on Reproduction",
+        subheading: "No reproduction, republication, redistribution, or commercial exploitation without permission",
+        paragraphs: [
+          `Unless otherwise indicated, the text, structure, compilation, editorial arrangement, and original analytical content of this note are proprietary to Cordoba Research Group and/or the named analyst authors. The note is made available for the limited educational purpose for which it was prepared and may not be copied, reproduced, republished, extracted, adapted, translated, distributed, uploaded, transmitted, licensed, sold, commercialised, or otherwise exploited, in whole or in part, without prior written permission from Cordoba Research Group, except to the extent permitted by applicable law for strictly limited non-commercial internal reference purposes.`,
+          `Any unauthorised onward circulation, republication, or commercial use may mischaracterise the status of the note and may expose downstream recipients to material that has not been prepared for their use or regulatory context. Quotations, extracts, screenshots, or republication of tables, charts, or commentary from the note should not be made in a manner that creates the impression that Cordoba Research Group has issued approved investment advice, regulated research, or promotional material.`
+        ]
+      },
+      {
+        heading: "Limitation of Liability and Exclusion of Responsibility",
+        subheading: "No liability for use, reliance, or consequences of circulation",
+        paragraphs: [
+          `To the fullest extent permitted by law, Cordoba Research Group disclaims all liability, responsibility, duty of care, and accountability arising directly or indirectly from the preparation, use, reference to, circulation of, or reliance upon this note or any part of it. This exclusion applies whether any claim sounds in contract, tort, negligence, misrepresentation, statutory duty, fiduciary duty, restitution, or otherwise, and extends to direct, indirect, incidental, consequential, punitive, special, exemplary, or other forms of loss or damage, including without limitation trading losses, opportunity costs, lost profits, lost revenues, reputational harm, loss of data, business interruption, financing costs, regulatory consequences, or losses associated with adverse market movements.`,
+          `Without limitation, no responsibility is accepted for loss arising from inaccuracies, omissions, stale information, incomplete context, data vendor issues, benchmark errors, model limitations, assumption failures, formatting discrepancies, charting issues, software faults, or subsequent revisions to public information. No representation or warranty, express or implied, is made in respect of merchantability, title, non-infringement, quality, suitability, fitness for a particular purpose, completeness, timeliness, fairness, or reliability. If any part of this notice is held unenforceable, the remaining provisions shall continue to apply to the fullest extent permitted by law.`
+        ]
+      },
+      {
+        heading: "Recipient Responsibility and Professional Advice",
+        subheading: "Independent assessment remains essential",
+        paragraphs: [
+          `Each recipient must rely on its own independent assessment and judgment when evaluating any market, issuer, instrument, or transaction referred to in this note. No person should assume that any security, instrument, structure, issuer, benchmark, valuation conclusion, or trade concept mentioned in the note is suitable for their objectives, risk profile, capital base, liquidity needs, constitutional restrictions, mandate terms, fiduciary duties, accounting treatment, tax position, or regulatory obligations. The responsibility for testing assumptions, verifying facts, understanding legal documentation, and assessing suitability remains entirely with the recipient and its advisers.`,
+          `Where relevant, recipients should obtain advice from properly authorised legal, tax, accounting, regulatory, and investment professionals before taking or refraining from taking any action in connection with any matter discussed in the note. Any use of the note within an institution, classroom, committee, or investment process should be accompanied by the recipient’s own diligence, challenge, and review procedures. The educational availability of this material does not reduce the need for professional advice or independent verification.`
+        ]
+      },
+      {
+        heading: "Record of Publication",
+        subheading: "Relationship of this notice to the note as a whole",
+        paragraphs: [
+          `Published ${publicationTimestamp}. This Regulatory Disclosure and Important Notice forms an integral part of the publication record for ${noteReference} and must be read together with the substantive analysis, charts, tables, appendices, and supporting material that precede it. By accessing, retaining, forwarding, or using this note, the recipient acknowledges the educational, non-advisory, non-promotional, and non-regulated basis on which it has been prepared and circulated.`,
+          `If there is any inconsistency between the style, form, structure, or presentation of the note and the regulatory status described in this notice, this notice shall prevail. The institutional appearance of the publication is a matter of educational format and editorial discipline only and should not be interpreted as conferring any regulated status, authorisation, endorsement, or legal effect beyond that expressly stated in this notice.`
+        ]
+      }
+    ];
+
+    return {
+      noteReference,
+      introduction: `This notice sets out the regulatory status, limitations, authorship attribution, distribution restrictions, and use conditions applicable to ${noteReference}. It should be read in full and together with the substantive body of the note.`,
+      sections
+    };
+  }
+
+  function buildPreviewCompliancePageHtml(data, pageNumber, totalPages) {
+    const model = buildComplianceNoticeModel(data);
+
+    return `
+      <article class="preview-export-page preview-reference-page preview-legal-page">
+        <section class="preview-reference-head">
+          <h1>Regulatory Disclosure and Important Notice</h1>
+          <p>${escapeHtml(model.introduction)}</p>
+        </section>
+        ${model.sections.map((section) => `
+          <section class="preview-reference-section">
+            <h2>${escapeHtml(section.heading)}</h2>
+            <h3>${escapeHtml(section.subheading)}</h3>
+            ${section.paragraphs.map((paragraph) => `<p>${escapeHtml(paragraph)}</p>`).join("")}
+          </section>
+        `).join("")}
+        ${buildPreviewFooterHtml(data.noteId, data, pageNumber, totalPages)}
+      </article>
+    `;
+  }
+
+  function buildPreviewMainPageHtml(data, publicationDate, analystContacts, availablePlacements, sections, pageNumber, totalPages) {
     const middleSections = sections.filter((entry) => entry.key !== "keyTakeaways" && entry.key !== "cordobaView");
     const keyTakeaways = sections.find((entry) => entry.key === "keyTakeaways");
     const cordobaView = sections.find((entry) => entry.key === "cordobaView");
-    const previewParts = [`<div class="preview-page-stage"><article class="preview-export-page">`, buildPreviewBannerHtml(data, publicationDate)];
+    const previewParts = [`<article class="preview-export-page">`, buildPreviewBannerHtml(data, publicationDate)];
 
     if (data.noteType === "Equity Research") {
       previewParts.push(
@@ -4156,7 +4466,6 @@ document.addEventListener("DOMContentLoaded", () => {
         previewParts.push(buildPreviewNarrativeHtml(cordobaView.label, cordobaView.content));
         previewParts.push(buildPreviewFigureMarkup(data.imageFiles, data, availablePlacements, "after-cordobaView"));
       }
-      previewParts.push(buildPreviewCrgRatingDefinitionsHtml());
     } else {
       previewParts.push(
         buildPreviewDisplayLineHtml(data),
@@ -4196,8 +4505,78 @@ document.addEventListener("DOMContentLoaded", () => {
       previewParts.push(buildPreviewSupportHtml(data));
     }
 
-    previewParts.push(buildPreviewFooterHtml(data.noteId, data), `</article></div>`);
-    dom.previewModalBody.innerHTML = previewParts.join("");
+    previewParts.push(buildPreviewFooterHtml(data.noteId, data, pageNumber, totalPages), `</article>`);
+    return previewParts.join("");
+  }
+
+  function buildPreviewDocumentSrcdoc(data, pagesHtml) {
+    const baseHref = escapeAttribute(document.baseURI || window.location.href || "");
+    return `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <base href="${baseHref}">
+  <link rel="stylesheet" href="assets/styles.css">
+  <style>
+    html, body {
+      margin: 0;
+      padding: 0;
+      background: #edf0f5;
+      min-height: 100%;
+    }
+    body {
+      font-family: "Aptos", "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+      color: #11151c;
+    }
+    .preview-document-shell {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 28px;
+      padding: 28px 34px 34px;
+    }
+    @page {
+      size: A4;
+      margin: 0;
+    }
+  </style>
+</head>
+<body>
+  <div class="preview-document-shell">${pagesHtml}</div>
+</body>
+</html>`;
+  }
+
+  function openPreviewModal() {
+    if (!dom.previewModal || !dom.previewModalBody) return;
+
+    cleanupPreviewAssets();
+    const data = collectFormData();
+    data.noteId = buildPreviewNoteId(data);
+    const publicationDate = parseInputDate(data.publicationDate) || data.generatedAt || new Date();
+    const analystContacts = collectAnalystContacts(data);
+    const availablePlacements = new Set(getFigurePlacementOptions(data.noteType).map((option) => option.value));
+    const sections = normalizeBodySectionLayoutForExport(data).filter((entry) => !entry.hidden && entry.content);
+    const totalPages = data.noteType === "Equity Research" ? 3 : 2;
+    const pages = [
+      buildPreviewMainPageHtml(data, publicationDate, analystContacts, availablePlacements, sections, 1, totalPages)
+    ];
+
+    if (data.noteType === "Equity Research") {
+      pages.push(buildPreviewEquityCrgRatingDefinitionsPageHtml(data, 2, totalPages));
+      pages.push(buildPreviewCompliancePageHtml(data, 3, totalPages));
+    } else {
+      pages.push(buildPreviewCompliancePageHtml(data, 2, totalPages));
+    }
+
+    const iframe = document.createElement("iframe");
+    iframe.className = "preview-document-frame";
+    iframe.title = "Final note preview";
+    iframe.srcdoc = buildPreviewDocumentSrcdoc(data, pages.join(""));
+
+    dom.previewModalBody.innerHTML = "";
+    dom.previewModalBody.appendChild(iframe);
     dom.previewModal.hidden = false;
   }
 
@@ -4479,8 +4858,6 @@ document.addEventListener("DOMContentLoaded", () => {
       );
     }
 
-    children.push(...buildCrgRatingMethodologySection(docxLib, colors));
-
     return buildResearchDocumentShell(
       docxLib,
       colors,
@@ -4488,7 +4865,10 @@ document.addEventListener("DOMContentLoaded", () => {
       data.generatedAt,
       data.noteId,
       children,
-      buildComplianceDeclarationSection(docxLib, colors, data)
+      [
+        ...buildCrgRatingMethodologySection(docxLib, colors),
+        ...buildComplianceDeclarationSection(docxLib, colors, data)
+      ]
     );
   }
 
@@ -6255,93 +6635,91 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   function buildCrgRatingMethodologySection(docxLib, colors) {
-    const rows = getCrgRatingDefinitionRows();
+    const introParagraphs = [
+      "CRG equity research ratings are relative opinion classifications intended to frame expected share-price performance over a 12-month horizon against the relevant sector opportunity set and the valuation case presented in the note. Target prices and valuation ranges reflect analytical judgment based on assumptions, scenario weighting, and market inputs that may change without notice.",
+      "The definitions below are explanatory only. They are not statements of fact, do not constitute regulated investment advice, and should be read together with the valuation discussion, catalysts, and risk factors set out in the note."
+    ];
 
     return [
-      new docxLib.Paragraph({ spacing: { before: 105, after: 18 } }),
-      new docxLib.Table({
-        width: { size: 100, type: docxLib.WidthType.PERCENTAGE },
-        borders: {
-          top: { color: colors.line, style: docxLib.BorderStyle.SINGLE, size: 6 },
-          bottom: { style: docxLib.BorderStyle.NONE },
-          left: { color: colors.line, style: docxLib.BorderStyle.SINGLE, size: 4 },
-          right: { color: colors.line, style: docxLib.BorderStyle.SINGLE, size: 4 },
-          insideHorizontal: { style: docxLib.BorderStyle.NONE },
-          insideVertical: { style: docxLib.BorderStyle.NONE }
-        },
-        rows: [
-          new docxLib.TableRow({
-            children: [
-              new docxLib.TableCell({
-                shading: { fill: "F6F7F9" },
-                margins: { top: 95, bottom: 82, left: 110, right: 110 },
-                children: [
-                  new docxLib.Paragraph({
-                    children: [
-                      new docxLib.TextRun({
-                        text: "CRG Rating Definitions",
-                        bold: true,
-                        font: "Arial",
-                        size: 17,
-                        color: colors.red
-                      })
-                    ],
-                    spacing: { after: 30 }
-                  }),
-                  new docxLib.Paragraph({
-                    children: [
-                      new docxLib.TextRun({
-                        text: getCrgRatingDefinitionIntro(),
-                        font: "Arial",
-                        size: 16,
-                        color: colors.muted
-                      })
-                    ],
-                    spacing: { after: 0 }
-                  })
-                ]
-              })
-            ]
+      new docxLib.Paragraph({
+        pageBreakBefore: true,
+        children: [
+          new docxLib.TextRun({
+            text: "CRG Equity Research Rating Definitions",
+            bold: true,
+            font: "Arial",
+            size: 22,
+            color: colors.black
           })
-        ]
+        ],
+        spacing: { after: 34 }
       }),
-      new docxLib.Table({
-        width: { size: 100, type: docxLib.WidthType.PERCENTAGE },
-        borders: {
-          top: { style: docxLib.BorderStyle.NONE },
-          bottom: { color: colors.line, style: docxLib.BorderStyle.SINGLE, size: 6 },
-          left: { color: colors.line, style: docxLib.BorderStyle.SINGLE, size: 4 },
-          right: { color: colors.line, style: docxLib.BorderStyle.SINGLE, size: 4 },
-          insideHorizontal: { color: colors.line, style: docxLib.BorderStyle.SINGLE, size: 4 },
-          insideVertical: { color: colors.line, style: docxLib.BorderStyle.SINGLE, size: 4 }
-        },
-        rows: rows.map((row) =>
-          new docxLib.TableRow({
-            children: row.map((cell, index) =>
-              new docxLib.TableCell({
-                width: { size: index === 0 ? 26 : 74, type: docxLib.WidthType.PERCENTAGE },
-                shading: { fill: index === 0 ? "F2F4F7" : "F9FAFB" },
-                margins: { top: 76, bottom: 76, left: 92, right: 92 },
-                children: [
-                  new docxLib.Paragraph({
-                    children: [
-                      new docxLib.TextRun({
-                        text: cell,
-                        bold: index === 0,
-                        font: "Arial",
-                        size: 16,
-                        color: index === 0 ? colors.black : colors.ink
-                      })
-                    ],
-                    spacing: { after: 0 }
-                  })
-                ]
-              })
-            )
+      ...introParagraphs.map((paragraph, index) =>
+        new docxLib.Paragraph({
+          children: [
+            new docxLib.TextRun({
+              text: paragraph,
+              font: "Arial",
+              size: 18,
+              color: colors.ink
+            })
+          ],
+          spacing: { after: index === introParagraphs.length - 1 ? 82 : 42 },
+          alignment: docxLib.AlignmentType.JUSTIFIED || docxLib.AlignmentType.BOTH || docxLib.AlignmentType.LEFT
+        })
+      ),
+      new docxLib.Paragraph({
+        children: [
+          new docxLib.TextRun({
+            text: "STOCKS",
+            bold: true,
+            font: "Arial",
+            size: 18,
+            color: colors.red
           })
-        )
+        ],
+        spacing: { after: 34 }
       }),
-      new docxLib.Paragraph({ spacing: { after: 78 } })
+      ...getCrgRatingDefinitionRows().map((row) =>
+        new docxLib.Paragraph({
+          children: [
+            new docxLib.TextRun({
+              text: `${row[0]}: `,
+              bold: true,
+              font: "Arial",
+              size: 18,
+              color: colors.black
+            }),
+            new docxLib.TextRun({
+              text: row[1],
+              font: "Arial",
+              size: 18,
+              color: colors.ink
+            })
+          ],
+          spacing: { after: 30 },
+          alignment: docxLib.AlignmentType.JUSTIFIED || docxLib.AlignmentType.BOTH || docxLib.AlignmentType.LEFT
+        })
+      ),
+      new docxLib.Paragraph({
+        children: [
+          new docxLib.TextRun({
+            text: "Benchmark interpretation: ",
+            bold: true,
+            font: "Arial",
+            size: 18,
+            color: colors.black
+          }),
+          new docxLib.TextRun({
+            text: "Unless stated otherwise in the note, rating language should be read in the context of 12-month total return potential relative to sector alternatives, the market-implied base case, and the benchmark context identified in the valuation discussion.",
+            font: "Arial",
+            size: 18,
+            color: colors.ink
+          })
+        ],
+        spacing: { before: 24, after: 74 },
+        alignment: docxLib.AlignmentType.JUSTIFIED || docxLib.AlignmentType.BOTH || docxLib.AlignmentType.LEFT
+      })
     ];
   }
 
