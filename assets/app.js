@@ -221,6 +221,8 @@ document.addEventListener("DOMContentLoaded", () => {
     modelSummaryList: document.getElementById("modelSummaryList"),
     imageSummaryHead: document.getElementById("imageSummaryHead"),
     imageSummaryList: document.getElementById("imageSummaryList"),
+    figurePlacementPanel: document.getElementById("figurePlacementPanel"),
+    figurePlacementList: document.getElementById("figurePlacementList"),
     completionBar: document.getElementById("completionBar"),
     completionText: document.getElementById("completionText"),
     readinessPercent: document.getElementById("readinessPercent"),
@@ -270,7 +272,8 @@ document.addEventListener("DOMContentLoaded", () => {
     saveTimer: null,
     lastSavedAt: null,
     customSectionCount: 0,
-    brandLogoImagePromise: null
+    brandLogoImagePromise: null,
+    figurePlacements: {}
   };
 
   const draftFieldIds = [
@@ -342,6 +345,7 @@ document.addEventListener("DOMContentLoaded", () => {
     toggleNoteTypeSections();
     updateFileSummary(dom.modelFiles, dom.modelSummaryHead, dom.modelSummaryList, "No supporting files attached.");
     updateFileSummary(dom.imageUpload, dom.imageSummaryHead, dom.imageSummaryList, "No figures attached.");
+    syncFigurePlacementControls();
     updateAllUI();
     checkLibraries();
   }
@@ -415,6 +419,7 @@ document.addEventListener("DOMContentLoaded", () => {
       ensureDeskLineDefault();
       toggleNoteTypeSections();
       resetChartState({ keepStatusText: false });
+      syncFigurePlacementControls();
       updateAllUI();
       queueDraftSave();
     });
@@ -466,8 +471,11 @@ document.addEventListener("DOMContentLoaded", () => {
 
     dom.imageUpload.addEventListener("change", () => {
       updateFileSummary(dom.imageUpload, dom.imageSummaryHead, dom.imageSummaryList, "No figures attached.");
+      syncFigurePlacementControls();
       updateAllUI();
     });
+
+    dom.figurePlacementList?.addEventListener("change", handleFigurePlacementChange);
 
     dom.financialAddColumnBtn.addEventListener("click", addFinancialPeriodColumn);
     dom.financialAddRowBtn.addEventListener("click", addFinancialLineItem);
@@ -2126,6 +2134,7 @@ document.addEventListener("DOMContentLoaded", () => {
     state.coAuthorCount = 0;
     state.lastSavedAt = null;
     state.customSectionCount = 0;
+    state.figurePlacements = {};
     syncPrimaryPhone();
     dom.equityCompanyName.dataset.autofill = "true";
     dom.priceCurrency.dataset.autofill = "true";
@@ -2137,6 +2146,7 @@ document.addEventListener("DOMContentLoaded", () => {
     restoreBodySectionLayout([]);
     updateFileSummary(dom.modelFiles, dom.modelSummaryHead, dom.modelSummaryList, "No supporting files attached.");
     updateFileSummary(dom.imageUpload, dom.imageSummaryHead, dom.imageSummaryList, "No figures attached.");
+    syncFigurePlacementControls();
     toggleNoteTypeSections();
     clearMessage();
     updateAllUI();
@@ -2161,6 +2171,129 @@ document.addEventListener("DOMContentLoaded", () => {
     });
 
     list.hidden = false;
+  }
+
+  function figureFileKey(file) {
+    return `${file.name}__${file.size}__${file.lastModified}`;
+  }
+
+  function getFigurePlacementOptions(noteType = dom.noteType.value) {
+    if (noteType === "Equity Research") {
+      return [
+        { value: "after-businessDescription", label: "After Business Description" },
+        { value: "after-valuationSummary", label: "After Valuation Summary" },
+        { value: "after-analysis", label: "After Analysis And Commentary" },
+        { value: "after-content", label: "After Additional Detail" },
+        { value: "after-fiveYearRationale", label: "After 5 Year Rationale & Price Target" },
+        { value: "after-esgSummary", label: "After ESG Summary" },
+        { value: "after-cordobaView", label: "After The Cordoba View" },
+        { value: "end", label: "End of Note" }
+      ];
+    }
+
+    if (isMacroFiNoteType(noteType)) {
+      return [
+        { value: "after-macroFiProfile", label: "After Ratings Table" },
+        { value: "after-keyTakeaways", label: "After Key Takeaways" },
+        { value: "after-analysis", label: "After Analysis And Commentary" },
+        { value: "after-content", label: "After Additional Detail" },
+        { value: "after-cordobaView", label: "After The Cordoba View" },
+        { value: "end", label: "End of Note" }
+      ];
+    }
+
+    return [
+      { value: "after-keyTakeaways", label: "After Key Takeaways" },
+      { value: "after-analysis", label: "After Analysis And Commentary" },
+      { value: "after-content", label: "After Additional Detail" },
+      { value: "after-cordobaView", label: "After The Cordoba View" },
+      { value: "end", label: "End of Note" }
+    ];
+  }
+
+  function syncFigurePlacementControls() {
+    if (!dom.figurePlacementPanel || !dom.figurePlacementList) return;
+
+    const files = Array.from(dom.imageUpload.files || []);
+    if (!files.length) {
+      dom.figurePlacementPanel.hidden = true;
+      dom.figurePlacementList.innerHTML = "";
+      state.figurePlacements = {};
+      return;
+    }
+
+    const options = getFigurePlacementOptions(dom.noteType.value);
+    const allowedValues = new Set(options.map((option) => option.value));
+    const nextPlacements = {};
+
+    dom.figurePlacementList.innerHTML = "";
+    files.forEach((file) => {
+      const key = figureFileKey(file);
+      const currentValue = allowedValues.has(state.figurePlacements[key]) ? state.figurePlacements[key] : "end";
+      nextPlacements[key] = currentValue;
+
+      const row = document.createElement("div");
+      row.className = "figure-placement-row";
+
+      const name = document.createElement("div");
+      name.className = "figure-placement-name";
+      name.textContent = file.name;
+      row.appendChild(name);
+
+      const select = document.createElement("select");
+      select.setAttribute("data-figure-key", key);
+      options.forEach((option) => {
+        const optionEl = document.createElement("option");
+        optionEl.value = option.value;
+        optionEl.textContent = option.label;
+        if (option.value === currentValue) optionEl.selected = true;
+        select.appendChild(optionEl);
+      });
+      row.appendChild(select);
+      dom.figurePlacementList.appendChild(row);
+    });
+
+    state.figurePlacements = nextPlacements;
+    dom.figurePlacementPanel.hidden = false;
+  }
+
+  function handleFigurePlacementChange(event) {
+    const target = event.target;
+    if (!(target instanceof HTMLSelectElement)) return;
+    const figureKey = target.getAttribute("data-figure-key");
+    if (!figureKey) return;
+
+    state.figurePlacements[figureKey] = target.value;
+    updateAllUI();
+  }
+
+  function buildCurrentFigurePlacements(files) {
+    return files.reduce((acc, file) => {
+      acc[figureFileKey(file)] = state.figurePlacements[figureFileKey(file)] || "end";
+      return acc;
+    }, {});
+  }
+
+  function resolveFigurePlacementForFile(file, data, availablePlacements) {
+    const requested = data.figurePlacements?.[figureFileKey(file)] || "end";
+    return availablePlacements.has(requested) ? requested : "end";
+  }
+
+  function getFigureFilesForPlacement(data, placement, availablePlacements) {
+    return (data.imageFiles || []).filter((file) => resolveFigurePlacementForFile(file, data, availablePlacements) === placement);
+  }
+
+  async function appendPlacedFigures(children, docxLib, colors, files, figureCounterRef, options = {}) {
+    if (!files.length) return;
+    const startIndex = figureCounterRef.value;
+    const imageParagraphs = await buildImageParagraphs(docxLib, files, colors, startIndex);
+    figureCounterRef.value += files.length;
+
+    if (options.withHeading) {
+      children.push(buildNomuraSubhead(docxLib, colors, options.heading || "Figures / Screenshots"));
+    }
+
+    children.push(...imageParagraphs);
   }
 
   function setMetric(element, value) {
@@ -3108,6 +3241,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
   function collectFormData() {
     syncPrimaryPhone();
+    const imageFiles = Array.from(dom.imageUpload.files || []);
 
     return {
       noteType: dom.noteType.value.trim(),
@@ -3151,7 +3285,8 @@ document.addEventListener("DOMContentLoaded", () => {
       fiveYearRationale: dom.fiveYearRationale.value.trim(),
       esgSummary: dom.esgSummary.value.trim(),
       cordobaView: dom.cordobaView.value.trim(),
-      imageFiles: Array.from(dom.imageUpload.files || []),
+      imageFiles,
+      figurePlacements: buildCurrentFigurePlacements(imageFiles),
       modelFiles: Array.from(dom.modelFiles.files || []),
       priceChartImageBytes: state.priceChartImageBytes,
       equityStats: { ...state.equityStats },
@@ -3306,13 +3441,18 @@ document.addEventListener("DOMContentLoaded", () => {
     });
     const analystContacts = collectAnalystContacts(data);
     const { keyTakeaways, middle, cordobaView } = getNarrativeSectionPartitions(data);
+    const figureCounterRef = { value: 1 };
+    const availablePlacements = new Set(["end", "after-keyTakeaways"]);
+    if (isMacroFiNoteType(data.noteType)) availablePlacements.add("after-macroFiProfile");
+    middle.forEach((section) => availablePlacements.add(`after-${section.key}`));
+    if (cordobaView?.content) availablePlacements.add("after-cordobaView");
 
     if (data.noteType === "Equity Research") {
       return createEquityResearchDocument(docxLib, colors, data, publicationDate, bannerBytes, analystContacts, {
         keyTakeaways,
         middle,
         cordobaView
-      });
+      }, figureCounterRef);
     }
 
     const documentChildren = [
@@ -3320,7 +3460,7 @@ document.addEventListener("DOMContentLoaded", () => {
         children: [
           new docxLib.ImageRun({
             data: bannerBytes,
-            transformation: { width: 705, height: 115 }
+            transformation: { width: 705, height: 122 }
           })
         ],
         spacing: { after: 110 }
@@ -3334,22 +3474,56 @@ document.addEventListener("DOMContentLoaded", () => {
         ...buildMacroFiProfileTable(docxLib, colors, data),
         new docxLib.Paragraph({ spacing: { after: 54 } })
       );
+      await appendPlacedFigures(
+        documentChildren,
+        docxLib,
+        colors,
+        getFigureFilesForPlacement(data, "after-macroFiProfile", availablePlacements),
+        figureCounterRef
+      );
     } else {
       documentChildren.push(new docxLib.Paragraph({ spacing: { after: 70 } }));
     }
 
     documentChildren.push(
-      buildKeyTakeawaysBox(docxLib, colors, lineItems(keyTakeaways.content), keyTakeaways.label),
-      ...buildNarrativeSectionBlocks(docxLib, colors, middle)
+      buildKeyTakeawaysBox(docxLib, colors, lineItems(keyTakeaways.content), keyTakeaways.label)
     );
+    await appendPlacedFigures(
+      documentChildren,
+      docxLib,
+      colors,
+      getFigureFilesForPlacement(data, "after-keyTakeaways", availablePlacements),
+      figureCounterRef
+    );
+
+    for (const section of middle) {
+      documentChildren.push(...buildNarrativeSectionBlocks(docxLib, colors, [section]));
+      await appendPlacedFigures(
+        documentChildren,
+        docxLib,
+        colors,
+        getFigureFilesForPlacement(data, `after-${section.key}`, availablePlacements),
+        figureCounterRef
+      );
+    }
 
     if (cordobaView?.content) {
       documentChildren.push(...buildNarrativeSectionBlocks(docxLib, colors, [cordobaView]));
+      await appendPlacedFigures(
+        documentChildren,
+        docxLib,
+        colors,
+        getFigureFilesForPlacement(data, "after-cordobaView", availablePlacements),
+        figureCounterRef
+      );
     }
 
-    const exhibitParagraphs = await buildNomuraExhibitParagraphs(docxLib, colors, data);
-    if (exhibitParagraphs.length) {
-      documentChildren.push(buildNomuraSubhead(docxLib, colors, "Figures / Screenshots"), ...exhibitParagraphs);
+    const endFigures = getFigureFilesForPlacement(data, "end", availablePlacements);
+    if (endFigures.length) {
+      await appendPlacedFigures(documentChildren, docxLib, colors, endFigures, figureCounterRef, {
+        withHeading: true,
+        heading: "Figures / Screenshots"
+      });
     }
 
     const supportParagraphs = buildSupportingMaterialParagraphs(docxLib, colors, data);
@@ -3418,14 +3592,19 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
-  async function createEquityResearchDocument(docxLib, colors, data, publicationDate, bannerBytes, analystContacts, narrativeSections) {
+  async function createEquityResearchDocument(docxLib, colors, data, publicationDate, bannerBytes, analystContacts, narrativeSections, figureCounterRef) {
     const { keyTakeaways, middle, cordobaView } = narrativeSections;
+    const availablePlacements = new Set(["end"]);
+    if (data.businessDescription) availablePlacements.add("after-businessDescription");
+    if (data.valuationSummary) availablePlacements.add("after-valuationSummary");
+    middle.forEach((section) => availablePlacements.add(`after-${section.key}`));
+    if (cordobaView?.content) availablePlacements.add("after-cordobaView");
     const children = [
       new docxLib.Paragraph({
         children: [
           new docxLib.ImageRun({
             data: bannerBytes,
-            transformation: { width: 705, height: 115 }
+            transformation: { width: 705, height: 122 }
           })
         ],
         spacing: { after: 45 }
@@ -3441,6 +3620,13 @@ document.addEventListener("DOMContentLoaded", () => {
         buildNomuraSubhead(docxLib, colors, "Business Description"),
         ...buildNomuraBodyParagraphs(docxLib, data.businessDescription)
       );
+      await appendPlacedFigures(
+        children,
+        docxLib,
+        colors,
+        getFigureFilesForPlacement(data, "after-businessDescription", availablePlacements),
+        figureCounterRef
+      );
     }
 
     if (data.valuationSummary) {
@@ -3448,16 +3634,32 @@ document.addEventListener("DOMContentLoaded", () => {
         buildNomuraSubhead(docxLib, colors, "Valuation Summary"),
         ...buildNomuraBodyParagraphs(docxLib, data.valuationSummary)
       );
+      await appendPlacedFigures(
+        children,
+        docxLib,
+        colors,
+        getFigureFilesForPlacement(data, "after-valuationSummary", availablePlacements),
+        figureCounterRef
+      );
     }
 
-    children.push(...buildNarrativeSectionBlocks(docxLib, colors, middle));
-
-    if (data.imageFiles.length) {
-      const imageParagraphs = await buildEquityOnlyImageParagraphs(docxLib, colors, data.imageFiles);
-      children.push(
-        buildNomuraSubhead(docxLib, colors, "Figures / Screenshots"),
-        ...imageParagraphs
+    for (const section of middle) {
+      children.push(...buildNarrativeSectionBlocks(docxLib, colors, [section]));
+      await appendPlacedFigures(
+        children,
+        docxLib,
+        colors,
+        getFigureFilesForPlacement(data, `after-${section.key}`, availablePlacements),
+        figureCounterRef
       );
+    }
+
+    const endFigures = getFigureFilesForPlacement(data, "end", availablePlacements);
+    if (endFigures.length) {
+      await appendPlacedFigures(children, docxLib, colors, endFigures, figureCounterRef, {
+        withHeading: true,
+        heading: "Figures / Screenshots"
+      });
     }
 
     const supportParagraphs = buildSupportingMaterialParagraphs(docxLib, colors, data);
@@ -3467,6 +3669,13 @@ document.addEventListener("DOMContentLoaded", () => {
 
     if (cordobaView?.content) {
       children.push(...buildNarrativeSectionBlocks(docxLib, colors, [cordobaView]));
+      await appendPlacedFigures(
+        children,
+        docxLib,
+        colors,
+        getFigureFilesForPlacement(data, "after-cordobaView", availablePlacements),
+        figureCounterRef
+      );
     }
 
     return buildResearchDocumentShell(
@@ -4813,49 +5022,49 @@ document.addEventListener("DOMContentLoaded", () => {
     ctx.fillRect(0, 0, width, height);
 
     const headerGradient = ctx.createLinearGradient(0, 0, width, 0);
-    headerGradient.addColorStop(0, "#faf5ec");
-    headerGradient.addColorStop(0.48, "#ffffff");
-    headerGradient.addColorStop(1, "#f7efe1");
+    headerGradient.addColorStop(0, "#fbf7ef");
+    headerGradient.addColorStop(0.46, "#ffffff");
+    headerGradient.addColorStop(1, "#f7efdc");
     ctx.fillStyle = headerGradient;
-    ctx.fillRect(0, 0, width, 146);
+    ctx.fillRect(0, 0, width, 140);
 
-    drawBannerShape(ctx, "rgba(132,95,15,0.16)", 1185, 146, 140, 0, 172, 146);
-    drawBannerShape(ctx, "rgba(132,95,15,0.24)", 1288, 146, 182, 0, 242, 146);
-    drawBannerShape(ctx, "rgba(93,67,11,0.16)", 1382, 146, 192, 0, 258, 146);
-    drawBannerShape(ctx, "rgba(203,166,91,0.32)", 1490, 146, 178, 0, 244, 146);
+    drawBannerShape(ctx, "rgba(132,95,15,0.14)", 1118, 140, 172, 0, 182, 140);
+    drawBannerShape(ctx, "rgba(132,95,15,0.20)", 1220, 140, 214, 0, 246, 140);
+    drawBannerShape(ctx, "rgba(93,67,11,0.14)", 1330, 140, 220, 0, 258, 140);
+    drawBannerShape(ctx, "rgba(203,166,91,0.28)", 1448, 140, 208, 0, 246, 140);
 
     ctx.fillStyle = "#845F0F";
-    ctx.fillRect(0, 206, width, 28);
+    ctx.fillRect(0, 216, width, 24);
 
     ctx.textBaseline = "alphabetic";
     if (logoImage) {
-      const maxWidth = 430;
-      const maxHeight = 68;
+      const maxWidth = 560;
+      const maxHeight = 92;
       const scale = Math.min(maxWidth / logoImage.naturalWidth, maxHeight / logoImage.naturalHeight);
       const renderWidth = Math.round(logoImage.naturalWidth * scale);
       const renderHeight = Math.round(logoImage.naturalHeight * scale);
-      ctx.drawImage(logoImage, 48, 36, renderWidth, renderHeight);
+      ctx.drawImage(logoImage, 44, 24, renderWidth, renderHeight);
     } else {
       ctx.fillStyle = "#111111";
-      ctx.font = "700 36px Arial";
-      ctx.fillText("CORDOBA RESEARCH GROUP", 54, 76);
+      ctx.font = "700 40px Arial";
+      ctx.fillText("CORDOBA RESEARCH GROUP", 50, 82);
     }
 
     ctx.fillStyle = "#111111";
-    ctx.font = "700 38px Arial";
-    ctx.fillText(nomuraDisplayType(meta.noteType), 54, 178);
+    ctx.font = "700 40px Arial";
+    ctx.fillText(nomuraDisplayType(meta.noteType), 54, 188);
 
     ctx.fillStyle = "#845F0F";
     ctx.textAlign = "right";
     ctx.font = "600 24px Arial";
-    ctx.fillText("Global Markets Research", width - 46, 156);
-    ctx.font = "700 30px Arial";
-    ctx.fillText(formatDocDate(publicationDate), width - 46, 193);
+    ctx.fillText("Global Markets Research", width - 54, 164);
+    ctx.font = "700 32px Arial";
+    ctx.fillText(formatDocDate(publicationDate), width - 54, 200);
 
     ctx.textAlign = "left";
     ctx.fillStyle = "#ffffff";
     ctx.font = "600 14px Arial";
-    ctx.fillText(deskLine, 56, 225);
+    ctx.fillText(deskLine, 56, 232);
 
     return canvasToPngBytes(canvas);
   }
