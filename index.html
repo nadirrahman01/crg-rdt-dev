@@ -354,12 +354,9 @@
               </div>
 
               <div class="field">
-                <div class="label-row">
-                  <label for="equitySectorLine">Sector / Industry Line</label>
-                  <span class="field-tag">Optional</span>
-                </div>
+                <label for="equitySectorLine">Sector / Industry Line</label>
                 <div class="country-picker" id="industryPicker">
-                  <input type="text" id="equitySectorLine" name="equitySectorLine" placeholder="Select industry" readonly>
+                  <input type="text" id="equitySectorLine" name="equitySectorLine" placeholder="Select industry" readonly required>
                   <button type="button" class="country-picker-toggle" id="industryToggle" aria-label="Choose sector or industry">Select</button>
                   <div class="country-picker-panel" id="industryPanel" hidden>
                     <input type="text" id="industrySearch" placeholder="Search industries">
