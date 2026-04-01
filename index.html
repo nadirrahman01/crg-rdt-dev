@@ -134,6 +134,7 @@
                 <div>
                   <p class="section-kicker">Brief</p>
                   <h2 class="section-title">Set note metadata</h2>
+                  <p class="section-copy">Define the publication frame.</p>
                 </div>
               </div>
             </div>
@@ -193,14 +194,21 @@
               <div class="subpanel-head">
                 <div>
                   <h3>Macro / Fixed Income Ratings Profile</h3>
+                  <p>Set the coverage country, issuer reference, and ratings profile.</p>
                 </div>
               </div>
 
               <div class="field-grid field-grid-3">
                 <div class="field">
                   <label for="coverageCountryDisplay">Coverage Country</label>
-                  <input type="text" id="coverageCountryDisplay" list="coverageCountryOptions" placeholder="Search country...">
-                  <datalist id="coverageCountryOptions"></datalist>
+                  <div class="country-picker" id="coverageCountryPicker">
+                    <input type="text" id="coverageCountryDisplay" placeholder="Select country" readonly>
+                    <button type="button" class="country-picker-toggle" id="coverageCountryToggle" aria-label="Choose coverage country">Select</button>
+                    <div class="country-picker-panel" id="coverageCountryPanel" hidden>
+                      <input type="text" id="coverageCountrySearch" placeholder="Search countries">
+                      <div class="country-picker-options" id="coverageCountryOptions"></div>
+                    </div>
+                  </div>
                   <input type="hidden" id="coverageCountry" name="coverageCountry">
                 </div>
 
@@ -254,7 +262,7 @@
                 <span class="section-index">02</span>
                 <div>
                   <p class="section-kicker">Authors</p>
-                  <h2 class="section-title">Set byline and contact metadata</h2>
+                  <h2 class="section-title">Set authorship and analyst contact details</h2>
                 </div>
               </div>
             </div>
@@ -359,11 +367,11 @@
                   <div class="info-help">
                     <span class="info-dot" tabindex="0" aria-label="CRG rating guidance">i</span>
                     <div class="info-tooltip">
-                      Outperform: conviction in durable upside versus the market view.<br>
-                      Sector Perform: solid business, but upside looks broadly balanced.<br>
-                      Underperform: downside risk or weak reward-to-risk profile.<br>
-                      Restricted (R): we do not rate non-Shariah-compliant businesses.<br>
-                      Not Rated: view still forming or data is not sufficient for a formal call.
+                      Outperform: 15%+ upside over 12 months with clear fundamental support.<br>
+                      Sector Perform: broadly in line or balanced return profile over 12 months.<br>
+                      Underperform: meaningful downside risk or inferior return profile over 12 months.<br>
+                      Restricted (R): non-Shariah-compliant businesses are not rated for recommendation purposes.<br>
+                      Not Rated: insufficient conviction or incomplete coverage.
                     </div>
                   </div>
                 </div>
@@ -562,19 +570,6 @@
               </div>
             </div>
 
-            <div class="subpanel methodology-panel">
-              <div class="subpanel-head">
-                <div>
-                  <h3>Priority CRG Rating Model</h3>
-                  <p>Our internal rating frame is driven by five-year compounding quality, valuation headroom, catalyst visibility, balance sheet resilience, and Shariah eligibility.</p>
-                </div>
-              </div>
-              <div class="methodology-copy">
-                <p><strong>Outperform</strong> requires clear fundamental compounding with visible rerating or earnings-support potential over the medium term.</p>
-                <p><strong>Sector Perform</strong> is used where quality is acceptable but upside is more balanced, timing is less clear, or valuation already discounts much of the case.</p>
-                <p><strong>Underperform</strong> reflects asymmetric downside, weak economics, deteriorating capital discipline, or an unfavourable market-implied base case. <strong>Restricted</strong> applies where the business is not Shariah-compliant. <strong>Not Rated</strong> is reserved for incomplete coverage or low-conviction setups.</p>
-              </div>
-            </div>
           </section>
 
           <section class="section-card" id="section-body" data-nav="section-body">
@@ -760,6 +755,7 @@
             </div>
 
             <div class="action-tray">
+              <button type="button" class="btn btn-secondary" id="previewDocBtn">Preview Note</button>
               <button type="submit" class="btn btn-primary" id="generateDocBtn">Generate Word Document</button>
               <button type="button" class="btn btn-secondary" id="emailToCrgBtn">Email to CRG Research</button>
               <button type="button" class="btn btn-ghost" id="resetFormBtn">Reset Draft</button>
@@ -799,6 +795,23 @@
       <button type="button" class="btn btn-ghost btn-xs" data-rating-action="remove">Remove</button>
     </div>
   </template>
+
+  <div class="preview-modal" id="previewModal" hidden>
+    <div class="preview-modal-backdrop" id="previewModalBackdrop"></div>
+    <div class="preview-modal-dialog" role="dialog" aria-modal="true" aria-labelledby="previewModalTitle">
+      <div class="preview-modal-head">
+        <div>
+          <p class="section-kicker">Preview</p>
+          <h2 id="previewModalTitle">Final Note Preview</h2>
+        </div>
+        <button type="button" class="btn btn-ghost btn-xs" id="closePreviewBtn">Close</button>
+      </div>
+      <div class="preview-modal-body" id="previewModalBody"></div>
+      <div class="preview-modal-actions">
+        <button type="button" class="btn btn-secondary" id="previewGenerateBtn">Generate Word Document</button>
+      </div>
+    </div>
+  </div>
 
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
   <script src="https://unpkg.com/docx@7.8.2/build/index.js"></script>
