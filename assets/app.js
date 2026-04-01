@@ -24,6 +24,12 @@ document.addEventListener("DOMContentLoaded", () => {
     { value: "", label: "Other" }
   ];
 
+  const WORLD_COUNTRY_CODES = [
+    "AF","AX","AL","DZ","AS","AD","AO","AI","AQ","AG","AR","AM","AW","AU","AT","AZ","BS","BH","BD","BB","BY","BE","BZ","BJ","BM","BT","BO","BQ","BA","BW","BV","BR","IO","BN","BG","BF","BI","CV","KH","CM","CA","KY","CF","TD","CL","CN","CX","CC","CO","KM","CG","CD","CK","CR","CI","HR","CU","CW","CY","CZ","DK","DJ","DM","DO","EC","EG","SV","GQ","ER","EE","SZ","ET","FK","FO","FJ","FI","FR","GF","PF","TF","GA","GM","GE","DE","GH","GI","GR","GL","GD","GP","GU","GT","GG","GN","GW","GY","HT","HM","VA","HN","HK","HU","IS","IN","ID","IR","IQ","IE","IM","IL","IT","JM","JP","JE","JO","KZ","KE","KI","KP","KR","KW","KG","LA","LV","LB","LS","LR","LY","LI","LT","LU","MO","MG","MW","MY","MV","ML","MT","MH","MQ","MR","MU","YT","MX","FM","MD","MC","MN","ME","MS","MA","MZ","MM","NA","NR","NP","NL","NC","NZ","NI","NE","NG","NU","NF","MK","MP","NO","OM","PK","PW","PS","PA","PG","PY","PE","PH","PN","PL","PT","PR","QA","RE","RO","RU","RW","BL","SH","KN","LC","MF","PM","VC","WS","SM","ST","SA","SN","RS","SC","SL","SG","SX","SK","SI","SB","SO","ZA","GS","SS","ES","LK","SD","SR","SJ","SE","CH","SY","TW","TJ","TZ","TH","TL","TG","TK","TO","TT","TN","TR","TM","TC","TV","UG","UA","AE","GB","US","UM","UY","UZ","VU","VE","VN","VG","VI","WF","EH","YE","ZM","ZW"
+  ];
+
+  const WORLD_COUNTRIES = buildWorldCountryOptions();
+
   const ISSUER_COUNTRY_MAP = {
     US: "923213",
     GB: "814275",
@@ -41,25 +47,6 @@ document.addEventListener("DOMContentLoaded", () => {
     TR: "631450",
     MX: "612340",
     ID: "643210"
-  };
-
-  const COVERAGE_COUNTRY_LABELS = {
-    US: "United States",
-    GB: "United Kingdom",
-    DE: "Germany",
-    FR: "France",
-    IT: "Italy",
-    ES: "Spain",
-    JP: "Japan",
-    CN: "China",
-    IN: "India",
-    SA: "Saudi Arabia",
-    AE: "United Arab Emirates",
-    BR: "Brazil",
-    ZA: "South Africa",
-    TR: "Turkey",
-    MX: "Mexico",
-    ID: "Indonesia"
   };
 
   const FIELD_LABELS = {
@@ -115,8 +102,6 @@ document.addEventListener("DOMContentLoaded", () => {
     "title",
     "deck",
     "topic",
-    "coverageCountry",
-    "issuerId",
     "authorLastName",
     "authorFirstName",
     "keyTakeaways",
@@ -127,7 +112,7 @@ document.addEventListener("DOMContentLoaded", () => {
   const EQUITY_REQUIRED_IDS = ["ticker", "crgRating", "targetPrice", "marketCapUsd", "businessDescription"];
 
   const SECTION_REQUIREMENTS = {
-    note: ["noteType", "distribution", "publicationDate", "title", "deck", "topic", "coverageCountry"],
+    note: ["noteType", "distribution", "publicationDate", "title", "deck", "topic"],
     authors: ["authorLastName", "authorFirstName"],
     equity: EQUITY_REQUIRED_IDS,
     body: ["keyTakeaways", "analysis", "cordobaView"]
@@ -152,12 +137,17 @@ document.addEventListener("DOMContentLoaded", () => {
     deck: document.getElementById("deck"),
     topic: document.getElementById("topic"),
     macroFiPanel: document.getElementById("macroFiPanel"),
+    coverageCountryDisplay: document.getElementById("coverageCountryDisplay"),
+    coverageCountryOptions: document.getElementById("coverageCountryOptions"),
     coverageCountry: document.getElementById("coverageCountry"),
     issuerId: document.getElementById("issuerId"),
     macroFiHeading: document.getElementById("macroFiHeading"),
     agencyRating: document.getElementById("agencyRating"),
     shortTermRating: document.getElementById("shortTermRating"),
     longTermRating: document.getElementById("longTermRating"),
+    ratingsProfileRows: document.getElementById("ratingsProfileRows"),
+    addRatingProfileRowBtn: document.getElementById("addRatingProfileRowBtn"),
+    ratingProfileRowTemplate: document.getElementById("ratingProfileRowTemplate"),
     authorLastName: document.getElementById("authorLastName"),
     authorFirstName: document.getElementById("authorFirstName"),
     authorPhoneCountry: document.getElementById("authorPhoneCountry"),
@@ -332,6 +322,7 @@ document.addEventListener("DOMContentLoaded", () => {
   function init() {
     startHeaderClock();
     restoreRailState();
+    populateCoverageCountryOptions();
     wireSectionNavigation();
     wirePrimaryPhone();
     initializeBodySectionEditor();
@@ -341,6 +332,7 @@ document.addEventListener("DOMContentLoaded", () => {
     initializeFinancialTableEditor();
     ensureDeskLineDefault();
     syncIssuerId();
+    updateCoverageCountryDisplayFromCode();
     syncPrimaryPhone();
     toggleNoteTypeSections();
     updateFileSummary(dom.modelFiles, dom.modelSummaryHead, dom.modelSummaryList, "No supporting files attached.");
@@ -357,16 +349,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
   function updateHeaderDateTime() {
     if (!dom.headerDateTime) return;
-
-    const now = new Date();
-    dom.headerDateTime.textContent = new Intl.DateTimeFormat("en-GB", {
-      day: "2-digit",
-      month: "short",
-      year: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
-      timeZoneName: "short"
-    }).format(now).replace(",", " |");
+    dom.headerDateTime.textContent = formatLocalTimestamp(new Date());
   }
 
   function wireSectionNavigation() {
@@ -430,11 +413,26 @@ document.addEventListener("DOMContentLoaded", () => {
       queueDraftSave();
     });
 
-    dom.coverageCountry?.addEventListener("change", () => {
-      syncIssuerId();
+    dom.coverageCountryDisplay?.addEventListener("input", () => {
+      resolveCoverageCountryCodeFromDisplay();
       updateAllUI();
       queueDraftSave();
     });
+
+    dom.coverageCountryDisplay?.addEventListener("change", () => {
+      resolveCoverageCountryCodeFromDisplay();
+      updateAllUI();
+      queueDraftSave();
+    });
+
+    dom.coverageCountryDisplay?.addEventListener("blur", () => {
+      resolveCoverageCountryCodeFromDisplay();
+      updateCoverageCountryDisplayFromCode();
+      updateAllUI();
+      queueDraftSave();
+    });
+
+    dom.macroFiHeading?.addEventListener("input", syncFigurePlacementControls);
 
     dom.deskLine.addEventListener("input", () => {
       dom.deskLine.dataset.autofill = "false";
@@ -452,11 +450,13 @@ document.addEventListener("DOMContentLoaded", () => {
 
     dom.addCustomSectionBtn?.addEventListener("click", () => {
       addCustomBodySection();
+      syncFigurePlacementControls();
       updateAllUI();
       queueDraftSave();
     });
 
     dom.bodySections?.addEventListener("click", handleBodySectionActions);
+    dom.bodySections?.addEventListener("input", handleBodySectionInput);
 
     dom.targetPrice.addEventListener("input", () => {
       updateUpsideDisplay();
@@ -474,6 +474,13 @@ document.addEventListener("DOMContentLoaded", () => {
       syncFigurePlacementControls();
       updateAllUI();
     });
+
+    dom.addRatingProfileRowBtn?.addEventListener("click", () => {
+      addRatingProfileRow();
+      updateAllUI();
+      queueDraftSave();
+    });
+    dom.ratingsProfileRows?.addEventListener("click", handleRatingProfileActions);
 
     dom.figurePlacementList?.addEventListener("change", handleFigurePlacementChange);
 
@@ -574,6 +581,54 @@ document.addEventListener("DOMContentLoaded", () => {
 
   function defaultDeskLine(noteType) {
     return strategyLabelForNoteType(noteType);
+  }
+
+  function buildWorldCountryOptions() {
+    const displayNames = typeof Intl.DisplayNames === "function"
+      ? new Intl.DisplayNames(["en"], { type: "region" })
+      : null;
+
+    return WORLD_COUNTRY_CODES
+      .map((code) => ({
+        code,
+        name: displayNames?.of(code) || code
+      }))
+      .sort((left, right) => left.name.localeCompare(right.name, "en", { sensitivity: "base" }));
+  }
+
+  function getCoverageCountryLabel(countryCode) {
+    const normalized = String(countryCode || "").trim().toUpperCase();
+    return WORLD_COUNTRIES.find((entry) => entry.code === normalized)?.name || normalized || "N/A";
+  }
+
+  function populateCoverageCountryOptions() {
+    if (!dom.coverageCountryOptions) return;
+    dom.coverageCountryOptions.innerHTML = WORLD_COUNTRIES
+      .map((country) => `<option value="${escapeAttribute(country.name)}"></option>`)
+      .join("");
+  }
+
+  function updateCoverageCountryDisplayFromCode() {
+    if (!dom.coverageCountryDisplay) return;
+    dom.coverageCountryDisplay.value = getCoverageCountryLabel(dom.coverageCountry.value).replace(/^N\/A$/, "");
+  }
+
+  function resolveCoverageCountryCodeFromDisplay() {
+    const displayValue = String(dom.coverageCountryDisplay?.value || "").trim();
+    if (!displayValue) {
+      dom.coverageCountry.value = "";
+      syncIssuerId();
+      return;
+    }
+
+    const normalized = normalizeComparableText(displayValue);
+    const match = WORLD_COUNTRIES.find((country) =>
+      normalizeComparableText(country.name) === normalized ||
+      normalizeComparableText(country.code) === normalized
+    );
+    dom.coverageCountry.value = match ? match.code : "";
+    if (match) dom.coverageCountryDisplay.value = match.name;
+    syncIssuerId();
   }
 
   function isMacroFiNoteType(noteType) {
@@ -779,8 +834,21 @@ document.addEventListener("DOMContentLoaded", () => {
       return;
     }
 
+    syncFigurePlacementControls();
     updateAllUI();
     queueDraftSave();
+  }
+
+  function handleBodySectionInput(event) {
+    const target = event.target;
+    if (!(target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement)) return;
+
+    if (
+      target.closest(".body-section-heading") ||
+      target.getAttribute("data-custom-field") === "heading"
+    ) {
+      syncFigurePlacementControls();
+    }
   }
 
   function getBodySectionContent(card) {
@@ -943,6 +1011,60 @@ document.addEventListener("DOMContentLoaded", () => {
     orderedCards.push(...Array.from(coreCards.values()));
     orderedCards.forEach((card) => dom.bodySections.appendChild(card));
     syncBodySectionVisibility();
+    syncFigurePlacementControls();
+  }
+
+  function addRatingProfileRow(seed = {}) {
+    if (!dom.ratingProfileRowTemplate || !dom.ratingsProfileRows) return null;
+    const fragment = dom.ratingProfileRowTemplate.content.cloneNode(true);
+    const row = fragment.querySelector(".ratings-profile-row");
+    row.querySelector("[data-rating-field='agency']").value = seed.agency || "";
+    row.querySelector("[data-rating-field='short']").value = seed.shortTerm || "";
+    row.querySelector("[data-rating-field='long']").value = seed.longTerm || "";
+    dom.ratingsProfileRows.appendChild(fragment);
+    return dom.ratingsProfileRows.lastElementChild;
+  }
+
+  function handleRatingProfileActions(event) {
+    const actionButton = event.target.closest("[data-rating-action]");
+    if (!actionButton) return;
+
+    if (actionButton.getAttribute("data-rating-action") === "remove") {
+      actionButton.closest(".ratings-profile-row")?.remove();
+      updateAllUI();
+      queueDraftSave();
+    }
+  }
+
+  function collectRatingsProfile() {
+    const rows = [];
+    const firstRow = {
+      agency: String(dom.agencyRating?.value || "").trim(),
+      shortTerm: String(dom.shortTermRating?.value || "").trim(),
+      longTerm: String(dom.longTermRating?.value || "").trim()
+    };
+    if (firstRow.agency || firstRow.shortTerm || firstRow.longTerm) rows.push(firstRow);
+
+    rows.push(
+      ...Array.from(dom.ratingsProfileRows?.querySelectorAll(".ratings-profile-row") || []).map((row) => ({
+        agency: String(row.querySelector("[data-rating-field='agency']")?.value || "").trim(),
+        shortTerm: String(row.querySelector("[data-rating-field='short']")?.value || "").trim(),
+        longTerm: String(row.querySelector("[data-rating-field='long']")?.value || "").trim()
+      }))
+    );
+
+    return rows.filter((row) => row.agency || row.shortTerm || row.longTerm);
+  }
+
+  function restoreRatingsProfile(rows = []) {
+    if (!dom.ratingsProfileRows) return;
+    dom.ratingsProfileRows.innerHTML = "";
+
+    const [primaryRow, ...extraRows] = Array.isArray(rows) ? rows : [];
+    dom.agencyRating.value = primaryRow?.agency || "";
+    dom.shortTermRating.value = primaryRow?.shortTerm || "";
+    dom.longTermRating.value = primaryRow?.longTerm || "";
+    extraRows.forEach((row) => addRatingProfileRow(row));
   }
 
   function initializeFinancialTableEditor(forceReset = false) {
@@ -1415,16 +1537,16 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   function getRequiredIds() {
-    const requiredIds = BASE_REQUIRED_IDS.filter((id) => !["coverageCountry", "issuerId"].includes(id));
-    if (isMacroFiSelected()) requiredIds.push("coverageCountry", "issuerId");
+    const requiredIds = [...BASE_REQUIRED_IDS];
+    if (dom.noteType.value === "Macro Research") requiredIds.push("coverageCountry", "issuerId");
     if (isEquitySelected()) return requiredIds.concat(EQUITY_REQUIRED_IDS);
     return requiredIds;
   }
 
   function getSectionRequirementIds(sectionKey) {
     if (sectionKey === "note") {
-      const ids = SECTION_REQUIREMENTS.note.filter((id) => !["coverageCountry", "issuerId"].includes(id));
-      if (isMacroFiSelected()) ids.push("coverageCountry", "issuerId");
+      const ids = [...SECTION_REQUIREMENTS.note];
+      if (dom.noteType.value === "Macro Research") ids.push("coverageCountry", "issuerId");
       return ids;
     }
 
@@ -1481,6 +1603,8 @@ document.addEventListener("DOMContentLoaded", () => {
 
   function normalizeComparableText(value) {
     return String(value || "")
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
       .toLowerCase()
       .replace(/[^a-z0-9]+/g, " ")
       .trim();
@@ -1583,12 +1707,26 @@ document.addEventListener("DOMContentLoaded", () => {
     });
 
     if (noteType === "Macro Research" || noteType === "Fixed Income Research") {
-      if (!(data.agencyRating || data.shortTermRating || data.longTermRating)) {
+      const ratingsRows = Array.isArray(data.ratingsProfile) ? data.ratingsProfile : [];
+      if (!ratingsRows.length) {
         findings.push(
           buildFinding(
             noteType === "Fixed Income Research" ? "warning" : "suggestion",
             "Ratings table not populated",
             "Add the agency, short-term, and long-term ratings profile so the note header carries the structured sovereign / issuer ratings block.",
+            "Brief",
+            { focusId: "agencyRating" }
+          )
+        );
+      }
+
+      const partialRatingsRow = ratingsRows.find((row) => (row.agency || row.shortTerm || row.longTerm) && (!row.agency || (!row.shortTerm && !row.longTerm)));
+      if (partialRatingsRow) {
+        findings.push(
+          buildFinding(
+            "warning",
+            "Ratings row is incomplete",
+            "Each ratings row should include the agency and at least one of the short-term or long-term ratings.",
             "Brief",
             { focusId: "agencyRating" }
           )
@@ -2021,8 +2159,8 @@ document.addEventListener("DOMContentLoaded", () => {
     } else if (isMacroFiSelected()) {
       const coverageBits = [
         data.deskLine || data.noteType || "Desk line not set",
-        data.coverageCountry ? getCoverageCountryLabel(data.coverageCountry) : "Country pending",
-        data.issuerId || "Issuer pending",
+        data.coverageCountry ? getCoverageCountryLabel(data.coverageCountry) : (data.noteType === "Fixed Income Research" ? "Country optional" : "Country pending"),
+        data.issuerId || (data.noteType === "Fixed Income Research" ? "Issuer optional" : "Issuer pending"),
         data.publicationDate ? formatInputDateLabel(data.publicationDate) : "Date pending"
       ];
       dom.previewCoverage.textContent = coverageBits.join(" | ");
@@ -2083,6 +2221,7 @@ document.addEventListener("DOMContentLoaded", () => {
       values,
       coAuthors: getCoAuthors(),
       bodySectionLayout: collectBodySectionLayout(),
+      ratingsProfile: collectRatingsProfile(),
       savedAt: new Date().toISOString()
     };
   }
@@ -2113,11 +2252,13 @@ document.addEventListener("DOMContentLoaded", () => {
       state.coAuthorCount = 0;
       (payload.coAuthors || []).forEach((coAuthor) => addCoAuthorCard(coAuthor));
       restoreBodySectionLayout(payload.bodySectionLayout || []);
+      restoreRatingsProfile(payload.ratingsProfile || []);
       state.lastSavedAt = payload.savedAt || null;
       dom.deskLine.dataset.autofill = "true";
       dom.equityCompanyName.dataset.autofill = dom.equityCompanyName.value.trim() ? "false" : "true";
       dom.priceCurrency.dataset.autofill = dom.priceCurrency.value.trim() ? "false" : "true";
       syncIssuerId();
+      updateCoverageCountryDisplayFromCode();
       syncBodySectionVisibility();
       ensureDeskLineDefault(true);
     } catch (error) {
@@ -2136,6 +2277,7 @@ document.addEventListener("DOMContentLoaded", () => {
     state.customSectionCount = 0;
     state.figurePlacements = {};
     syncPrimaryPhone();
+    restoreRatingsProfile([]);
     dom.equityCompanyName.dataset.autofill = "true";
     dom.priceCurrency.dataset.autofill = "true";
     resetChartState({ keepStatusText: false });
@@ -2143,6 +2285,7 @@ document.addEventListener("DOMContentLoaded", () => {
     ensurePublicationDate();
     initializeFinancialTableEditor(true);
     ensureDeskLineDefault(true);
+    updateCoverageCountryDisplayFromCode();
     restoreBodySectionLayout([]);
     updateFileSummary(dom.modelFiles, dom.modelSummaryHead, dom.modelSummaryList, "No supporting files attached.");
     updateFileSummary(dom.imageUpload, dom.imageSummaryHead, dom.imageSummaryList, "No figures attached.");
@@ -2178,37 +2321,40 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   function getFigurePlacementOptions(noteType = dom.noteType.value) {
+    const options = [];
+    const layout = collectBodySectionLayout().filter((entry) => !entry.hidden);
+    const keyTakeaways = layout.find((entry) => entry.key === "keyTakeaways");
+    const cordobaView = layout.find((entry) => entry.key === "cordobaView");
+    const middle = layout.filter((entry) => entry.key !== "keyTakeaways" && entry.key !== "cordobaView");
+
     if (noteType === "Equity Research") {
-      return [
+      options.push(
         { value: "after-businessDescription", label: "After Business Description" },
-        { value: "after-valuationSummary", label: "After Valuation Summary" },
-        { value: "after-analysis", label: "After Analysis And Commentary" },
-        { value: "after-content", label: "After Additional Detail" },
-        { value: "after-fiveYearRationale", label: "After 5 Year Rationale & Price Target" },
-        { value: "after-esgSummary", label: "After ESG Summary" },
-        { value: "after-cordobaView", label: "After The Cordoba View" },
-        { value: "end", label: "End of Note" }
-      ];
+        { value: "after-valuationSummary", label: "After Valuation Summary" }
+      );
+
+      middle.forEach((entry) => {
+        options.push({ value: `after-${entry.key}`, label: `After ${entry.label}` });
+      });
+      if (cordobaView) options.push({ value: "after-cordobaView", label: `After ${cordobaView.label}` });
+
+      options.push({ value: "end", label: "End of Note" });
+      return options;
     }
 
     if (isMacroFiNoteType(noteType)) {
-      return [
-        { value: "after-macroFiProfile", label: "After Ratings Table" },
-        { value: "after-keyTakeaways", label: "After Key Takeaways" },
-        { value: "after-analysis", label: "After Analysis And Commentary" },
-        { value: "after-content", label: "After Additional Detail" },
-        { value: "after-cordobaView", label: "After The Cordoba View" },
-        { value: "end", label: "End of Note" }
-      ];
+      const macroHeading = String(dom.macroFiHeading?.value || "").trim() || "Ratings Profile";
+      options.push({ value: "after-macroFiProfile", label: `After ${macroHeading}` });
     }
 
-    return [
-      { value: "after-keyTakeaways", label: "After Key Takeaways" },
-      { value: "after-analysis", label: "After Analysis And Commentary" },
-      { value: "after-content", label: "After Additional Detail" },
-      { value: "after-cordobaView", label: "After The Cordoba View" },
-      { value: "end", label: "End of Note" }
-    ];
+    if (keyTakeaways) options.push({ value: "after-keyTakeaways", label: `After ${keyTakeaways.label}` });
+    middle.forEach((entry) => {
+      options.push({ value: `after-${entry.key}`, label: `After ${entry.label}` });
+    });
+    if (cordobaView) options.push({ value: "after-cordobaView", label: `After ${cordobaView.label}` });
+
+    options.push({ value: "end", label: "End of Note" });
+    return options;
   }
 
   function syncFigurePlacementControls() {
@@ -3257,6 +3403,7 @@ document.addEventListener("DOMContentLoaded", () => {
       agencyRating: dom.agencyRating.value.trim(),
       shortTermRating: dom.shortTermRating.value.trim(),
       longTermRating: dom.longTermRating.value.trim(),
+      ratingsProfile: collectRatingsProfile(),
       authorLastName: dom.authorLastName.value.trim(),
       authorFirstName: dom.authorFirstName.value.trim(),
       authorPhone: dom.authorPhone.value.trim(),
@@ -3677,6 +3824,8 @@ document.addEventListener("DOMContentLoaded", () => {
         figureCounterRef
       );
     }
+
+    children.push(...buildCrgRatingMethodologySection(docxLib, colors));
 
     return buildResearchDocumentShell(
       docxLib,
@@ -4371,11 +4520,6 @@ document.addEventListener("DOMContentLoaded", () => {
     }).format(numeric);
   }
 
-  function getCoverageCountryLabel(countryCode) {
-    const normalized = String(countryCode || "").trim().toUpperCase();
-    return COVERAGE_COUNTRY_LABELS[normalized] || normalized || "N/A";
-  }
-
   function buildCordobaEmail(firstName, lastName) {
     const first = String(firstName || "")
       .trim()
@@ -4497,11 +4641,15 @@ document.addEventListener("DOMContentLoaded", () => {
     const heading = data.macroFiHeading || (data.noteType === "Fixed Income Research" ? "Ratings Overview" : "Sovereign Ratings");
     const countryLabel = getCoverageCountryLabel(data.coverageCountry);
     const issuerNumber = data.issuerId || "N/A";
-    const ratings = [
-      { label: "Agency Rating", value: data.agencyRating || "N/A" },
-      { label: "Short-Term Rating", value: data.shortTermRating || "N/A" },
-      { label: "Long-Term Rating", value: data.longTermRating || "N/A" }
-    ];
+    const showMetadataTable = data.noteType === "Macro Research" || Boolean(data.coverageCountry || data.issuerId);
+    const ratings = (Array.isArray(data.ratingsProfile) && data.ratingsProfile.length
+      ? data.ratingsProfile
+      : [{
+        agency: data.agencyRating,
+        shortTerm: data.shortTermRating,
+        longTerm: data.longTermRating
+      }])
+      .filter((row) => row.agency || row.shortTerm || row.longTerm);
 
     const metadataTable = new docxLib.Table({
       width: { size: 100, type: docxLib.WidthType.PERCENTAGE },
@@ -4573,7 +4721,11 @@ document.addEventListener("DOMContentLoaded", () => {
       },
       rows: [
         new docxLib.TableRow({
-          children: ratings.map((cell) =>
+          children: [
+            "Agency",
+            "Short-Term Rating",
+            "Long-Term Rating"
+          ].map((cell) =>
             new docxLib.TableCell({
               shading: { fill: colors.soft },
               margins: { top: 55, bottom: 55, left: 55, right: 55 },
@@ -4588,7 +4740,7 @@ document.addEventListener("DOMContentLoaded", () => {
                   alignment: docxLib.AlignmentType.CENTER,
                   children: [
                     new docxLib.TextRun({
-                      text: cell.label,
+                      text: cell,
                       bold: true,
                       size: 11,
                       color: colors.black,
@@ -4601,8 +4753,13 @@ document.addEventListener("DOMContentLoaded", () => {
             })
           )
         }),
-        new docxLib.TableRow({
-          children: ratings.map((cell) =>
+        ...((ratings.length ? ratings : [{ agency: "N/A", shortTerm: "N/A", longTerm: "N/A" }]).map((cell) =>
+          new docxLib.TableRow({
+            children: [
+              cell.agency || "N/A",
+              cell.shortTerm || "N/A",
+              cell.longTerm || "N/A"
+            ].map((value) =>
             new docxLib.TableCell({
               margins: { top: 55, bottom: 55, left: 55, right: 55 },
               borders: {
@@ -4616,7 +4773,7 @@ document.addEventListener("DOMContentLoaded", () => {
                   alignment: docxLib.AlignmentType.CENTER,
                   children: [
                     new docxLib.TextRun({
-                      text: cell.value,
+                      text: value,
                       size: 13,
                       color: colors.ink,
                       font: "Arial"
@@ -4626,8 +4783,9 @@ document.addEventListener("DOMContentLoaded", () => {
                 })
               ]
             })
-          )
-        })
+            )
+          })
+        ))
       ]
     });
 
@@ -4644,8 +4802,12 @@ document.addEventListener("DOMContentLoaded", () => {
         ],
         spacing: { before: 60, after: 26 }
       }),
-      metadataTable,
-      new docxLib.Paragraph({ spacing: { after: 24 } }),
+      ...(showMetadataTable
+        ? [
+          metadataTable,
+          new docxLib.Paragraph({ spacing: { after: 24 } })
+        ]
+        : []),
       ratingsTable
     ];
   }
@@ -5084,7 +5246,8 @@ document.addEventListener("DOMContentLoaded", () => {
 
   function buildNomuraTitlePanel(docxLib, colors, data, analystContacts, publicationDate) {
     const analystDesk = data.deskLine || getDeskLine();
-    const coverageMeta = isMacroFiNoteType(data.noteType)
+    const showCoverageMeta = data.noteType === "Macro Research" || (isMacroFiNoteType(data.noteType) && (data.coverageCountry || data.issuerId));
+    const coverageMeta = showCoverageMeta
       ? `Coverage Country: ${getCoverageCountryLabel(data.coverageCountry)} | Issuer Number: ${data.issuerId || "N/A"}`
       : "";
 
@@ -5437,6 +5600,45 @@ document.addEventListener("DOMContentLoaded", () => {
     return paragraphs;
   }
 
+  function buildCrgRatingMethodologySection(docxLib, colors) {
+    return [
+      buildNomuraSubhead(docxLib, colors, "Priority CRG Rating Model"),
+      new docxLib.Paragraph({
+        children: [
+          new docxLib.TextRun({
+            text: "CRG ratings are assigned on a medium-term institutional horizon and reflect our internal view on fundamental compounding, balance-sheet quality, market-implied expectations, catalyst visibility, and valuation asymmetry rather than near-term price noise.",
+            font: "Arial",
+            size: 18,
+            color: colors.ink
+          })
+        ],
+        spacing: { after: 52 }
+      }),
+      new docxLib.Paragraph({
+        children: [
+          new docxLib.TextRun({
+            text: "Outperform is reserved for businesses where the five-year earnings path, reinvestment runway, and valuation setup combine to offer clear upside against the prevailing market base case. Sector Perform is used where quality is intact but upside looks more balanced, timing is less visible, or the market is already discounting much of the operating improvement. Underperform reflects a weak reward-to-risk profile, deteriorating economics, capital-allocation concerns, or valuation that still looks too generous relative to the underlying cash-flow path.",
+            font: "Arial",
+            size: 18,
+            color: colors.ink
+          })
+        ],
+        spacing: { after: 52 }
+      }),
+      new docxLib.Paragraph({
+        children: [
+          new docxLib.TextRun({
+            text: "Restricted is applied where the business falls outside our Shariah-compliant investment perimeter. Not Rated is used where coverage is still exploratory, diligence is incomplete, or conviction is not yet high enough to support a formal rating call. In every case, the CRG rating framework is intended to impose discipline on thesis quality, not to substitute for independent judgment or regulated investment advice.",
+            font: "Arial",
+            size: 18,
+            color: colors.ink
+          })
+        ],
+        spacing: { after: 58 }
+      })
+    ];
+  }
+
   async function buildImageParagraphs(docxLib, files, colors, startIndex = 1) {
     const output = [];
 
@@ -5478,12 +5680,24 @@ document.addEventListener("DOMContentLoaded", () => {
 
   function formatProductionTimestamp(date) {
     const d = date instanceof Date ? date : new Date(date);
-    const year = d.getUTCFullYear();
-    const month = String(d.getUTCMonth() + 1).padStart(2, "0");
-    const day = String(d.getUTCDate()).padStart(2, "0");
-    const hours = String(d.getUTCHours()).padStart(2, "0");
-    const minutes = String(d.getUTCMinutes()).padStart(2, "0");
-    return `${year}-${month}-${day} ${hours}:${minutes} UTC`;
+    return formatLocalTimestamp(d);
+  }
+
+  function formatLocalTimestamp(date) {
+    const d = date instanceof Date ? date : new Date(date);
+    const parts = new Intl.DateTimeFormat("en-GB", {
+      day: "numeric",
+      month: "long",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: false,
+      timeZoneName: "short"
+    }).formatToParts(d);
+
+    const lookup = Object.fromEntries(parts.map((part) => [part.type, part.value]));
+    const zone = lookup.timeZoneName || Intl.DateTimeFormat().resolvedOptions().timeZone || "";
+    return `${lookup.day} ${lookup.month} ${lookup.year}, ${lookup.hour}:${lookup.minute} ${zone}`.replace(/\s+/g, " ").trim();
   }
 
   function getImageFit(file, maxWidth, maxHeight) {
