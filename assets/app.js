@@ -3823,6 +3823,103 @@ document.addEventListener("DOMContentLoaded", () => {
     state.previewObjectUrls = [];
   }
 
+  function peekNextNoteSequence(typeCode, dateStamp) {
+    try {
+      const raw = window.localStorage.getItem(NOTE_SEQUENCE_STORAGE_KEY);
+      const store = raw ? JSON.parse(raw) : {};
+      const key = `${typeCode}-${dateStamp}`;
+      const nextValue = Number(store[key] || 0) + 1;
+      return String(nextValue).padStart(2, "0");
+    } catch (error) {
+      console.warn("Unable to inspect note sequence:", error);
+      return String(generatedSequenceFromClock()).padStart(2, "0");
+    }
+  }
+
+  function buildPreviewNoteId(data) {
+    const generatedAt = data.generatedAt || new Date();
+    const dateStamp = formatCompactDateStamp(generatedAt);
+    return `CRG-${noteTypeCode(data.noteType)}-${dateStamp}-${peekNextNoteSequence(noteTypeCode(data.noteType), dateStamp)}`;
+  }
+
+  function buildPreviewAnalystPanelHtml(deskLine, contacts) {
+    const people = contacts.length
+      ? contacts
+      : [{ name: "Research Analyst", email: "research@cordobarg.com", phone: "N/A" }];
+
+    return `
+      <section class="preview-analyst-panel">
+        <h3>Research Analysts</h3>
+        <div class="preview-analyst-desk">${escapeHtml(deskLine || "Global Research Strategy")}</div>
+        ${people.map((person) => `
+          <div class="preview-analyst-person">
+            <strong>${escapeHtml(person.name)}</strong>
+            <span>${escapeHtml(person.email)}</span>
+            <span>${escapeHtml(person.phone)}</span>
+          </div>
+        `).join("")}
+      </section>
+    `;
+  }
+
+  function buildPreviewBannerHtml(data, publicationDate) {
+    return `
+      <header class="preview-export-banner">
+        <div class="preview-export-logo">
+          <img src="assets/cordoba-logo" alt="Cordoba Research Group logo">
+        </div>
+        <div class="preview-export-mark" aria-hidden="true">
+          <span></span><span></span><span></span><span></span>
+        </div>
+        <div class="preview-export-brand">
+          <strong>Global Markets Research</strong>
+          <span>${escapeHtml(formatDocDate(publicationDate))}</span>
+        </div>
+      </header>
+    `;
+  }
+
+  function buildPreviewDisplayLineHtml(data) {
+    return `
+      <div class="preview-export-display">${escapeHtml(nomuraDisplayType(data.noteType))}</div>
+      <div class="preview-export-rule">${escapeHtml(data.deskLine || strategyLabelForNoteType(data.noteType) || "Research Note")}</div>
+    `;
+  }
+
+  function buildPreviewNarrativeHtml(label, content) {
+    if (!content) return "";
+    return `
+      <section class="preview-export-section">
+        <h3>${escapeHtml(label)}</h3>
+        ${paragraphBlocks(content).map((block) => `<p>${escapeHtml(block).replace(/\n/g, "<br>")}</p>`).join("")}
+      </section>
+    `;
+  }
+
+  function buildPreviewKeyTakeawaysBoxHtml(label, content) {
+    const items = lineItems(content);
+    return `
+      <section class="preview-key-box">
+        <h3>${escapeHtml(label)}</h3>
+        <ul>
+          ${(items.length ? items : ["No key takeaways supplied."]).map((item) => `<li>${escapeHtml(item)}</li>`).join("")}
+        </ul>
+      </section>
+    `;
+  }
+
+  function getPreviewChartImageSrc() {
+    try {
+      if (dom.priceChartCanvas && typeof dom.priceChartCanvas.toDataURL === "function") {
+        const dataUrl = dom.priceChartCanvas.toDataURL("image/png");
+        return dataUrl && dataUrl !== "data:," ? dataUrl : "";
+      }
+    } catch (error) {
+      console.warn("Unable to create preview chart image:", error);
+    }
+    return "";
+  }
+
   function buildPreviewFigureMarkup(files, data, availablePlacements, placement) {
     const placedFiles = getFigureFilesForPlacement(data, placement, availablePlacements);
     return placedFiles.map((file, index) => {
@@ -3839,22 +3936,168 @@ document.addEventListener("DOMContentLoaded", () => {
     }).join("");
   }
 
-  function renderPreviewSection(label, content) {
-    const items = lineItems(content);
-    if (label === "Key Takeaways") {
-      return `
-        <section class="preview-section">
-          <h3>${escapeHtml(label)}</h3>
-          <ul>${items.map((item) => `<li>${escapeHtml(item)}</li>`).join("")}</ul>
-        </section>
-      `;
-    }
+  function buildPreviewMacroFiProfileHtml(data) {
+    const heading = data.macroFiHeading || (data.noteType === "Fixed Income Research" ? "Ratings Overview" : "Sovereign Ratings");
+    const ratingsRows = (data.ratingsProfile || []).filter((row) => row.agency || row.shortTerm || row.longTerm);
+    const showMeta = data.noteType === "Macro Research" || data.coverageCountry || data.issuerId;
 
     return `
-      <section class="preview-section">
-        <h3>${escapeHtml(label)}</h3>
-        ${paragraphBlocks(content).map((block) => `<p>${escapeHtml(block).replace(/\n/g, "<br>")}</p>`).join("")}
+      <section class="preview-export-section">
+        <h3>${escapeHtml(heading)}</h3>
+        ${showMeta ? `
+          <div class="preview-macro-meta">
+            <div><strong>Coverage Country</strong><span>${escapeHtml(data.coverageCountry ? getCoverageCountryLabel(data.coverageCountry) : "N/A")}</span></div>
+            <div><strong>Issuer Number</strong><span>${escapeHtml(data.issuerId || "N/A")}</span></div>
+          </div>
+        ` : ""}
+        <table class="preview-ratings-table">
+          <thead>
+            <tr><th>Agency</th><th>Short-Term Rating</th><th>Long-Term Rating</th></tr>
+          </thead>
+          <tbody>
+            ${(ratingsRows.length ? ratingsRows : [{ agency: "N/A", shortTerm: "N/A", longTerm: "N/A" }]).map((row) => `
+              <tr>
+                <td>${escapeHtml(row.agency || "N/A")}</td>
+                <td>${escapeHtml(row.shortTerm || "N/A")}</td>
+                <td>${escapeHtml(row.longTerm || "N/A")}</td>
+              </tr>
+            `).join("")}
+          </tbody>
+        </table>
       </section>
+    `;
+  }
+
+  function buildPreviewEquityTearSheetHtml(data, publicationDate) {
+    const targetPrice = parseNumber(data.targetPrice);
+    const marketPrice = Number.isFinite(data.equityStats.currentPrice) ? data.equityStats.currentPrice : null;
+    const upside = computeUpsideToTarget(marketPrice, targetPrice);
+    const priceDate = data.equityStats.priceDate ? formatDocDate(new Date(`${data.equityStats.priceDate}T00:00:00`)) : formatDocDate(publicationDate);
+    const priceCurrency = resolvePriceCurrency(data);
+    const chartSrc = getPreviewChartImageSrc();
+    const rows = [
+      { label: "Rating", value: data.crgRating || "N/A" },
+      { label: "Target price", value: formatPriceDisplay(targetPrice, priceCurrency) },
+      { label: "Closing price", sublabel: priceDate, value: formatPriceDisplay(marketPrice, priceCurrency) },
+      { label: "Implied upside", value: upside == null ? "N/A" : formatSignedPercent(upside) },
+      { label: "Market Cap (USD mn)", value: formatPlainMetricValue(data.marketCapUsd) },
+      { label: "ADT (USD mn)", value: formatPlainMetricValue(data.adtUsd) }
+    ];
+
+    return `
+      <section class="preview-tearsheet">
+        <table class="preview-tearsheet-table">
+          <tbody>
+            ${rows.map((row) => `
+              <tr>
+                <td>
+                  <strong>${escapeHtml(row.label)}</strong>
+                  ${row.sublabel ? `<span>${escapeHtml(row.sublabel)}</span>` : ""}
+                </td>
+                <td>${escapeHtml(row.value)}</td>
+              </tr>
+            `).join("")}
+          </tbody>
+        </table>
+        <div class="preview-chart-block">
+          <h4>Relative performance chart</h4>
+          ${chartSrc
+            ? `<img src="${chartSrc}" alt="Relative performance chart">`
+            : `<div class="preview-chart-empty">No tear sheet chart loaded.</div>`}
+          <p>Source: Yahoo Finance market data${data.equityStats.benchmarkLabel ? `, benchmarked against ${escapeHtml(data.equityStats.benchmarkLabel)}` : ""}</p>
+        </div>
+      </section>
+    `;
+  }
+
+  function buildPreviewFinancialTableHtml(data, publicationDate) {
+    const matrix = pruneEmptyFinancialRows(parseFinancialTableInput(data.financialTableInput, publicationDate));
+    if (!matrix.headers.length) return "";
+
+    const title = data.financialTableTitle || "Year-end 31 Dec";
+    const sourceNote = data.financialSourceNote || "Source: Company data, Cordoba Research Group estimates";
+    const priceCurrency = resolvePriceCurrency(data);
+
+    return `
+      <section class="preview-export-section">
+        <table class="preview-financial-table">
+          <thead>
+            <tr>
+              <th>
+                <div class="preview-financial-title">${escapeHtml(title)}</div>
+                ${priceCurrency ? `<div class="preview-financial-currency">Currency (${escapeHtml(priceCurrency)})</div>` : ""}
+              </th>
+              ${matrix.headers.map((header) => `<th>${escapeHtml(header)}</th>`).join("")}
+            </tr>
+          </thead>
+          <tbody>
+            ${matrix.rows.map((row) => `
+              <tr>
+                <td>${escapeHtml(row.label || "-")}</td>
+                ${(row.values || []).map((value) => `<td>${escapeHtml(formatFinancialCellForExport(value, row.label))}</td>`).join("")}
+              </tr>
+            `).join("")}
+          </tbody>
+        </table>
+        <div class="preview-financial-source">${escapeHtml(sourceNote)}</div>
+      </section>
+    `;
+  }
+
+  function buildPreviewSupportHtml(data) {
+    if (!data.modelLink && !data.modelFiles.length) return "";
+
+    return `
+      <section class="preview-export-section">
+        <h3>Model Files</h3>
+        ${data.modelLink ? `<p>${escapeHtml(data.modelLink)}</p>` : ""}
+        ${data.modelFiles.length ? `<ul>${data.modelFiles.map((file) => `<li>${escapeHtml(file.name)}</li>`).join("")}</ul>` : ""}
+      </section>
+    `;
+  }
+
+  function getCrgRatingDefinitionIntro() {
+    return "These are the CRG rating definitions. They reflect our opinion, are not statements of fact, and do not constitute regulated investment advice.";
+  }
+
+  function getCrgRatingDefinitionRows() {
+    return [
+      ["Outperform (O)", "Expected 15%+ upside over 12 months, supported by clear fundamental progress and identifiable catalysts."],
+      ["Sector Perform (SP)", "Expected return between -10% and +15% over 12 months, or a broadly balanced risk-reward profile versus the sector."],
+      ["Underperform (U)", "Expected return worse than -10% over 12 months, or a meaningfully inferior risk-reward profile versus the sector."],
+      ["Restricted (R)", "Applied to non-ethical businesses or activities. CRG may still publish research on such names for market context, sector context, or thematic relevance, but does not assign a recommendation rating."],
+      ["Not Rated (NR)", "Coverage is incomplete, conviction is still forming, or available evidence is not yet sufficient for a formal rating call."]
+    ];
+  }
+
+  function buildPreviewCrgRatingDefinitionsHtml() {
+    const rows = getCrgRatingDefinitionRows();
+
+    return `
+      <section class="preview-export-section preview-rating-definitions">
+        <h3>CRG Rating Definitions</h3>
+        <p>${escapeHtml(getCrgRatingDefinitionIntro())}</p>
+        <table class="preview-ratings-definitions-table">
+          <tbody>
+            ${rows.map((row) => `
+              <tr>
+                <th>${escapeHtml(row[0])}</th>
+                <td>${escapeHtml(row[1])}</td>
+              </tr>
+            `).join("")}
+          </tbody>
+        </table>
+      </section>
+    `;
+  }
+
+  function buildPreviewFooterHtml(noteId, data) {
+    return `
+      <footer class="preview-export-footer">
+        <span>Note ID: ${escapeHtml(noteId)}</span>
+        <span>Published: ${escapeHtml(formatProductionTimestamp(data.generatedAt))}</span>
+        <span>Page 1 of 1</span>
+      </footer>
     `;
   }
 
@@ -3863,85 +4106,95 @@ document.addEventListener("DOMContentLoaded", () => {
 
     cleanupPreviewAssets();
     const data = collectFormData();
+    data.noteId = buildPreviewNoteId(data);
+    const publicationDate = parseInputDate(data.publicationDate) || data.generatedAt || new Date();
+    const analystContacts = collectAnalystContacts(data);
     const availablePlacements = new Set(getFigurePlacementOptions(data.noteType).map((option) => option.value));
     const sections = normalizeBodySectionLayoutForExport(data).filter((entry) => !entry.hidden && entry.content);
     const middleSections = sections.filter((entry) => entry.key !== "keyTakeaways" && entry.key !== "cordobaView");
     const keyTakeaways = sections.find((entry) => entry.key === "keyTakeaways");
     const cordobaView = sections.find((entry) => entry.key === "cordobaView");
+    const previewParts = [`<article class="preview-export-page">`, buildPreviewBannerHtml(data, publicationDate)];
 
-    const metaGrid = `
-      <div class="preview-meta-grid">
-        <div class="preview-meta-item"><strong>Type</strong><span>${escapeHtml(strategyLabelForNoteType(data.noteType) || "Research Note")}</span></div>
-        <div class="preview-meta-item"><strong>Published</strong><span>${escapeHtml(formatPublishedTimestampForDocument(data.generatedAt))}</span></div>
-        <div class="preview-meta-item"><strong>Desk</strong><span>${escapeHtml(data.deskLine || "Desk line pending")}</span></div>
-        <div class="preview-meta-item"><strong>Authors</strong><span>${escapeHtml(buildPrimaryAuthorLine() || "Primary author pending")}</span></div>
-      </div>
-    `;
-
-    const previewParts = [
-      `<article class="preview-sheet">`,
-      `<header class="preview-sheet-header">`,
-      `<p class="preview-sheet-kicker">${escapeHtml(strategyLabelForNoteType(data.noteType) || "Research Note")}</p>`,
-      `<h1 class="preview-sheet-title">${escapeHtml(data.title || "Untitled Research Note")}</h1>`,
-      `<p class="preview-sheet-deck">${escapeHtml(data.deck || "No deck supplied")}</p>`,
-      metaGrid,
-      `</header>`
-    ];
-
-    if (isMacroFiNoteType(data.noteType)) {
-      const ratingsRows = (data.ratingsProfile || []).filter((row) => row.agency || row.shortTerm || row.longTerm);
+    if (data.noteType === "Equity Research") {
       previewParts.push(
-        `<section class="preview-section"><h3>${escapeHtml(data.macroFiHeading || "Ratings Profile")}</h3>`,
-        `<p>${escapeHtml(`Coverage Country: ${data.coverageCountry ? getCoverageCountryLabel(data.coverageCountry) : (data.noteType === "Fixed Income Research" ? "Optional" : "Pending")} | Issuer Number: ${data.issuerId || (data.noteType === "Fixed Income Research" ? "Optional" : "Pending")}`)}</p>`,
-        ratingsRows.length
-          ? `<ul>${ratingsRows.map((row) => `<li>${escapeHtml(row.agency || "Agency")}: ${escapeHtml(row.shortTerm || "N/A")} / ${escapeHtml(row.longTerm || "N/A")}</li>`).join("")}</ul>`
-          : `<p>No ratings profile supplied yet.</p>`,
-        `</section>`,
-        buildPreviewFigureMarkup(data.imageFiles, data, availablePlacements, "after-macroFiProfile")
+        `<div class="preview-equity-security-line"><strong>${escapeHtml(data.equityCompanyName || data.title || data.ticker || "Company pending")}</strong>${data.equitySecurityDisplay ? ` <span>${escapeHtml(data.equitySecurityDisplay)}</span>` : ""}</div>`,
+        `<div class="preview-equity-sector-strip">EQUITY: ${escapeHtml((data.equitySectorLine || data.topic || "Equity Research").toUpperCase())}</div>`,
+        `<div class="preview-equity-front-grid">`,
+        `<div class="preview-equity-main">`,
+        `<h1 class="preview-export-title">${escapeHtml(data.title || "Untitled Equity Research Note")}</h1>`,
+        `<p class="preview-export-deck">${escapeHtml(data.deck || "No deck supplied")}</p>`,
+        `<p class="preview-export-topic">${escapeHtml(`${data.topic || data.deskLine || "Equity Research"} | ${formatDocDate(publicationDate)}`)}</p>`,
+        buildPreviewKeyTakeawaysBoxHtml(keyTakeaways?.label || "Key Takeaways", keyTakeaways?.content || data.keyTakeaways),
+        `</div>`,
+        `<aside class="preview-equity-sidebar">`,
+        buildPreviewEquityTearSheetHtml(data, publicationDate),
+        buildPreviewAnalystPanelHtml(data.deskLine || "Global Equity Strategy", analystContacts),
+        `</aside>`,
+        `</div>`,
+        buildPreviewFinancialTableHtml(data, publicationDate)
       );
-    }
 
-    if (data.noteType === "Equity Research" && data.businessDescription) {
-      previewParts.push(renderPreviewSection("Business Description", data.businessDescription));
-      previewParts.push(buildPreviewFigureMarkup(data.imageFiles, data, availablePlacements, "after-businessDescription"));
-    }
-
-    if (keyTakeaways?.content) {
-      previewParts.push(renderPreviewSection(keyTakeaways.label, keyTakeaways.content));
-      previewParts.push(buildPreviewFigureMarkup(data.imageFiles, data, availablePlacements, "after-keyTakeaways"));
-    }
-
-    if (data.noteType === "Equity Research" && data.valuationSummary) {
-      previewParts.push(renderPreviewSection("Valuation Summary", data.valuationSummary));
-      previewParts.push(buildPreviewFigureMarkup(data.imageFiles, data, availablePlacements, "after-valuationSummary"));
-    }
-
-    middleSections.forEach((section) => {
-      if (data.noteType === "Equity Research" && (section.key === "keyTakeaways" || section.key === "cordobaView")) return;
-      previewParts.push(renderPreviewSection(section.label, section.content));
-      previewParts.push(buildPreviewFigureMarkup(data.imageFiles, data, availablePlacements, `after-${section.key}`));
-    });
-
-    if (cordobaView?.content) {
-      previewParts.push(renderPreviewSection(cordobaView.label, cordobaView.content));
-      previewParts.push(buildPreviewFigureMarkup(data.imageFiles, data, availablePlacements, "after-cordobaView"));
-    }
-
-    const endFigures = buildPreviewFigureMarkup(data.imageFiles, data, availablePlacements, "end");
-    if (endFigures) {
-      previewParts.push(`<section class="preview-section"><h3>Figures / Screenshots</h3>${endFigures}</section>`);
-    }
-
-    if (data.modelLink || data.modelFiles.length) {
-      previewParts.push(`<section class="preview-section"><h3>Model Files</h3>`);
-      if (data.modelLink) previewParts.push(`<p>${escapeHtml(data.modelLink)}</p>`);
-      if (data.modelFiles.length) {
-        previewParts.push(`<ul>${data.modelFiles.map((file) => `<li>${escapeHtml(file.name)}</li>`).join("")}</ul>`);
+      if (data.businessDescription) {
+        previewParts.push(buildPreviewNarrativeHtml("Business Description", data.businessDescription));
+        previewParts.push(buildPreviewFigureMarkup(data.imageFiles, data, availablePlacements, "after-businessDescription"));
       }
-      previewParts.push(`</section>`);
+      if (data.valuationSummary) {
+        previewParts.push(buildPreviewNarrativeHtml("Valuation Summary", data.valuationSummary));
+        previewParts.push(buildPreviewFigureMarkup(data.imageFiles, data, availablePlacements, "after-valuationSummary"));
+      }
+      middleSections.forEach((section) => {
+        previewParts.push(buildPreviewNarrativeHtml(section.label, section.content));
+        previewParts.push(buildPreviewFigureMarkup(data.imageFiles, data, availablePlacements, `after-${section.key}`));
+      });
+      const endFigures = buildPreviewFigureMarkup(data.imageFiles, data, availablePlacements, "end");
+      if (endFigures) previewParts.push(`<section class="preview-export-section"><h3>Figures / Screenshots</h3>${endFigures}</section>`);
+      previewParts.push(buildPreviewSupportHtml(data));
+      if (cordobaView?.content) {
+        previewParts.push(buildPreviewNarrativeHtml(cordobaView.label, cordobaView.content));
+        previewParts.push(buildPreviewFigureMarkup(data.imageFiles, data, availablePlacements, "after-cordobaView"));
+      }
+      previewParts.push(buildPreviewCrgRatingDefinitionsHtml());
+    } else {
+      previewParts.push(
+        buildPreviewDisplayLineHtml(data),
+        `<div class="preview-generic-front-grid">`,
+        `<div class="preview-generic-main">`,
+        `<h1 class="preview-export-title">${escapeHtml(data.title || "Untitled Research Note")}</h1>`,
+        `<p class="preview-export-deck">${escapeHtml(data.deck || "No deck supplied")}</p>`,
+        `<p class="preview-export-topic">${escapeHtml(`${data.topic || "Topic pending"} | ${formatDocDate(publicationDate)}`)}</p>`,
+        `${data.noteType === "Macro Research" || (isMacroFiNoteType(data.noteType) && (data.coverageCountry || data.issuerId))
+          ? `<p class="preview-export-meta-line">${escapeHtml(`Coverage Country: ${data.coverageCountry ? getCoverageCountryLabel(data.coverageCountry) : "N/A"} | Issuer Number: ${data.issuerId || "N/A"}`)}</p>`
+          : ""}`,
+        `</div>`,
+        `<aside class="preview-generic-side">${buildPreviewAnalystPanelHtml(data.deskLine || strategyLabelForNoteType(data.noteType) || "Global Research Strategy", analystContacts)}</aside>`,
+        `</div>`
+      );
+
+      if (isMacroFiNoteType(data.noteType)) {
+        previewParts.push(buildPreviewMacroFiProfileHtml(data));
+        previewParts.push(buildPreviewFigureMarkup(data.imageFiles, data, availablePlacements, "after-macroFiProfile"));
+      }
+
+      previewParts.push(buildPreviewKeyTakeawaysBoxHtml(keyTakeaways?.label || "Key Takeaways", keyTakeaways?.content || data.keyTakeaways));
+      previewParts.push(buildPreviewFigureMarkup(data.imageFiles, data, availablePlacements, "after-keyTakeaways"));
+
+      middleSections.forEach((section) => {
+        previewParts.push(buildPreviewNarrativeHtml(section.label, section.content));
+        previewParts.push(buildPreviewFigureMarkup(data.imageFiles, data, availablePlacements, `after-${section.key}`));
+      });
+
+      if (cordobaView?.content) {
+        previewParts.push(buildPreviewNarrativeHtml(cordobaView.label, cordobaView.content));
+        previewParts.push(buildPreviewFigureMarkup(data.imageFiles, data, availablePlacements, "after-cordobaView"));
+      }
+
+      const endFigures = buildPreviewFigureMarkup(data.imageFiles, data, availablePlacements, "end");
+      if (endFigures) previewParts.push(`<section class="preview-export-section"><h3>Figures / Screenshots</h3>${endFigures}</section>`);
+      previewParts.push(buildPreviewSupportHtml(data));
     }
 
-    previewParts.push(`</article>`);
+    previewParts.push(buildPreviewFooterHtml(data.noteId, data), `</article>`);
     dom.previewModalBody.innerHTML = previewParts.join("");
     dom.previewModal.hidden = false;
   }
@@ -6000,20 +6253,14 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   function buildCrgRatingMethodologySection(docxLib, colors) {
-    const rows = [
-      ["Outperform (O)", "Expected 15%+ upside over 12 months, supported by clear fundamental progress and identifiable catalysts."],
-      ["Sector Perform (SP)", "Return profile looks broadly balanced versus the sector over 12 months, with upside and downside more evenly matched."],
-      ["Underperform (U)", "Meaningful downside risk or an inferior return profile over 12 months relative to the sector opportunity set."],
-      ["Restricted (R)", "Non-Shariah-compliant businesses are not rated for recommendation purposes within the CRG framework."],
-      ["Not Rated (NR)", "Coverage is incomplete, conviction is still forming, or available evidence is not yet sufficient for a formal rating call."]
-    ];
+    const rows = getCrgRatingDefinitionRows();
 
     return [
       buildNomuraSubhead(docxLib, colors, "CRG Rating Definitions"),
       new docxLib.Paragraph({
         children: [
           new docxLib.TextRun({
-            text: "The CRG rating scale is intended to help readers interpret the return profile implied by our published view. The ratings below are reader-facing definitions rather than personal recommendations or regulated investment advice.",
+            text: getCrgRatingDefinitionIntro(),
             font: "Arial",
             size: 18,
             color: colors.ink
@@ -6128,18 +6375,13 @@ document.addEventListener("DOMContentLoaded", () => {
 
   function formatPublishedTimestampForDocument(date) {
     const d = date instanceof Date ? date : new Date(date);
-    const parts = new Intl.DateTimeFormat("en-GB", {
-      day: "numeric",
-      month: "long",
-      year: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
-      hour12: false,
-      timeZoneName: "short"
-    }).formatToParts(d);
-    const lookup = Object.fromEntries(parts.map((part) => [part.type, part.value]));
-    const zone = lookup.timeZoneName || Intl.DateTimeFormat().resolvedOptions().timeZone || "";
-    return `${lookup.day} ${lookup.month} ${lookup.year} | ${lookup.hour}:${lookup.minute} ${zone}`.replace(/\s+/g, " ").trim();
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, "0");
+    const day = String(d.getDate()).padStart(2, "0");
+    const hours = String(d.getHours()).padStart(2, "0");
+    const minutes = String(d.getMinutes()).padStart(2, "0");
+    const seconds = String(d.getSeconds()).padStart(2, "0");
+    return `${year}-${month}-${day}T${hours}:${minutes}:${seconds}`;
   }
 
   function getImageFit(file, maxWidth, maxHeight) {
