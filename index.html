@@ -16,7 +16,6 @@
     <header class="app-header">
       <div class="header-brand">
         <div class="brand-lockup">
-          <img src="assets/cordoba-logo" alt="Cordoba Research Group" class="brand-logo">
           <div>
             <div class="brand-topline">
               <p class="brand-overline">Cordoba Research Group</p>
@@ -132,7 +131,6 @@
                   <h2 class="section-title">Define the publication frame</h2>
                 </div>
               </div>
-              <p class="section-copy">Establish the note classification, page header metadata, and short-form editorial framing that will drive the final Word layout.</p>
             </div>
 
             <div class="field-grid field-grid-4">
@@ -268,7 +266,6 @@
                   <h2 class="section-title">Set the research ownership</h2>
                 </div>
               </div>
-              <p class="section-copy">Analyst details flow directly into the byline panel, distribution email, and publication metadata.</p>
             </div>
 
             <div class="field-grid field-grid-3">
@@ -318,7 +315,7 @@
               <div class="subpanel-head">
                 <div>
                   <h3>Co-Authors</h3>
-                  <p>Add secondary authors only when the note should carry a multi-analyst byline.</p>
+                  <p>Add secondary authors</p>
                 </div>
                 <button type="button" class="btn btn-secondary" id="addCoAuthor">Add Co-Author</button>
               </div>
@@ -335,7 +332,6 @@
                   <h2 class="section-title">Build the equity tear sheet</h2>
                 </div>
               </div>
-              <p class="section-copy">For equity research, the export now builds a sell-side first page with a company line, right-column tear sheet, relative performance chart, and financial matrix.</p>
             </div>
 
             <div class="field-grid field-grid-4">
@@ -575,7 +571,6 @@
                   <h2 class="section-title">Write the note substance</h2>
                 </div>
               </div>
-              <p class="section-copy">The production tool handles typography, layout density, and page rhythm. Analysts only need to supply the research itself.</p>
             </div>
 
             <div class="field-grid field-grid-1">
@@ -710,7 +705,6 @@
                   <h2 class="section-title">Attach supporting figures</h2>
                 </div>
               </div>
-              <p class="section-copy">Image filenames become captions in the exported note, so name exhibits carefully before attaching them.</p>
             </div>
 
             <div class="field-grid field-grid-1">
@@ -723,6 +717,13 @@
                 <div class="file-summary">
                   <strong id="imageSummaryHead">No figures attached.</strong>
                   <ul id="imageSummaryList" hidden></ul>
+                </div>
+                <div class="figure-placement-panel" id="figurePlacementPanel" hidden>
+                  <div class="figure-placement-head">
+                    <strong>Figure Placement</strong>
+                    <span class="field-tag">Controlled</span>
+                  </div>
+                  <div class="figure-placement-list" id="figurePlacementList"></div>
                 </div>
               </div>
             </div>
@@ -737,7 +738,6 @@
                   <h2 class="section-title">Review the production package</h2>
                 </div>
               </div>
-              <p class="section-copy">The output preview updates as the note develops. Generate the Word document when the draft is structurally complete.</p>
             </div>
 
             <div class="output-grid">
