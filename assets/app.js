@@ -4063,7 +4063,18 @@ document.addEventListener("DOMContentLoaded", () => {
     `;
   }
 
-  function getPreviewChartImageSrc() {
+  function getPreviewChartImageSrc(data) {
+    if (data?.priceChartImageBytes?.length) {
+      try {
+        const blob = new Blob([data.priceChartImageBytes], { type: "image/png" });
+        const objectUrl = URL.createObjectURL(blob);
+        state.previewObjectUrls.push(objectUrl);
+        return objectUrl;
+      } catch (error) {
+        console.warn("Unable to create preview chart URL from export bytes:", error);
+      }
+    }
+
     try {
       if (dom.priceChartCanvas && typeof dom.priceChartCanvas.toDataURL === "function") {
         const dataUrl = dom.priceChartCanvas.toDataURL("image/png");
@@ -4129,7 +4140,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const upside = computeUpsideToTarget(marketPrice, targetPrice);
     const priceDate = data.equityStats.priceDate ? formatDocDate(new Date(`${data.equityStats.priceDate}T00:00:00`)) : formatDocDate(publicationDate);
     const priceCurrency = resolvePriceCurrency(data);
-    const chartSrc = getPreviewChartImageSrc();
+    const chartSrc = getPreviewChartImageSrc(data);
     const rows = [
       { label: "Rating", value: data.crgRating || "N/A" },
       { label: "Target price", value: formatPriceDisplay(targetPrice, priceCurrency) },
@@ -4156,9 +4167,11 @@ document.addEventListener("DOMContentLoaded", () => {
         </table>
         <div class="preview-chart-block">
           <h4>Relative performance chart</h4>
-          ${chartSrc
-            ? `<img src="${chartSrc}" alt="Relative performance chart">`
-            : `<div class="preview-chart-empty">No tear sheet chart loaded.</div>`}
+          <div class="preview-chart-frame">
+            ${chartSrc
+              ? `<img src="${chartSrc}" alt="Relative performance chart">`
+              : `<div class="preview-chart-empty">No tear sheet chart loaded.</div>`}
+          </div>
           <p>Source: Yahoo Finance market data${data.equityStats.benchmarkLabel ? `, benchmarked against ${escapeHtml(data.equityStats.benchmarkLabel)}` : ""}</p>
         </div>
       </section>
