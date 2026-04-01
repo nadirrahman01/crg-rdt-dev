@@ -4075,7 +4075,9 @@ document.addEventListener("DOMContentLoaded", () => {
 
     return `
       <section class="preview-export-section preview-rating-definitions">
-        <h3>CRG Rating Definitions</h3>
+        <div class="preview-rating-definitions-head">
+          <h3>CRG Rating Definitions</h3>
+        </div>
         <p>${escapeHtml(getCrgRatingDefinitionIntro())}</p>
         <table class="preview-ratings-definitions-table">
           <tbody>
@@ -4114,7 +4116,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const middleSections = sections.filter((entry) => entry.key !== "keyTakeaways" && entry.key !== "cordobaView");
     const keyTakeaways = sections.find((entry) => entry.key === "keyTakeaways");
     const cordobaView = sections.find((entry) => entry.key === "cordobaView");
-    const previewParts = [`<article class="preview-export-page">`, buildPreviewBannerHtml(data, publicationDate)];
+    const previewParts = [`<div class="preview-page-stage"><article class="preview-export-page">`, buildPreviewBannerHtml(data, publicationDate)];
 
     if (data.noteType === "Equity Research") {
       previewParts.push(
@@ -4194,7 +4196,7 @@ document.addEventListener("DOMContentLoaded", () => {
       previewParts.push(buildPreviewSupportHtml(data));
     }
 
-    previewParts.push(buildPreviewFooterHtml(data.noteId, data), `</article>`);
+    previewParts.push(buildPreviewFooterHtml(data.noteId, data), `</article></div>`);
     dom.previewModalBody.innerHTML = previewParts.join("");
     dom.previewModal.hidden = false;
   }
@@ -6256,23 +6258,58 @@ document.addEventListener("DOMContentLoaded", () => {
     const rows = getCrgRatingDefinitionRows();
 
     return [
-      buildNomuraSubhead(docxLib, colors, "CRG Rating Definitions"),
-      new docxLib.Paragraph({
-        children: [
-          new docxLib.TextRun({
-            text: getCrgRatingDefinitionIntro(),
-            font: "Arial",
-            size: 18,
-            color: colors.ink
+      new docxLib.Paragraph({ spacing: { before: 105, after: 18 } }),
+      new docxLib.Table({
+        width: { size: 100, type: docxLib.WidthType.PERCENTAGE },
+        borders: {
+          top: { color: colors.line, style: docxLib.BorderStyle.SINGLE, size: 6 },
+          bottom: { style: docxLib.BorderStyle.NONE },
+          left: { color: colors.line, style: docxLib.BorderStyle.SINGLE, size: 4 },
+          right: { color: colors.line, style: docxLib.BorderStyle.SINGLE, size: 4 },
+          insideHorizontal: { style: docxLib.BorderStyle.NONE },
+          insideVertical: { style: docxLib.BorderStyle.NONE }
+        },
+        rows: [
+          new docxLib.TableRow({
+            children: [
+              new docxLib.TableCell({
+                shading: { fill: "F6F7F9" },
+                margins: { top: 95, bottom: 82, left: 110, right: 110 },
+                children: [
+                  new docxLib.Paragraph({
+                    children: [
+                      new docxLib.TextRun({
+                        text: "CRG Rating Definitions",
+                        bold: true,
+                        font: "Arial",
+                        size: 17,
+                        color: colors.red
+                      })
+                    ],
+                    spacing: { after: 30 }
+                  }),
+                  new docxLib.Paragraph({
+                    children: [
+                      new docxLib.TextRun({
+                        text: getCrgRatingDefinitionIntro(),
+                        font: "Arial",
+                        size: 16,
+                        color: colors.muted
+                      })
+                    ],
+                    spacing: { after: 0 }
+                  })
+                ]
+              })
+            ]
           })
-        ],
-        spacing: { after: 46 }
+        ]
       }),
       new docxLib.Table({
         width: { size: 100, type: docxLib.WidthType.PERCENTAGE },
         borders: {
-          top: { color: colors.line, style: docxLib.BorderStyle.SINGLE, size: 4 },
-          bottom: { color: colors.line, style: docxLib.BorderStyle.SINGLE, size: 4 },
+          top: { style: docxLib.BorderStyle.NONE },
+          bottom: { color: colors.line, style: docxLib.BorderStyle.SINGLE, size: 6 },
           left: { color: colors.line, style: docxLib.BorderStyle.SINGLE, size: 4 },
           right: { color: colors.line, style: docxLib.BorderStyle.SINGLE, size: 4 },
           insideHorizontal: { color: colors.line, style: docxLib.BorderStyle.SINGLE, size: 4 },
@@ -6283,8 +6320,8 @@ document.addEventListener("DOMContentLoaded", () => {
             children: row.map((cell, index) =>
               new docxLib.TableCell({
                 width: { size: index === 0 ? 26 : 74, type: docxLib.WidthType.PERCENTAGE },
-                shading: { fill: index === 0 ? "F2F4F7" : "FAFBFC" },
-                margins: { top: 70, bottom: 70, left: 90, right: 90 },
+                shading: { fill: index === 0 ? "F2F4F7" : "F9FAFB" },
+                margins: { top: 76, bottom: 76, left: 92, right: 92 },
                 children: [
                   new docxLib.Paragraph({
                     children: [
@@ -6292,7 +6329,7 @@ document.addEventListener("DOMContentLoaded", () => {
                         text: cell,
                         bold: index === 0,
                         font: "Arial",
-                        size: 17,
+                        size: 16,
                         color: index === 0 ? colors.black : colors.ink
                       })
                     ],
@@ -6304,7 +6341,7 @@ document.addEventListener("DOMContentLoaded", () => {
           })
         )
       }),
-      new docxLib.Paragraph({ spacing: { after: 64 } })
+      new docxLib.Paragraph({ spacing: { after: 78 } })
     ];
   }
 
