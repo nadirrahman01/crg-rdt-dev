@@ -6525,6 +6525,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
     return [
       new docxLib.Paragraph({
+        pageBreakBefore: true,
         border: {
           top: {
             color: colors.line,
