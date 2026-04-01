@@ -3,28 +3,22 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>CRG Research Production Console</title>
+  <title>Cordoba Research Production Console</title>
   <link rel="stylesheet" href="assets/styles.css">
-  <script defer src="https://cdn.jsdelivr.net/npm/chart.js@4.4.2/dist/chart.umd.min.js"></script>
-  <script defer src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
-  <script defer src="https://unpkg.com/docx@7.8.2/build/index.js"></script>
-  <script defer src="https://unpkg.com/file-saver@2.0.5/dist/FileSaver.min.js"></script>
-  <script defer src="assets/app.js"></script>
 </head>
 <body>
   <div class="app-shell">
     <header class="app-header">
       <div class="header-brand">
         <div class="brand-lockup">
-          <div>
-            <div class="brand-topline">
-              <p class="brand-overline">Cordoba Research Group</p>
-            </div>
-            <h1>Research Production Console</h1>
+          <div class="brand-topline">
+            <p class="brand-overline">Cordoba Research Group</p>
           </div>
+          <h1>Research Production Console</h1>
         </div>
       </div>
-      <div class="header-meta" aria-label="Current date and time">
+
+      <div class="header-meta">
         <span class="header-meta-label">Current Time</span>
         <strong id="headerDateTime">--</strong>
         <span class="app-version">v.1.04</span>
@@ -32,7 +26,7 @@
     </header>
 
     <div class="app-tools">
-      <button type="button" class="rail-toggle" id="toggleRailBtn" aria-controls="workflowRail" aria-expanded="true">
+      <button type="button" class="rail-toggle" id="toggleRailBtn" aria-expanded="true" aria-label="Hide workflow side panel">
         <span class="rail-toggle-icon" id="toggleRailIcon">&lt;</span>
         <span class="rail-toggle-text" id="toggleRailText">Hide Workflow Panel</span>
       </button>
@@ -40,41 +34,47 @@
 
     <div class="app-body" id="appBody">
       <aside class="workflow-rail" id="workflowRail">
-        <section class="rail-panel rail-panel-accent">
+        <div class="rail-panel rail-panel-accent">
           <div class="rail-panel-head">
-            <span class="rail-label">Readiness</span>
+            <div>
+              <p class="rail-label">Publication Readiness</p>
+            </div>
             <span class="rail-state" id="noteStateChip">Draft</span>
           </div>
+
           <div class="readiness-row">
             <strong id="readinessPercent">0%</strong>
-            <span id="completionText">0 / 11 required fields complete</span>
+            <span id="completionText">0 / 0 required fields complete</span>
           </div>
-          <div class="progress-track" role="progressbar" aria-label="Document readiness" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
+
+          <div class="progress-track" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
             <div class="progress-fill" id="completionBar"></div>
           </div>
-          <p class="rail-copy" id="readinessCaption">Complete the brief, byline, and core body sections before generating the Word note.</p>
-        </section>
 
-        <section class="rail-panel">
+          <p class="rail-copy" id="readinessCaption">Complete the brief, byline, and core body sections before generating the Word note.</p>
+        </div>
+
+        <div class="rail-panel">
           <div class="rail-panel-head">
-            <span class="rail-label">Workflow</span>
+            <p class="rail-label">Workflow Sections</p>
           </div>
-          <nav class="section-nav" aria-label="Workflow sections">
+
+          <div class="section-nav">
             <button type="button" class="section-nav-link is-active" data-target="section-note">
               <span>Brief</span>
-              <span class="nav-pill" id="nav-note">0/6</span>
+              <span class="nav-pill" id="nav-note">0/0</span>
             </button>
             <button type="button" class="section-nav-link" data-target="section-authors">
               <span>Authors</span>
-              <span class="nav-pill" id="nav-authors">0/2</span>
+              <span class="nav-pill" id="nav-authors">0/0</span>
             </button>
             <button type="button" class="section-nav-link" data-target="section-equity">
               <span>Equity</span>
               <span class="nav-pill" id="nav-equity">Optional</span>
             </button>
             <button type="button" class="section-nav-link" data-target="section-body">
-              <span>Research</span>
-              <span class="nav-pill" id="nav-body">0/3</span>
+              <span>Research Body</span>
+              <span class="nav-pill" id="nav-body">0/0</span>
             </button>
             <button type="button" class="section-nav-link" data-target="section-exhibits">
               <span>Exhibits</span>
@@ -84,40 +84,45 @@
               <span>Output</span>
               <span class="nav-pill" id="nav-output">Draft</span>
             </button>
-          </nav>
-        </section>
-
-        <section class="rail-panel">
-          <div class="rail-panel-head">
-            <span class="rail-label">Current Draft</span>
           </div>
+        </div>
+
+        <div class="rail-panel">
+          <div class="rail-panel-head">
+            <p class="rail-label">Note Snapshot</p>
+          </div>
+
           <div class="rail-summary-grid">
             <div class="rail-summary-item">
-              <span class="rail-summary-label">Note</span>
+              <span class="rail-summary-label">Research Type</span>
               <strong id="summaryType">Select a note type</strong>
-              <span id="summaryTopic">Set the desk line and deck.</span>
             </div>
             <div class="rail-summary-item">
-              <span class="rail-summary-label">Lead Analyst</span>
+              <span class="rail-summary-label">Desk / Deck</span>
+              <strong id="summaryTopic">Set the desk line</strong>
+            </div>
+            <div class="rail-summary-item">
+              <span class="rail-summary-label">Primary Author</span>
               <strong id="summaryAuthor">Assign primary author</strong>
-              <span id="summaryCoAuthors">No co-authors added.</span>
             </div>
             <div class="rail-summary-item">
-              <span class="rail-summary-label">Output Status</span>
+              <span class="rail-summary-label">Co-Authors</span>
+              <strong id="summaryCoAuthors">No co-authors added.</strong>
+            </div>
+            <div class="rail-summary-item">
+              <span class="rail-summary-label">Output State</span>
               <strong id="summaryOutput">Draft in progress</strong>
-              <span id="summaryOutputDetail">Word export and email drafting update continuously.</span>
+              <span id="summaryOutputDetail">Pre-publish review: 0 critical, 0 warnings, 0 suggestions.</span>
             </div>
           </div>
-        </section>
+        </div>
 
-        <section class="rail-panel">
+        <div class="rail-panel">
           <div class="rail-panel-head">
-            <span class="rail-label">Pre-Publish Review</span>
+            <p class="rail-label">Pre-Publish Review</p>
           </div>
-          <ul class="missing-list" id="missingFields">
-            <li>No critical issues or review warnings yet.</li>
-          </ul>
-        </section>
+          <ul class="missing-list" id="missingFields"></ul>
+        </div>
       </aside>
 
       <main class="workspace">
@@ -127,13 +132,13 @@
               <div class="section-head-left">
                 <span class="section-index">01</span>
                 <div>
-                  <p class="section-kicker">Brief Setup</p>
-                  <h2 class="section-title">Define the publication frame</h2>
+                  <p class="section-kicker">Brief</p>
+                  <h2 class="section-title">Set note metadata</h2>
                 </div>
               </div>
             </div>
 
-            <div class="field-grid field-grid-4">
+            <div class="field-grid field-grid-3">
               <div class="field">
                 <label for="noteType">Note Type</label>
                 <select id="noteType" name="noteType" required>
@@ -150,9 +155,11 @@
               <div class="field">
                 <label for="distribution">Distribution</label>
                 <select id="distribution" name="distribution" required>
-                  <option value="Internal Working Draft" selected>Internal Working Draft</option>
-                  <option value="For Internal Review">For Internal Review</option>
+                  <option value="">Select distribution...</option>
+                  <option value="Internal Working Draft">Internal Working Draft</option>
+                  <option value="Internal Review">Internal Review</option>
                   <option value="Client-Ready Draft">Client-Ready Draft</option>
+                  <option value="Educational Circulation">Educational Circulation</option>
                 </select>
               </div>
 
@@ -161,68 +168,45 @@
                 <input type="date" id="publicationDate" name="publicationDate" required>
               </div>
 
-              <div class="field">
-                <div class="label-row">
-                  <label for="deskLine">Desk Line</label>
-                  <span class="field-tag">Auto</span>
-                </div>
-                <input type="text" id="deskLine" name="deskLine" placeholder="Autogenerated from note type" readonly>
-              </div>
-
-              <div class="field field-span-4">
+              <div class="field field-span-2">
                 <label for="title">Research Title</label>
-                <input type="text" id="title" name="title" placeholder="Enter the institutional title exactly as it should appear in the note." required>
+                <input type="text" id="title" name="title" placeholder="Enter the note title" required>
               </div>
 
-              <div class="field field-span-4">
+              <div class="field">
+                <label for="deskLine">Desk Line</label>
+                <input type="text" id="deskLine" name="deskLine" placeholder="Global Macro Strategy">
+              </div>
+
+              <div class="field field-span-2">
                 <label for="deck">Deck / Standfirst</label>
-                <textarea id="deck" name="deck" rows="3" placeholder="Write the short one- or two-line standfirst that sits directly below the title." required></textarea>
+                <input type="text" id="deck" name="deck" placeholder="Write the one-line framing that sits under the title." required>
               </div>
 
-              <div class="field field-span-4">
+              <div class="field">
                 <label for="topic">Topic / Coverage Angle</label>
-                <input type="text" id="topic" name="topic" placeholder="Examples: EUR/USD, US banks, GCC real estate, EM debt, oil balances." required>
+                <input type="text" id="topic" name="topic" placeholder="Define the coverage angle or thematic frame." required>
               </div>
             </div>
 
             <div class="subpanel" id="macroFiPanel" hidden>
               <div class="subpanel-head">
                 <div>
-                  <h3>Country, Issuer, and Ratings</h3>
-                  <p>For macro and fixed income notes, set the coverage country and issuer reference, then complete the ratings profile used in the exported note header.</p>
+                  <h3>Macro / Fixed Income Ratings Profile</h3>
                 </div>
               </div>
 
               <div class="field-grid field-grid-3">
                 <div class="field">
-                  <label for="coverageCountry">Coverage Country</label>
-                  <select id="coverageCountry" name="coverageCountry">
-                    <option value="">Select country...</option>
-                    <option value="US">United States</option>
-                    <option value="GB">United Kingdom</option>
-                    <option value="DE">Germany</option>
-                    <option value="FR">France</option>
-                    <option value="IT">Italy</option>
-                    <option value="ES">Spain</option>
-                    <option value="JP">Japan</option>
-                    <option value="CN">China</option>
-                    <option value="IN">India</option>
-                    <option value="SA">Saudi Arabia</option>
-                    <option value="AE">United Arab Emirates</option>
-                    <option value="BR">Brazil</option>
-                    <option value="ZA">South Africa</option>
-                    <option value="TR">Turkey</option>
-                    <option value="MX">Mexico</option>
-                    <option value="ID">Indonesia</option>
-                  </select>
+                  <label for="coverageCountryDisplay">Coverage Country</label>
+                  <input type="text" id="coverageCountryDisplay" list="coverageCountryOptions" placeholder="Search country...">
+                  <datalist id="coverageCountryOptions"></datalist>
+                  <input type="hidden" id="coverageCountry" name="coverageCountry">
                 </div>
 
                 <div class="field">
-                  <div class="label-row">
-                    <label for="issuerId">Issuer Number</label>
-                    <span class="field-tag">Auto</span>
-                  </div>
-                  <input type="text" id="issuerId" name="issuerId" placeholder="Autogenerated issuer reference" readonly>
+                  <label for="issuerId">Issuer Number</label>
+                  <input type="text" id="issuerId" name="issuerId" placeholder="Auto-assigned" readonly>
                 </div>
 
                 <div class="field">
@@ -236,22 +220,29 @@
 
               <div class="ratings-table-card">
                 <div class="ratings-table-head">
-                  <span>Ratings profile</span>
-                  <span class="field-tag">Structured</span>
+                  <span>Ratings Profile</span>
+                  <button type="button" class="btn btn-secondary btn-xs" id="addRatingProfileRowBtn">Add Agency Row</button>
                 </div>
+
                 <div class="ratings-table-grid">
                   <div class="field">
                     <label for="agencyRating">Agency Rating</label>
-                    <input type="text" id="agencyRating" name="agencyRating" placeholder="Moody's / S&amp;P / Fitch">
+                    <input type="text" id="agencyRating" name="agencyRating" placeholder="Moody's">
                   </div>
+
                   <div class="field">
                     <label for="shortTermRating">Short-Term Rating</label>
-                    <input type="text" id="shortTermRating" name="shortTermRating" placeholder="P-2 / A-2 / F2">
+                    <input type="text" id="shortTermRating" name="shortTermRating" placeholder="P-1 / A-1 / F1">
                   </div>
+
                   <div class="field">
                     <label for="longTermRating">Long-Term Rating</label>
-                    <input type="text" id="longTermRating" name="longTermRating" placeholder="Baa1 / A- / BBB+">
+                    <input type="text" id="longTermRating" name="longTermRating" placeholder="Aa3 / A / BBB+">
                   </div>
+                </div>
+
+                <div class="ratings-profile-extra">
+                  <div class="ratings-profile-list" id="ratingsProfileRows"></div>
                 </div>
               </div>
             </div>
@@ -262,8 +253,8 @@
               <div class="section-head-left">
                 <span class="section-index">02</span>
                 <div>
-                  <p class="section-kicker">Byline Control</p>
-                  <h2 class="section-title">Set the research ownership</h2>
+                  <p class="section-kicker">Authors</p>
+                  <h2 class="section-title">Set byline and contact metadata</h2>
                 </div>
               </div>
             </div>
@@ -271,21 +262,18 @@
             <div class="field-grid field-grid-3">
               <div class="field">
                 <label for="authorLastName">Primary Author Last Name</label>
-                <input type="text" id="authorLastName" name="authorLastName" placeholder="Surname" autocomplete="family-name" required>
+                <input type="text" id="authorLastName" name="authorLastName" placeholder="Rahman" required>
               </div>
 
               <div class="field">
                 <label for="authorFirstName">Primary Author First Name</label>
-                <input type="text" id="authorFirstName" name="authorFirstName" placeholder="Given name" autocomplete="given-name" required>
+                <input type="text" id="authorFirstName" name="authorFirstName" placeholder="Nadir" required>
               </div>
 
               <div class="field">
-                <div class="label-row">
-                  <label for="authorPhoneNational">Primary Author Phone</label>
-                  <span class="field-tag">Optional</span>
-                </div>
+                <label for="authorPhoneNational">Primary Author Phone</label>
                 <div class="phone-row">
-                  <select id="authorPhoneCountry" class="phone-country" aria-label="Primary author country code">
+                  <select id="authorPhoneCountry" aria-label="Primary author country code">
                     <option value="44" selected>+44 UK</option>
                     <option value="1">+1 US</option>
                     <option value="353">+353 IE</option>
@@ -305,7 +293,7 @@
                     <option value="995">+995 GE</option>
                     <option value="">Other</option>
                   </select>
-                  <input type="text" id="authorPhoneNational" class="phone-number" inputmode="numeric" autocomplete="tel-national" placeholder="National number">
+                  <input type="text" id="authorPhoneNational" placeholder="7398 344 190" inputmode="numeric">
                 </div>
                 <input type="hidden" id="authorPhone" name="authorPhone">
               </div>
@@ -317,8 +305,9 @@
                   <h3>Co-Authors</h3>
                   <p>Add secondary authors</p>
                 </div>
-                <button type="button" class="btn btn-secondary" id="addCoAuthor">Add Co-Author</button>
+                <button type="button" class="btn btn-secondary btn-xs" id="addCoAuthor">Add Co-Author</button>
               </div>
+
               <div class="coauthors-list" id="coAuthorsList"></div>
             </div>
           </section>
@@ -328,8 +317,8 @@
               <div class="section-head-left">
                 <span class="section-index">03</span>
                 <div>
-                  <p class="section-kicker">Equity Overlay</p>
-                  <h2 class="section-title">Build the equity tear sheet</h2>
+                  <p class="section-kicker">Equity Workflow</p>
+                  <h2 class="section-title">Build the equity note pack</h2>
                 </div>
               </div>
             </div>
@@ -343,7 +332,7 @@
               <div class="field">
                 <div class="label-row">
                   <label for="equityCompanyName">Company Name</label>
-                  <span class="field-tag">Recommended</span>
+                  <span class="field-tag">Auto</span>
                 </div>
                 <input type="text" id="equityCompanyName" name="equityCompanyName" placeholder="Hiwin Technologies Corp">
               </div>
@@ -365,7 +354,19 @@
               </div>
 
               <div class="field">
-                <label for="crgRating">CRG Rating</label>
+                <div class="label-row">
+                  <label for="crgRating">CRG Rating</label>
+                  <div class="info-help">
+                    <span class="info-dot" tabindex="0" aria-label="CRG rating guidance">i</span>
+                    <div class="info-tooltip">
+                      Outperform: conviction in durable upside versus the market view.<br>
+                      Sector Perform: solid business, but upside looks broadly balanced.<br>
+                      Underperform: downside risk or weak reward-to-risk profile.<br>
+                      Restricted (R): we do not rate non-Shariah-compliant businesses.<br>
+                      Not Rated: view still forming or data is not sufficient for a formal call.
+                    </div>
+                  </div>
+                </div>
                 <select id="crgRating" name="crgRating" required>
                   <option value="">Select rating...</option>
                   <option value="Outperform (O)">Outperform (O)</option>
@@ -378,7 +379,7 @@
 
               <div class="field">
                 <label for="targetPrice">Target Price</label>
-                <input type="text" id="targetPrice" name="targetPrice" inputmode="decimal" placeholder="520.00" required>
+                <input type="text" id="targetPrice" name="targetPrice" inputmode="decimal" placeholder="250.00" required>
               </div>
 
               <div class="field">
@@ -386,7 +387,7 @@
                   <label for="priceCurrency">Price Currency</label>
                   <span class="field-tag">Optional</span>
                 </div>
-                <input type="text" id="priceCurrency" name="priceCurrency" placeholder="TWD">
+                <input type="text" id="priceCurrency" name="priceCurrency" placeholder="USD">
               </div>
 
               <div class="field">
@@ -410,13 +411,13 @@
                   <label for="benchmarkTicker">Benchmark Ticker</label>
                   <span class="field-tag">Optional</span>
                 </div>
-                <input type="text" id="benchmarkTicker" name="benchmarkTicker" placeholder="Use a market symbol such as ^GSPC or ^STOXX50E">
+                <input type="text" id="benchmarkTicker" name="benchmarkTicker" placeholder="^GSPC">
               </div>
 
               <div class="field">
                 <div class="label-row">
                   <label for="marketCapUsd">Market Cap (USD mn)</label>
-                  <span class="field-tag field-tag-required">Required</span>
+                  <span class="field-tag">Required</span>
                 </div>
                 <input type="text" id="marketCapUsd" name="marketCapUsd" inputmode="decimal" placeholder="2849.3" required>
               </div>
@@ -438,8 +439,8 @@
                 </div>
                 <div class="chart-actions">
                   <select id="chartRange" class="chart-range" aria-label="Chart range">
-                    <option value="6mo" selected>6M</option>
-                    <option value="1y">1Y</option>
+                    <option value="6mo">6M</option>
+                    <option value="1y" selected>1Y</option>
                     <option value="2y">2Y</option>
                     <option value="5y">5Y</option>
                   </select>
@@ -560,6 +561,20 @@
                 </div>
               </div>
             </div>
+
+            <div class="subpanel methodology-panel">
+              <div class="subpanel-head">
+                <div>
+                  <h3>Priority CRG Rating Model</h3>
+                  <p>Our internal rating frame is driven by five-year compounding quality, valuation headroom, catalyst visibility, balance sheet resilience, and Shariah eligibility.</p>
+                </div>
+              </div>
+              <div class="methodology-copy">
+                <p><strong>Outperform</strong> requires clear fundamental compounding with visible rerating or earnings-support potential over the medium term.</p>
+                <p><strong>Sector Perform</strong> is used where quality is acceptable but upside is more balanced, timing is less clear, or valuation already discounts much of the case.</p>
+                <p><strong>Underperform</strong> reflects asymmetric downside, weak economics, deteriorating capital discipline, or an unfavourable market-implied base case. <strong>Restricted</strong> applies where the business is not Shariah-compliant. <strong>Not Rated</strong> is reserved for incomplete coverage or low-conviction setups.</p>
+              </div>
+            </div>
           </section>
 
           <section class="section-card" id="section-body" data-nav="section-body">
@@ -568,7 +583,7 @@
                 <span class="section-index">04</span>
                 <div>
                   <p class="section-kicker">Research Body</p>
-                  <h2 class="section-title">Write the note substance</h2>
+                  <h2 class="section-title">Write the note</h2>
                 </div>
               </div>
             </div>
@@ -596,7 +611,8 @@
                       </div>
                     </div>
                     <label for="keyTakeaways">Key Takeaways Content</label>
-                    <textarea id="keyTakeaways" name="keyTakeaways" rows="7" placeholder="Enter the investment thesis and main points here, one line per item. One line = one generated bullet point." required></textarea>
+                    <p class="field-help">Enter the investment thesis and main points, one line per item. One line = one generated bullet point.</p>
+                    <textarea id="keyTakeaways" name="keyTakeaways" rows="6" placeholder="Investment thesis&#10;Primary catalyst&#10;What changes the market view" required></textarea>
                   </article>
 
                   <article class="body-section-card" data-section-key="analysis" data-section-role="core">
@@ -610,8 +626,8 @@
                         <button type="button" class="btn btn-ghost btn-xs" data-body-action="move-down">Down</button>
                       </div>
                     </div>
-                    <label for="analysis">Analysis Content</label>
-                    <textarea id="analysis" name="analysis" rows="12" placeholder="Write the main body of the research note here." required></textarea>
+                    <label for="analysis">Analysis And Commentary</label>
+                    <textarea id="analysis" name="analysis" rows="10" placeholder="Write the core analytical body of the note." required></textarea>
                   </article>
 
                   <article class="body-section-card" data-section-key="content" data-section-role="core">
@@ -625,11 +641,11 @@
                         <button type="button" class="btn btn-ghost btn-xs" data-body-action="move-down">Down</button>
                       </div>
                     </div>
-                    <label for="content">Additional Detail Content</label>
-                    <textarea id="content" name="content" rows="8" placeholder="Use this for supporting detail, background, or supplementary commentary."></textarea>
+                    <label for="content">Additional Detail</label>
+                    <textarea id="content" name="content" rows="8" placeholder="Add supporting detail, data discussion, or secondary observations."></textarea>
                   </article>
 
-                  <article class="body-section-card is-equity-only" data-section-key="fiveYearRationale" data-section-role="core" hidden>
+                  <article class="body-section-card is-equity-only" data-section-key="fiveYearRationale" data-section-role="core">
                     <div class="body-section-toolbar">
                       <div class="body-section-heading">
                         <label for="headingFiveYearRationale">Section Heading</label>
@@ -640,11 +656,11 @@
                         <button type="button" class="btn btn-ghost btn-xs" data-body-action="move-down">Down</button>
                       </div>
                     </div>
-                    <label for="fiveYearRationale">5 Year Rationale &amp; Price Target Content</label>
-                    <textarea id="fiveYearRationale" name="fiveYearRationale" rows="7" placeholder="Explain the core rationale behind the target price over the next five years, for example how earnings, margins, or valuation multiples compound through the cycle."></textarea>
+                    <label for="fiveYearRationale">5 Year Rationale &amp; Price Target</label>
+                    <textarea id="fiveYearRationale" name="fiveYearRationale" rows="7" placeholder="Explain the core rationale behind the target price over the next five years, e.g. META compounding earnings at 15% CAGR over the next 5 years."></textarea>
                   </article>
 
-                  <article class="body-section-card is-equity-only" data-section-key="esgSummary" data-section-role="core" hidden>
+                  <article class="body-section-card is-equity-only" data-section-key="esgSummary" data-section-role="core">
                     <div class="body-section-toolbar">
                       <div class="body-section-heading">
                         <label for="headingEsgSummary">Section Heading</label>
@@ -655,8 +671,8 @@
                         <button type="button" class="btn btn-ghost btn-xs" data-body-action="move-down">Down</button>
                       </div>
                     </div>
-                    <label for="esgSummary">ESG Summary Content</label>
-                    <textarea id="esgSummary" name="esgSummary" rows="7" placeholder="Summarise the key ESG concerns, sustainability risks, governance issues, and any material ESG items investors should keep in view."></textarea>
+                    <label for="esgSummary">ESG Summary</label>
+                    <textarea id="esgSummary" name="esgSummary" rows="6" placeholder="Capture material governance, sustainability, environmental, or social issues investors should consider."></textarea>
                   </article>
 
                   <article class="body-section-card" data-section-key="cordobaView" data-section-role="core">
@@ -670,28 +686,10 @@
                         <button type="button" class="btn btn-ghost btn-xs" data-body-action="move-down">Down</button>
                       </div>
                     </div>
-                    <label for="cordobaView">Cordoba View Content</label>
-                    <textarea id="cordobaView" name="cordobaView" rows="7" placeholder="State the house view, recommendation, or synthesis clearly."></textarea>
+                    <label for="cordobaView">The Cordoba View</label>
+                    <textarea id="cordobaView" name="cordobaView" rows="6" placeholder="State the final house view, framing, and what the reader should do with the note." required></textarea>
                   </article>
                 </div>
-
-                <template id="customBodySectionTemplate">
-                  <article class="body-section-card is-custom" data-section-role="custom">
-                    <div class="body-section-toolbar">
-                      <div class="body-section-heading">
-                        <label>Section Heading</label>
-                        <input type="text" data-custom-field="heading" value="Custom Section">
-                      </div>
-                      <div class="body-section-actions">
-                        <button type="button" class="btn btn-ghost btn-xs" data-body-action="move-up">Up</button>
-                        <button type="button" class="btn btn-ghost btn-xs" data-body-action="move-down">Down</button>
-                        <button type="button" class="btn btn-ghost btn-xs" data-body-action="remove">Remove</button>
-                      </div>
-                    </div>
-                    <label>Section Content</label>
-                    <textarea rows="7" data-custom-field="content" placeholder="Write the additional supporting section here."></textarea>
-                  </article>
-                </template>
               </div>
             </div>
           </section>
@@ -710,7 +708,7 @@
             <div class="field-grid field-grid-1">
               <div class="field">
                 <div class="label-row">
-                  <label for="imageUpload">Figures / Screenshots</label>
+                  <label for="imageUpload">Supporting Figures</label>
                   <span class="field-tag">Optional</span>
                 </div>
                 <input type="file" id="imageUpload" name="imageUpload" multiple accept="image/*">
@@ -718,59 +716,94 @@
                   <strong id="imageSummaryHead">No figures attached.</strong>
                   <ul id="imageSummaryList" hidden></ul>
                 </div>
-                <div class="figure-placement-panel" id="figurePlacementPanel" hidden>
-                  <div class="figure-placement-head">
-                    <strong>Figure Placement</strong>
-                    <span class="field-tag">Controlled</span>
+              </div>
+
+              <div class="figure-placement-panel" id="figurePlacementPanel" hidden>
+                <div class="figure-placement-head">
+                  <div>
+                    <label>Figure Placement</label>
                   </div>
-                  <div class="figure-placement-list" id="figurePlacementList"></div>
                 </div>
+                <div class="figure-placement-list" id="figurePlacementList"></div>
               </div>
             </div>
           </section>
 
-          <section class="section-card" id="section-output" data-nav="section-output">
+          <section class="section-card section-card-output" id="section-output" data-nav="section-output">
             <div class="section-head">
               <div class="section-head-left">
                 <span class="section-index">06</span>
                 <div>
                   <p class="section-kicker">Output</p>
-                  <h2 class="section-title">Review the production package</h2>
+                  <h2 class="section-title">Review the package</h2>
                 </div>
               </div>
             </div>
 
             <div class="output-grid">
-              <article class="output-card">
-                <span class="output-label">Title Line</span>
+              <div class="output-card">
+                <span class="output-label">Preview Title</span>
                 <strong class="output-value" id="previewTitle">No title yet</strong>
-              </article>
-              <article class="output-card">
-                <span class="output-label">Author Line</span>
+              </div>
+              <div class="output-card">
+                <span class="output-label">Preview Author</span>
                 <strong class="output-value" id="previewAuthor">Primary author pending</strong>
-              </article>
-              <article class="output-card">
+              </div>
+              <div class="output-card">
                 <span class="output-label">Coverage</span>
                 <strong class="output-value" id="previewCoverage">Desk line not set</strong>
-              </article>
-              <article class="output-card">
+              </div>
+              <div class="output-card">
                 <span class="output-label">Support Pack</span>
                 <strong class="output-value" id="previewSupport">No attachments yet</strong>
-              </article>
+              </div>
             </div>
 
             <div class="action-tray">
               <button type="submit" class="btn btn-primary" id="generateDocBtn">Generate Word Document</button>
-              <button type="button" class="btn btn-secondary" id="emailToCrgBtn">Draft Email To Research</button>
+              <button type="button" class="btn btn-secondary" id="emailToCrgBtn">Email to CRG Research</button>
               <button type="button" class="btn btn-ghost" id="resetFormBtn">Reset Draft</button>
             </div>
-            <p class="actions-note">Email drafting opens the default mail client with metadata filled in. Attach the generated <code>.docx</code> manually before sending.</p>
+
+            <p class="actions-note">Email opens a prepared draft. Attach the downloaded Word document before sending.</p>
+            <div class="message" id="message"></div>
           </section>
         </form>
-
-        <div class="message" id="message" aria-live="polite"></div>
       </main>
     </div>
   </div>
+
+  <template id="customBodySectionTemplate">
+    <article class="body-section-card is-custom" data-section-role="custom">
+      <div class="body-section-toolbar">
+        <div class="body-section-heading">
+          <label>Section Heading</label>
+          <input type="text" data-custom-field="heading" placeholder="Custom Section">
+        </div>
+        <div class="body-section-actions">
+          <button type="button" class="btn btn-ghost btn-xs" data-body-action="move-up">Up</button>
+          <button type="button" class="btn btn-ghost btn-xs" data-body-action="move-down">Down</button>
+          <button type="button" class="btn btn-ghost btn-xs" data-body-action="remove">Remove</button>
+        </div>
+      </div>
+      <label>Section Content</label>
+      <textarea data-custom-field="content" rows="7" placeholder="Write the custom section content here."></textarea>
+    </article>
+  </template>
+
+  <template id="ratingProfileRowTemplate">
+    <div class="ratings-profile-row">
+      <input type="text" data-rating-field="agency" placeholder="Agency">
+      <input type="text" data-rating-field="short" placeholder="Short-term rating">
+      <input type="text" data-rating-field="long" placeholder="Long-term rating">
+      <button type="button" class="btn btn-ghost btn-xs" data-rating-action="remove">Remove</button>
+    </div>
+  </template>
+
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <script src="https://unpkg.com/docx@7.8.2/build/index.js"></script>
+  <script src="https://unpkg.com/file-saver@2.0.5/dist/FileSaver.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+  <script src="assets/app.js"></script>
 </body>
 </html>
