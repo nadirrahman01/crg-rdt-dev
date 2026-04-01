@@ -635,7 +635,8 @@ label {
   cursor: pointer;
 }
 
-#coverageCountryDisplay {
+#coverageCountryDisplay,
+#equitySectorLine {
   padding-right: 74px;
   cursor: pointer;
 }
@@ -1485,6 +1486,14 @@ input[type="file"]::file-selector-button {
   background: #edf0f5;
 }
 
+.preview-document-frame {
+  display: block;
+  width: 100%;
+  min-height: 76vh;
+  border: 0;
+  background: #edf0f5;
+}
+
 .preview-sheet {
   margin: 0 auto;
   max-width: 820px;
@@ -2009,6 +2018,72 @@ input[type="file"]::file-selector-button {
 .preview-rating-definitions .preview-ratings-definitions-table th,
 .preview-rating-definitions .preview-ratings-definitions-table td {
   font-size: 12px;
+}
+
+.preview-reference-page {
+  display: flex;
+  flex-direction: column;
+}
+
+.preview-reference-head {
+  margin-bottom: 18px;
+}
+
+.preview-reference-head h1 {
+  margin: 0 0 12px;
+  color: var(--ink);
+  font-size: 28px;
+  line-height: 1.14;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+}
+
+.preview-reference-head p,
+.preview-reference-section p {
+  margin: 0 0 12px;
+  color: var(--ink);
+  font-size: 13px;
+  line-height: 1.58;
+}
+
+.preview-reference-section + .preview-reference-section {
+  margin-top: 18px;
+}
+
+.preview-reference-section h2 {
+  margin: 0 0 10px;
+  color: var(--red);
+  font-size: 16px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+.preview-reference-section h3 {
+  margin: 0 0 10px;
+  color: var(--ink-muted);
+  font-size: 12px;
+  font-style: italic;
+  font-weight: 600;
+}
+
+.preview-legal-page .preview-reference-head h1 {
+  font-size: 24px;
+}
+
+.preview-legal-page .preview-reference-head p,
+.preview-legal-page .preview-reference-section p {
+  color: var(--ink-muted);
+  font-size: 12px;
+  line-height: 1.55;
+}
+
+.preview-legal-page .preview-reference-section h2 {
+  color: var(--ink);
+  font-size: 14px;
+}
+
+.preview-legal-page .preview-reference-section h3 {
+  font-size: 11px;
 }
 
 .preview-financial-title {
