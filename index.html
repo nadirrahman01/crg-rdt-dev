@@ -193,7 +193,7 @@
             <div class="subpanel" id="macroFiPanel" hidden>
               <div class="subpanel-head">
                 <div>
-                  <h3>Macro / Fixed Income Ratings Profile</h3>
+                  <h3>Set coverage country and assign sovereign ratings</h3>
                   <p>Set the coverage country, issuer reference, and ratings profile.</p>
                 </div>
               </div>
@@ -358,7 +358,14 @@
                   <label for="equitySectorLine">Sector / Industry Line</label>
                   <span class="field-tag">Optional</span>
                 </div>
-                <input type="text" id="equitySectorLine" name="equitySectorLine" placeholder="Engineering &amp; Construction">
+                <div class="country-picker" id="industryPicker">
+                  <input type="text" id="equitySectorLine" name="equitySectorLine" placeholder="Select industry" readonly>
+                  <button type="button" class="country-picker-toggle" id="industryToggle" aria-label="Choose sector or industry">Select</button>
+                  <div class="country-picker-panel" id="industryPanel" hidden>
+                    <input type="text" id="industrySearch" placeholder="Search industries">
+                    <div class="country-picker-options" id="industryOptions"></div>
+                  </div>
+                </div>
               </div>
 
               <div class="field">
