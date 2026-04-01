@@ -1591,6 +1591,463 @@ input[type="file"]::file-selector-button {
   text-align: center;
 }
 
+.preview-export-page {
+  margin: 0 auto;
+  max-width: 860px;
+  padding: 28px 42px 26px;
+  border: 1px solid var(--line);
+  background: #ffffff;
+  box-shadow: 0 16px 40px rgba(17, 21, 28, 0.08);
+}
+
+.preview-export-banner {
+  position: relative;
+  display: flex;
+  align-items: stretch;
+  min-height: 132px;
+  margin-bottom: 18px;
+  overflow: hidden;
+  background: linear-gradient(90deg, #fbf7ef 0%, #ffffff 48%, #f7efdc 100%);
+}
+
+.preview-export-logo {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  padding: 18px 0 18px 30px;
+  min-width: 320px;
+}
+
+.preview-export-logo img {
+  display: block;
+  width: 255px;
+  max-width: 100%;
+  height: auto;
+  object-fit: contain;
+}
+
+.preview-export-mark {
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 41%;
+  height: 100%;
+  overflow: hidden;
+}
+
+.preview-export-mark span {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  transform: skewX(-38deg);
+  transform-origin: top;
+}
+
+.preview-export-mark span:nth-child(1) {
+  right: 265px;
+  width: 110px;
+  background: rgba(132, 95, 15, 0.14);
+}
+
+.preview-export-mark span:nth-child(2) {
+  right: 170px;
+  width: 126px;
+  background: rgba(132, 95, 15, 0.2);
+}
+
+.preview-export-mark span:nth-child(3) {
+  right: 84px;
+  width: 122px;
+  background: rgba(93, 67, 11, 0.14);
+}
+
+.preview-export-mark span:nth-child(4) {
+  right: -8px;
+  width: 122px;
+  background: rgba(203, 166, 91, 0.28);
+}
+
+.preview-export-brand {
+  position: absolute;
+  right: 34px;
+  bottom: 14px;
+  z-index: 3;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
+  text-align: right;
+}
+
+.preview-export-brand strong,
+.preview-export-brand span {
+  display: block;
+  color: var(--red);
+}
+
+.preview-export-brand strong {
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.preview-export-brand span {
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.preview-export-display {
+  margin: 0 0 14px;
+  color: var(--ink);
+  font-size: 28px;
+  line-height: 1.06;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+}
+
+.preview-export-rule {
+  margin: 0 0 24px;
+  padding: 6px 14px;
+  background: var(--red);
+  color: #ffffff;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.preview-export-title {
+  margin: 0;
+  color: var(--ink);
+  font-size: 34px;
+  line-height: 1.08;
+  font-weight: 700;
+  letter-spacing: -0.04em;
+}
+
+.preview-export-deck {
+  margin: 11px 0 0;
+  color: var(--ink-soft);
+  font-size: 17px;
+  line-height: 1.38;
+  font-weight: 600;
+}
+
+.preview-export-topic,
+.preview-export-meta-line {
+  margin: 10px 0 0;
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.preview-export-topic {
+  color: var(--ink-soft);
+  font-weight: 600;
+}
+
+.preview-export-meta-line {
+  color: var(--red-dark);
+  font-weight: 600;
+}
+
+.preview-generic-front-grid,
+.preview-equity-front-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 290px;
+  gap: 26px;
+  align-items: start;
+}
+
+.preview-equity-security-line {
+  margin-bottom: 8px;
+  color: var(--ink);
+  font-size: 20px;
+  font-weight: 700;
+}
+
+.preview-equity-security-line span {
+  color: var(--ink-soft);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.preview-equity-sector-strip {
+  margin: 0 0 14px;
+  padding: 5px 12px;
+  background: rgba(132, 95, 15, 0.92);
+  color: #ffffff;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.preview-export-section {
+  margin-top: 22px;
+}
+
+.preview-export-section h3,
+.preview-key-box h3,
+.preview-chart-block h4 {
+  margin: 0 0 10px;
+  color: var(--red);
+  font-size: 15px;
+  line-height: 1.3;
+  font-weight: 700;
+}
+
+.preview-export-section p,
+.preview-export-section li,
+.preview-analyst-person span,
+.preview-financial-source,
+.preview-chart-block p,
+.preview-key-box li,
+.preview-macro-meta span,
+.preview-tearsheet-table td,
+.preview-ratings-table td,
+.preview-ratings-definitions-table td {
+  color: var(--ink);
+  font-size: 13px;
+  line-height: 1.58;
+}
+
+.preview-export-section p {
+  margin: 0 0 11px;
+}
+
+.preview-export-section ul {
+  margin: 0;
+  padding-left: 18px;
+}
+
+.preview-key-box {
+  margin-top: 18px;
+  padding: 15px 16px;
+  border: 1px solid #eadccd;
+  background: #fffaf6;
+}
+
+.preview-key-box ul {
+  margin: 0;
+  padding-left: 18px;
+}
+
+.preview-key-box li + li {
+  margin-top: 7px;
+}
+
+.preview-analyst-panel {
+  margin-top: 18px;
+}
+
+.preview-analyst-panel h3 {
+  margin: 0 0 8px;
+  color: var(--ink);
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.preview-analyst-desk {
+  margin-bottom: 10px;
+  padding-bottom: 6px;
+  border-bottom: 2px solid rgba(132, 95, 15, 0.36);
+  color: var(--red);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.preview-analyst-person + .preview-analyst-person {
+  margin-top: 12px;
+}
+
+.preview-analyst-person strong,
+.preview-macro-meta strong,
+.preview-tearsheet-table strong {
+  display: block;
+  color: var(--ink);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.preview-analyst-person span {
+  display: block;
+}
+
+.preview-tearsheet {
+  margin-top: 2px;
+}
+
+.preview-tearsheet-table,
+.preview-ratings-table,
+.preview-ratings-definitions-table,
+.preview-financial-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.preview-tearsheet-table td {
+  padding: 8px 0;
+  vertical-align: top;
+  border-bottom: 1px solid var(--line);
+}
+
+.preview-tearsheet-table td:last-child {
+  text-align: right;
+  font-weight: 700;
+  color: var(--ink);
+  font-size: 15px;
+}
+
+.preview-tearsheet-table td span {
+  display: block;
+  color: var(--ink-muted);
+  font-size: 11px;
+  font-weight: 500;
+}
+
+.preview-chart-block {
+  margin-top: 14px;
+}
+
+.preview-chart-block img {
+  display: block;
+  width: 100%;
+  height: auto;
+  border: 1px solid var(--line);
+  background: #ffffff;
+}
+
+.preview-chart-empty {
+  padding: 16px 14px;
+  border: 1px solid var(--line);
+  background: var(--panel-soft);
+  color: var(--ink-muted);
+  font-size: 12px;
+  text-align: center;
+}
+
+.preview-chart-block p {
+  margin: 8px 0 0;
+  color: var(--ink-muted);
+  font-size: 11px;
+}
+
+.preview-macro-meta {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.preview-ratings-table th,
+.preview-ratings-table td,
+.preview-ratings-definitions-table th,
+.preview-ratings-definitions-table td,
+.preview-financial-table th,
+.preview-financial-table td {
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--line);
+  vertical-align: middle;
+}
+
+.preview-ratings-table thead th,
+.preview-financial-table thead th {
+  background: #f5f6f8;
+  color: var(--ink);
+  font-size: 12px;
+  font-weight: 700;
+  text-align: left;
+}
+
+.preview-ratings-definitions-table th {
+  width: 26%;
+  background: #f2f4f7;
+  color: var(--ink);
+  font-size: 12px;
+  font-weight: 700;
+  text-align: left;
+}
+
+.preview-ratings-definitions-table td {
+  background: #fafbfc;
+}
+
+.preview-financial-title {
+  color: var(--ink);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.preview-financial-currency {
+  margin-top: 3px;
+  color: var(--ink-muted);
+  font-size: 10px;
+  font-weight: 600;
+}
+
+.preview-financial-table thead th:first-child {
+  width: 34%;
+}
+
+.preview-financial-table thead th:not(:first-child),
+.preview-financial-table tbody td:not(:first-child) {
+  text-align: center;
+}
+
+.preview-financial-table tbody td:first-child {
+  color: var(--ink);
+  font-weight: 700;
+}
+
+.preview-financial-source {
+  margin-top: 8px;
+  color: var(--ink-muted);
+  font-size: 11px;
+  font-style: italic;
+}
+
+.preview-export-footer {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 16px;
+  align-items: center;
+  margin-top: 28px;
+  padding-top: 14px;
+  border-top: 1px solid var(--line);
+  color: #a0a7b2;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.preview-export-footer span:nth-child(2) {
+  text-align: center;
+}
+
+.preview-export-footer span:last-child {
+  text-align: right;
+}
+
+.preview-figure {
+  margin-top: 14px;
+  padding: 12px;
+  border: 1px solid var(--line);
+  background: #fafbfc;
+}
+
+.preview-figure img {
+  display: block;
+  max-width: 100%;
+  max-height: 340px;
+  margin: 0 auto 10px;
+  object-fit: contain;
+}
+
+.preview-figure figcaption {
+  color: var(--ink-soft);
+  font-size: 12px;
+  text-align: center;
+  font-style: italic;
+}
+
 code {
   font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
 }
@@ -1644,6 +2101,28 @@ code {
 
   .field-span-2 {
     grid-column: span 1;
+  }
+
+  .preview-export-page {
+    padding: 22px 20px;
+  }
+
+  .preview-generic-front-grid,
+  .preview-equity-front-grid,
+  .preview-macro-meta,
+  .preview-export-footer {
+    grid-template-columns: 1fr;
+  }
+
+  .preview-export-brand,
+  .preview-export-footer span:nth-child(2),
+  .preview-export-footer span:last-child {
+    text-align: left;
+    align-items: flex-start;
+  }
+
+  .preview-export-mark {
+    width: 52%;
   }
 }
 
