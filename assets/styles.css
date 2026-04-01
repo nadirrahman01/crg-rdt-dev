@@ -1765,6 +1765,11 @@ input[type="file"]::file-selector-button {
   align-items: start;
 }
 
+.preview-equity-sidebar {
+  display: flex;
+  flex-direction: column;
+}
+
 .preview-equity-security-line {
   margin-bottom: 8px;
   color: var(--ink);
@@ -1844,19 +1849,19 @@ input[type="file"]::file-selector-button {
 }
 
 .preview-analyst-panel {
-  margin-top: 18px;
+  margin-top: 22px;
 }
 
 .preview-analyst-panel h3 {
-  margin: 0 0 8px;
+  margin: 0 0 10px;
   color: var(--ink);
   font-size: 14px;
   font-weight: 700;
 }
 
 .preview-analyst-desk {
-  margin-bottom: 10px;
-  padding-bottom: 6px;
+  margin-bottom: 14px;
+  padding-bottom: 8px;
   border-bottom: 2px solid rgba(132, 95, 15, 0.36);
   color: var(--red);
   font-size: 13px;
@@ -1864,7 +1869,7 @@ input[type="file"]::file-selector-button {
 }
 
 .preview-analyst-person + .preview-analyst-person {
-  margin-top: 12px;
+  margin-top: 14px;
 }
 
 .preview-analyst-person strong,
@@ -1878,10 +1883,13 @@ input[type="file"]::file-selector-button {
 
 .preview-analyst-person span {
   display: block;
+  margin-top: 2px;
 }
 
 .preview-tearsheet {
   margin-top: 2px;
+  display: flex;
+  flex-direction: column;
 }
 
 .preview-tearsheet-table,
@@ -1893,7 +1901,7 @@ input[type="file"]::file-selector-button {
 }
 
 .preview-tearsheet-table td {
-  padding: 8px 0;
+  padding: 10px 0;
   vertical-align: top;
   border-bottom: 1px solid var(--line);
 }
@@ -1913,18 +1921,36 @@ input[type="file"]::file-selector-button {
 }
 
 .preview-chart-block {
-  margin-top: 14px;
+  margin-top: 22px;
+}
+
+.preview-chart-block h4 {
+  margin-bottom: 12px;
+}
+
+.preview-chart-frame {
+  width: 100%;
+  min-height: 188px;
+}
+
+.preview-chart-block img,
+.preview-chart-empty {
+  display: block;
+  width: 100%;
+  min-height: 188px;
 }
 
 .preview-chart-block img {
-  display: block;
-  width: 100%;
   height: auto;
+  aspect-ratio: 208 / 132;
+  object-fit: contain;
   border: 1px solid var(--line);
   background: #ffffff;
 }
 
 .preview-chart-empty {
+  display: grid;
+  place-items: center;
   padding: 16px 14px;
   border: 1px solid var(--line);
   background: var(--panel-soft);
@@ -1934,9 +1960,10 @@ input[type="file"]::file-selector-button {
 }
 
 .preview-chart-block p {
-  margin: 8px 0 0;
+  margin: 10px 0 0;
   color: var(--ink-muted);
   font-size: 11px;
+  line-height: 1.45;
 }
 
 .preview-macro-meta {
