@@ -1612,8 +1612,8 @@ input[type="file"]::file-selector-button {
   position: relative;
   display: flex;
   align-items: stretch;
-  min-height: 122px;
-  margin-bottom: 18px;
+  min-height: 100px;
+  margin-bottom: 14px;
   overflow: hidden;
   background: linear-gradient(90deg, #fbf7ef 0%, #ffffff 48%, #f7efdc 100%);
 }
@@ -1623,15 +1623,15 @@ input[type="file"]::file-selector-button {
   z-index: 2;
   display: flex;
   align-items: center;
-  padding: 18px 0 18px 28px;
-  min-width: 300px;
+  padding: 14px 0 14px 24px;
+  min-width: 264px;
 }
 
 .preview-export-logo img {
   display: block;
-  width: 228px;
-  max-width: 100%;
-  height: auto;
+  width: auto;
+  height: 68px;
+  max-width: 210px;
   object-fit: contain;
 }
 
@@ -1639,7 +1639,7 @@ input[type="file"]::file-selector-button {
   position: absolute;
   top: 0;
   right: 0;
-  width: 41%;
+  width: 39%;
   height: 100%;
   overflow: hidden;
 }
@@ -1678,13 +1678,13 @@ input[type="file"]::file-selector-button {
 
 .preview-export-brand {
   position: absolute;
-  right: 30px;
-  bottom: 14px;
+  right: 26px;
+  bottom: 10px;
   z-index: 3;
   display: flex;
   flex-direction: column;
   align-items: flex-end;
-  gap: 4px;
+  gap: 3px;
   text-align: right;
 }
 
@@ -1695,30 +1695,30 @@ input[type="file"]::file-selector-button {
 }
 
 .preview-export-brand strong {
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 700;
 }
 
 .preview-export-brand span {
-  font-size: 15px;
+  font-size: 14px;
   font-weight: 700;
 }
 
 .preview-export-display {
-  margin: 2px 0 14px;
+  margin: 0 0 12px;
   color: var(--ink);
-  font-size: 25px;
+  font-size: 22px;
   line-height: 1.06;
   font-weight: 700;
   letter-spacing: -0.03em;
 }
 
 .preview-export-rule {
-  margin: 0 0 24px;
-  padding: 6px 14px;
+  margin: 0 0 20px;
+  padding: 5px 12px;
   background: var(--red);
   color: #ffffff;
-  font-size: 11px;
+  font-size: 10px;
   font-weight: 700;
   line-height: 1;
 }
