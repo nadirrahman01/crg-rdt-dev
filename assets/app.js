@@ -25,7 +25,7 @@ document.addEventListener("DOMContentLoaded", () => {
   ];
 
   const WORLD_COUNTRY_CODES = [
-    "AF","AX","AL","DZ","AS","AD","AO","AI","AQ","AG","AR","AM","AW","AU","AT","AZ","BS","BH","BD","BB","BY","BE","BZ","BJ","BM","BT","BO","BQ","BA","BW","BV","BR","IO","BN","BG","BF","BI","CV","KH","CM","CA","KY","CF","TD","CL","CN","CX","CC","CO","KM","CG","CD","CK","CR","CI","HR","CU","CW","CY","CZ","DK","DJ","DM","DO","EC","EG","SV","GQ","ER","EE","SZ","ET","FK","FO","FJ","FI","FR","GF","PF","TF","GA","GM","GE","DE","GH","GI","GR","GL","GD","GP","GU","GT","GG","GN","GW","GY","HT","HM","VA","HN","HK","HU","IS","IN","ID","IR","IQ","IE","IM","IL","IT","JM","JP","JE","JO","KZ","KE","KI","KP","KR","KW","KG","LA","LV","LB","LS","LR","LY","LI","LT","LU","MO","MG","MW","MY","MV","ML","MT","MH","MQ","MR","MU","YT","MX","FM","MD","MC","MN","ME","MS","MA","MZ","MM","NA","NR","NP","NL","NC","NZ","NI","NE","NG","NU","NF","MK","MP","NO","OM","PK","PW","PS","PA","PG","PY","PE","PH","PN","PL","PT","PR","QA","RE","RO","RU","RW","BL","SH","KN","LC","MF","PM","VC","WS","SM","ST","SA","SN","RS","SC","SL","SG","SX","SK","SI","SB","SO","ZA","GS","SS","ES","LK","SD","SR","SJ","SE","CH","SY","TW","TJ","TZ","TH","TL","TG","TK","TO","TT","TN","TR","TM","TC","TV","UG","UA","AE","GB","US","UM","UY","UZ","VU","VE","VN","VG","VI","WF","EH","YE","ZM","ZW"
+    "AF","AX","AL","DZ","AS","AD","AO","AI","AQ","AG","AR","AM","AW","AU","AT","AZ","BS","BH","BD","BB","BY","BE","BZ","BJ","BM","BT","BO","BQ","BA","BW","BV","BR","IO","BN","BG","BF","BI","CV","KH","CM","CA","KY","CF","TD","CL","CN","CX","CC","CO","KM","CG","CD","CK","CR","CI","HR","CU","CW","CY","CZ","DK","DJ","DM","DO","EC","EG","SV","GQ","ER","EE","SZ","ET","FK","FO","FJ","FI","FR","GF","PF","TF","GA","GM","GE","DE","GH","GI","GR","GL","GD","GP","GU","GT","GG","GN","GW","GY","HT","HM","VA","HN","HK","HU","IS","IN","ID","IR","IQ","IE","IM","IT","JM","JP","JE","JO","KZ","KE","KI","KP","KR","KW","KG","LA","LV","LB","LS","LR","LY","LI","LT","LU","MO","MG","MW","MY","MV","ML","MT","MH","MQ","MR","MU","YT","MX","FM","MD","MC","MN","ME","MS","MA","MZ","MM","NA","NR","NP","NL","NC","NZ","NI","NE","NG","NU","NF","MK","MP","NO","OM","PK","PW","PS","PA","PG","PY","PE","PH","PN","PL","PT","PR","QA","RE","RO","RU","RW","BL","SH","KN","LC","MF","PM","VC","WS","SM","ST","SA","SN","RS","SC","SL","SG","SX","SK","SI","SB","SO","ZA","GS","SS","ES","LK","SD","SR","SJ","SE","CH","SY","TW","TJ","TZ","TH","TL","TG","TK","TO","TT","TN","TR","TM","TC","TV","UG","UA","AE","GB","US","UM","UY","UZ","VU","VE","VN","VG","VI","WF","EH","YE","ZM","ZW"
   ];
 
   const WORLD_COUNTRIES = buildWorldCountryOptions();
@@ -137,6 +137,9 @@ document.addEventListener("DOMContentLoaded", () => {
     deck: document.getElementById("deck"),
     topic: document.getElementById("topic"),
     macroFiPanel: document.getElementById("macroFiPanel"),
+    coverageCountryPanel: document.getElementById("coverageCountryPanel"),
+    coverageCountryToggle: document.getElementById("coverageCountryToggle"),
+    coverageCountrySearch: document.getElementById("coverageCountrySearch"),
     coverageCountryDisplay: document.getElementById("coverageCountryDisplay"),
     coverageCountryOptions: document.getElementById("coverageCountryOptions"),
     coverageCountry: document.getElementById("coverageCountry"),
@@ -229,6 +232,12 @@ document.addEventListener("DOMContentLoaded", () => {
     previewAuthor: document.getElementById("previewAuthor"),
     previewCoverage: document.getElementById("previewCoverage"),
     previewSupport: document.getElementById("previewSupport"),
+    previewDocBtn: document.getElementById("previewDocBtn"),
+    previewModal: document.getElementById("previewModal"),
+    previewModalBackdrop: document.getElementById("previewModalBackdrop"),
+    previewModalBody: document.getElementById("previewModalBody"),
+    closePreviewBtn: document.getElementById("closePreviewBtn"),
+    previewGenerateBtn: document.getElementById("previewGenerateBtn"),
     generateDocBtn: document.getElementById("generateDocBtn"),
     emailToCrgBtn: document.getElementById("emailToCrgBtn"),
     resetFormBtn: document.getElementById("resetFormBtn"),
@@ -263,7 +272,10 @@ document.addEventListener("DOMContentLoaded", () => {
     lastSavedAt: null,
     customSectionCount: 0,
     brandLogoImagePromise: null,
-    figurePlacements: {}
+    figurePlacements: {},
+    figureFiles: [],
+    figureDetails: {},
+    previewObjectUrls: []
   };
 
   const draftFieldIds = [
@@ -336,7 +348,7 @@ document.addEventListener("DOMContentLoaded", () => {
     syncPrimaryPhone();
     toggleNoteTypeSections();
     updateFileSummary(dom.modelFiles, dom.modelSummaryHead, dom.modelSummaryList, "No supporting files attached.");
-    updateFileSummary(dom.imageUpload, dom.imageSummaryHead, dom.imageSummaryList, "No figures attached.");
+    setManagedFigureFiles([]);
     syncFigurePlacementControls();
     updateAllUI();
     checkLibraries();
@@ -413,23 +425,23 @@ document.addEventListener("DOMContentLoaded", () => {
       queueDraftSave();
     });
 
-    dom.coverageCountryDisplay?.addEventListener("input", () => {
-      resolveCoverageCountryCodeFromDisplay();
-      updateAllUI();
-      queueDraftSave();
+    dom.coverageCountryDisplay?.addEventListener("click", openCoverageCountryPanel);
+    dom.coverageCountryToggle?.addEventListener("click", () => {
+      if (dom.coverageCountryPanel?.hidden) openCoverageCountryPanel();
+      else closeCoverageCountryPanel();
     });
-
-    dom.coverageCountryDisplay?.addEventListener("change", () => {
-      resolveCoverageCountryCodeFromDisplay();
-      updateAllUI();
-      queueDraftSave();
+    dom.coverageCountrySearch?.addEventListener("input", () => {
+      renderCoverageCountryOptions(dom.coverageCountrySearch.value);
     });
-
-    dom.coverageCountryDisplay?.addEventListener("blur", () => {
-      resolveCoverageCountryCodeFromDisplay();
-      updateCoverageCountryDisplayFromCode();
-      updateAllUI();
-      queueDraftSave();
+    dom.coverageCountryOptions?.addEventListener("click", (event) => {
+      const option = event.target.closest("[data-country-code]");
+      if (!option) return;
+      selectCoverageCountry(option.getAttribute("data-country-code"));
+    });
+    document.addEventListener("click", (event) => {
+      if (!dom.coverageCountryPanel || dom.coverageCountryPanel.hidden) return;
+      const picker = document.getElementById("coverageCountryPicker");
+      if (picker && !picker.contains(event.target)) closeCoverageCountryPanel();
     });
 
     dom.macroFiHeading?.addEventListener("input", syncFigurePlacementControls);
@@ -470,7 +482,7 @@ document.addEventListener("DOMContentLoaded", () => {
     });
 
     dom.imageUpload.addEventListener("change", () => {
-      updateFileSummary(dom.imageUpload, dom.imageSummaryHead, dom.imageSummaryList, "No figures attached.");
+      handleFigureUploadChange();
       syncFigurePlacementControls();
       updateAllUI();
     });
@@ -483,6 +495,8 @@ document.addEventListener("DOMContentLoaded", () => {
     dom.ratingsProfileRows?.addEventListener("click", handleRatingProfileActions);
 
     dom.figurePlacementList?.addEventListener("change", handleFigurePlacementChange);
+    dom.figurePlacementList?.addEventListener("input", handleFigurePlacementChange);
+    dom.figurePlacementList?.addEventListener("click", handleFigurePlacementActions);
 
     dom.financialAddColumnBtn.addEventListener("click", addFinancialPeriodColumn);
     dom.financialAddRowBtn.addEventListener("click", addFinancialLineItem);
@@ -517,6 +531,16 @@ document.addEventListener("DOMContentLoaded", () => {
     });
 
     dom.fetchPriceChart.addEventListener("click", buildPriceChart);
+    dom.previewDocBtn?.addEventListener("click", openPreviewModal);
+    dom.closePreviewBtn?.addEventListener("click", closePreviewModal);
+    dom.previewModalBackdrop?.addEventListener("click", closePreviewModal);
+    dom.previewGenerateBtn?.addEventListener("click", () => {
+      closePreviewModal();
+      form.requestSubmit(dom.generateDocBtn);
+    });
+    document.addEventListener("keydown", (event) => {
+      if (event.key === "Escape" && !dom.previewModal?.hidden) closePreviewModal();
+    });
     dom.emailToCrgBtn.addEventListener("click", draftEmailToResearch);
     dom.resetFormBtn.addEventListener("click", resetDraft);
 
@@ -591,7 +615,7 @@ document.addEventListener("DOMContentLoaded", () => {
     return WORLD_COUNTRY_CODES
       .map((code) => ({
         code,
-        name: displayNames?.of(code) || code
+        name: code === "PS" ? "Palestine" : (displayNames?.of(code) || code)
       }))
       .sort((left, right) => left.name.localeCompare(right.name, "en", { sensitivity: "base" }));
   }
@@ -603,9 +627,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
   function populateCoverageCountryOptions() {
     if (!dom.coverageCountryOptions) return;
-    dom.coverageCountryOptions.innerHTML = WORLD_COUNTRIES
-      .map((country) => `<option value="${escapeAttribute(country.name)}"></option>`)
-      .join("");
+    renderCoverageCountryOptions("");
   }
 
   function updateCoverageCountryDisplayFromCode() {
@@ -613,22 +635,60 @@ document.addEventListener("DOMContentLoaded", () => {
     dom.coverageCountryDisplay.value = getCoverageCountryLabel(dom.coverageCountry.value).replace(/^N\/A$/, "");
   }
 
-  function resolveCoverageCountryCodeFromDisplay() {
-    const displayValue = String(dom.coverageCountryDisplay?.value || "").trim();
-    if (!displayValue) {
-      dom.coverageCountry.value = "";
-      syncIssuerId();
+  function renderCoverageCountryOptions(filterText = "") {
+    if (!dom.coverageCountryOptions) return;
+    const normalizedFilter = normalizeComparableText(filterText);
+    const matches = WORLD_COUNTRIES.filter((country) => {
+      if (!normalizedFilter) return true;
+      return normalizeComparableText(country.name).includes(normalizedFilter) || normalizeComparableText(country.code).includes(normalizedFilter);
+    });
+
+    dom.coverageCountryOptions.innerHTML = "";
+    if (!matches.length) {
+      const empty = document.createElement("div");
+      empty.className = "country-picker-empty";
+      empty.textContent = "No matching countries";
+      dom.coverageCountryOptions.appendChild(empty);
       return;
     }
 
-    const normalized = normalizeComparableText(displayValue);
-    const match = WORLD_COUNTRIES.find((country) =>
-      normalizeComparableText(country.name) === normalized ||
-      normalizeComparableText(country.code) === normalized
-    );
-    dom.coverageCountry.value = match ? match.code : "";
-    if (match) dom.coverageCountryDisplay.value = match.name;
+    matches.forEach((country) => {
+      const option = document.createElement("button");
+      option.type = "button";
+      option.className = "country-picker-option";
+      option.textContent = country.name;
+      option.setAttribute("data-country-code", country.code);
+      if (country.code === String(dom.coverageCountry.value || "").trim().toUpperCase()) {
+        option.classList.add("is-selected");
+      }
+      dom.coverageCountryOptions.appendChild(option);
+    });
+  }
+
+  function openCoverageCountryPanel() {
+    if (!dom.coverageCountryPanel) return;
+    dom.coverageCountryPanel.hidden = false;
+    if (dom.coverageCountrySearch) {
+      dom.coverageCountrySearch.value = "";
+      renderCoverageCountryOptions("");
+      window.setTimeout(() => dom.coverageCountrySearch.focus(), 0);
+    }
+  }
+
+  function closeCoverageCountryPanel() {
+    if (!dom.coverageCountryPanel) return;
+    dom.coverageCountryPanel.hidden = true;
+  }
+
+  function selectCoverageCountry(countryCode) {
+    const normalized = String(countryCode || "").trim().toUpperCase();
+    dom.coverageCountry.value = normalized;
+    updateCoverageCountryDisplayFromCode();
     syncIssuerId();
+    renderCoverageCountryOptions(dom.coverageCountrySearch?.value || "");
+    closeCoverageCountryPanel();
+    updateAllUI();
+    queueDraftSave();
   }
 
   function isMacroFiNoteType(noteType) {
@@ -1998,7 +2058,7 @@ document.addEventListener("DOMContentLoaded", () => {
     dom.navEquity.textContent = buildSectionCompletion("equity");
     dom.navBody.textContent = buildSectionCompletion("body");
 
-    const supportCount = Array.from(dom.modelFiles.files || []).length + Array.from(dom.imageUpload.files || []).length;
+    const supportCount = Array.from(dom.modelFiles.files || []).length + (state.figureFiles || []).length;
     dom.navExhibits.textContent = supportCount ? `${supportCount} files` : "Optional";
     if (review.blockingCount > 0) {
       dom.navOutput.textContent = "Blocked";
@@ -2132,7 +2192,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
     const attachmentBits = [];
     const modelCount = Array.from(dom.modelFiles.files || []).length;
-    const imageCount = Array.from(dom.imageUpload.files || []).length;
+    const imageCount = (state.figureFiles || []).length;
     if (isEquitySelected()) attachmentBits.push(state.priceChartImageBytes ? "price chart ready" : "price chart pending");
     if (modelCount) attachmentBits.push(`${modelCount} model file${modelCount > 1 ? "s" : ""}`);
     if (imageCount) attachmentBits.push(`${imageCount} exhibit${imageCount > 1 ? "s" : ""}`);
@@ -2175,7 +2235,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
     const supportBits = [];
     const modelCount = Array.from(dom.modelFiles.files || []).length;
-    const imageCount = Array.from(dom.imageUpload.files || []).length;
+    const imageCount = (state.figureFiles || []).length;
     if (state.priceChartImageBytes) supportBits.push("chart");
     if (modelCount) supportBits.push(`${modelCount} model file${modelCount > 1 ? "s" : ""}`);
     if (imageCount) supportBits.push(`${imageCount} image${imageCount > 1 ? "s" : ""}`);
@@ -2276,6 +2336,8 @@ document.addEventListener("DOMContentLoaded", () => {
     state.lastSavedAt = null;
     state.customSectionCount = 0;
     state.figurePlacements = {};
+    state.figureDetails = {};
+    state.figureFiles = [];
     syncPrimaryPhone();
     restoreRatingsProfile([]);
     dom.equityCompanyName.dataset.autofill = "true";
@@ -2288,9 +2350,10 @@ document.addEventListener("DOMContentLoaded", () => {
     updateCoverageCountryDisplayFromCode();
     restoreBodySectionLayout([]);
     updateFileSummary(dom.modelFiles, dom.modelSummaryHead, dom.modelSummaryList, "No supporting files attached.");
-    updateFileSummary(dom.imageUpload, dom.imageSummaryHead, dom.imageSummaryList, "No figures attached.");
+    updateFigureSummary();
     syncFigurePlacementControls();
     toggleNoteTypeSections();
+    closePreviewModal();
     clearMessage();
     updateAllUI();
   }
@@ -2316,8 +2379,97 @@ document.addEventListener("DOMContentLoaded", () => {
     list.hidden = false;
   }
 
+  function updateFigureSummary() {
+    if (!dom.imageSummaryHead || !dom.imageSummaryList) return;
+    const files = state.figureFiles || [];
+    dom.imageSummaryHead.textContent = files.length
+      ? `${files.length} figure${files.length > 1 ? "s" : ""} attached.`
+      : "No figures attached.";
+
+    dom.imageSummaryList.innerHTML = "";
+    if (!files.length) {
+      dom.imageSummaryList.hidden = true;
+      return;
+    }
+
+    files.forEach((file, index) => {
+      const item = document.createElement("li");
+      const meta = getFigureDetailForFile(file, index);
+      const label = `${meta.labelType} ${meta.labelNumber}`;
+      item.textContent = `${label} - ${meta.caption || file.name.replace(/\.[^.]+$/, "")}`;
+      dom.imageSummaryList.appendChild(item);
+    });
+
+    dom.imageSummaryList.hidden = false;
+  }
+
   function figureFileKey(file) {
     return `${file.name}__${file.size}__${file.lastModified}`;
+  }
+
+  function defaultFigureLabelType(file) {
+    return /chart/i.test(file.name) ? "Chart" : "Figure";
+  }
+
+  function defaultFigureCaption(file) {
+    return file.name.replace(/\.[^.]+$/, "");
+  }
+
+  function sanitizeFigureNumber(value, fallback) {
+    const parsed = Number.parseInt(String(value || "").trim(), 10);
+    return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
+  }
+
+  function getFigureDetailForFile(file, index = 0) {
+    const key = figureFileKey(file);
+    const existing = state.figureDetails[key] || {};
+    return {
+      placement: state.figurePlacements[key] || existing.placement || "end",
+      labelType: existing.labelType || defaultFigureLabelType(file),
+      labelNumber: sanitizeFigureNumber(existing.labelNumber, index + 1),
+      caption: String(existing.caption || "").trim() || defaultFigureCaption(file)
+    };
+  }
+
+  function setManagedFigureFiles(files) {
+    state.figureFiles = files;
+    const nextDetails = {};
+
+    state.figureFiles.forEach((file, index) => {
+      const key = figureFileKey(file);
+      nextDetails[key] = getFigureDetailForFile(file, index);
+    });
+
+    state.figureDetails = nextDetails;
+    state.figurePlacements = Object.fromEntries(
+      Object.entries(nextDetails).map(([key, detail]) => [key, detail.placement || "end"])
+    );
+    updateFigureSummary();
+  }
+
+  function handleFigureUploadChange() {
+    const incoming = Array.from(dom.imageUpload.files || []);
+    if (!incoming.length) return;
+
+    const nextFiles = [...state.figureFiles];
+    const seen = new Set(nextFiles.map((file) => figureFileKey(file)));
+    incoming.forEach((file) => {
+      const key = figureFileKey(file);
+      if (!seen.has(key)) {
+        nextFiles.push(file);
+        seen.add(key);
+      }
+    });
+
+    setManagedFigureFiles(nextFiles);
+    dom.imageUpload.value = "";
+  }
+
+  function removeFigureByKey(figureKey) {
+    setManagedFigureFiles((state.figureFiles || []).filter((file) => figureFileKey(file) !== figureKey));
+    syncFigurePlacementControls();
+    updateAllUI();
+    queueDraftSave();
   }
 
   function getFigurePlacementOptions(noteType = dom.noteType.value) {
@@ -2360,11 +2512,12 @@ document.addEventListener("DOMContentLoaded", () => {
   function syncFigurePlacementControls() {
     if (!dom.figurePlacementPanel || !dom.figurePlacementList) return;
 
-    const files = Array.from(dom.imageUpload.files || []);
+    const files = state.figureFiles || [];
     if (!files.length) {
       dom.figurePlacementPanel.hidden = true;
       dom.figurePlacementList.innerHTML = "";
       state.figurePlacements = {};
+      state.figureDetails = {};
       return;
     }
 
@@ -2373,21 +2526,58 @@ document.addEventListener("DOMContentLoaded", () => {
     const nextPlacements = {};
 
     dom.figurePlacementList.innerHTML = "";
-    files.forEach((file) => {
+    files.forEach((file, index) => {
       const key = figureFileKey(file);
-      const currentValue = allowedValues.has(state.figurePlacements[key]) ? state.figurePlacements[key] : "end";
+      const detail = getFigureDetailForFile(file, index);
+      const currentValue = allowedValues.has(detail.placement) ? detail.placement : "end";
       nextPlacements[key] = currentValue;
 
       const row = document.createElement("div");
       row.className = "figure-placement-row";
+      row.setAttribute("data-figure-row", key);
 
+      const nameWrap = document.createElement("div");
       const name = document.createElement("div");
       name.className = "figure-placement-name";
-      name.textContent = file.name;
-      row.appendChild(name);
+      name.textContent = `${detail.labelType} ${detail.labelNumber}: ${detail.caption}`;
+      nameWrap.appendChild(name);
+
+      const origin = document.createElement("div");
+      origin.className = "figure-placement-origin";
+      origin.textContent = file.name;
+      nameWrap.appendChild(origin);
+      row.appendChild(nameWrap);
+
+      const meta = document.createElement("div");
+      meta.className = "figure-placement-meta";
+
+      const metaGrid = document.createElement("div");
+      metaGrid.className = "figure-placement-meta-grid";
+
+      const kindSelect = document.createElement("select");
+      kindSelect.setAttribute("data-figure-key", key);
+      kindSelect.setAttribute("data-figure-field", "labelType");
+      ["Figure", "Chart", "Exhibit"].forEach((labelType) => {
+        const optionEl = document.createElement("option");
+        optionEl.value = labelType;
+        optionEl.textContent = labelType;
+        if (labelType === detail.labelType) optionEl.selected = true;
+        kindSelect.appendChild(optionEl);
+      });
+      metaGrid.appendChild(kindSelect);
+
+      const numberInput = document.createElement("input");
+      numberInput.type = "text";
+      numberInput.inputMode = "numeric";
+      numberInput.value = String(detail.labelNumber);
+      numberInput.setAttribute("data-figure-key", key);
+      numberInput.setAttribute("data-figure-field", "labelNumber");
+      numberInput.setAttribute("aria-label", "Figure number");
+      metaGrid.appendChild(numberInput);
 
       const select = document.createElement("select");
       select.setAttribute("data-figure-key", key);
+      select.setAttribute("data-figure-field", "placement");
       options.forEach((option) => {
         const optionEl = document.createElement("option");
         optionEl.value = option.value;
@@ -2395,7 +2585,29 @@ document.addEventListener("DOMContentLoaded", () => {
         if (option.value === currentValue) optionEl.selected = true;
         select.appendChild(optionEl);
       });
-      row.appendChild(select);
+      metaGrid.appendChild(select);
+      meta.appendChild(metaGrid);
+
+      const captionInput = document.createElement("input");
+      captionInput.type = "text";
+      captionInput.value = detail.caption;
+      captionInput.placeholder = "Figure caption";
+      captionInput.setAttribute("data-figure-key", key);
+      captionInput.setAttribute("data-figure-field", "caption");
+      meta.appendChild(captionInput);
+
+      const actionRow = document.createElement("div");
+      actionRow.className = "figure-placement-actions";
+      const removeBtn = document.createElement("button");
+      removeBtn.type = "button";
+      removeBtn.className = "btn btn-ghost btn-xs";
+      removeBtn.setAttribute("data-figure-action", "remove");
+      removeBtn.setAttribute("data-figure-key", key);
+      removeBtn.textContent = "Remove";
+      actionRow.appendChild(removeBtn);
+      meta.appendChild(actionRow);
+
+      row.appendChild(meta);
       dom.figurePlacementList.appendChild(row);
     });
 
@@ -2405,17 +2617,48 @@ document.addEventListener("DOMContentLoaded", () => {
 
   function handleFigurePlacementChange(event) {
     const target = event.target;
-    if (!(target instanceof HTMLSelectElement)) return;
+    if (!(target instanceof HTMLSelectElement || target instanceof HTMLInputElement)) return;
     const figureKey = target.getAttribute("data-figure-key");
     if (!figureKey) return;
+    const field = target.getAttribute("data-figure-field");
+    if (!field) return;
 
-    state.figurePlacements[figureKey] = target.value;
+    const current = state.figureDetails[figureKey] || {};
+    if (field === "labelNumber") {
+      current.labelNumber = sanitizeFigureNumber(target.value, current.labelNumber || 1);
+      target.value = String(current.labelNumber);
+    } else {
+      current[field] = target.value;
+    }
+    if (field === "placement") state.figurePlacements[figureKey] = current.placement || "end";
+    state.figureDetails[figureKey] = current;
+    const nameEl = target.closest(".figure-placement-row")?.querySelector(".figure-placement-name");
+    if (nameEl) {
+      const labelType = current.labelType || "Figure";
+      const labelNumber = sanitizeFigureNumber(current.labelNumber, 1);
+      const caption = String(current.caption || "").trim() || "Untitled figure";
+      nameEl.textContent = `${labelType} ${labelNumber}: ${caption}`;
+    }
+    updateFigureSummary();
     updateAllUI();
+  }
+
+  function handleFigurePlacementActions(event) {
+    const actionButton = event.target.closest("[data-figure-action='remove']");
+    if (!actionButton) return;
+    removeFigureByKey(actionButton.getAttribute("data-figure-key"));
   }
 
   function buildCurrentFigurePlacements(files) {
     return files.reduce((acc, file) => {
-      acc[figureFileKey(file)] = state.figurePlacements[figureFileKey(file)] || "end";
+      acc[figureFileKey(file)] = getFigureDetailForFile(file).placement || state.figurePlacements[figureFileKey(file)] || "end";
+      return acc;
+    }, {});
+  }
+
+  function buildCurrentFigureDetails(files) {
+    return files.reduce((acc, file, index) => {
+      acc[figureFileKey(file)] = getFigureDetailForFile(file, index);
       return acc;
     }, {});
   }
@@ -2432,7 +2675,7 @@ document.addEventListener("DOMContentLoaded", () => {
   async function appendPlacedFigures(children, docxLib, colors, files, figureCounterRef, options = {}) {
     if (!files.length) return;
     const startIndex = figureCounterRef.value;
-    const imageParagraphs = await buildImageParagraphs(docxLib, files, colors, startIndex);
+    const imageParagraphs = await buildImageParagraphs(docxLib, files, colors, startIndex, options.figureDetails || {});
     figureCounterRef.value += files.length;
 
     if (options.withHeading) {
@@ -3307,6 +3550,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
   async function handleSubmit(event) {
     event.preventDefault();
+    closePreviewModal();
     clearMessage();
 
     const validation = validateForm(true);
@@ -3387,7 +3631,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
   function collectFormData() {
     syncPrimaryPhone();
-    const imageFiles = Array.from(dom.imageUpload.files || []);
+    const imageFiles = [...(state.figureFiles || [])];
 
     return {
       noteType: dom.noteType.value.trim(),
@@ -3434,6 +3678,7 @@ document.addEventListener("DOMContentLoaded", () => {
       cordobaView: dom.cordobaView.value.trim(),
       imageFiles,
       figurePlacements: buildCurrentFigurePlacements(imageFiles),
+      figureDetails: buildCurrentFigureDetails(imageFiles),
       modelFiles: Array.from(dom.modelFiles.files || []),
       priceChartImageBytes: state.priceChartImageBytes,
       equityStats: { ...state.equityStats },
@@ -3550,6 +3795,15 @@ document.addEventListener("DOMContentLoaded", () => {
       .replace(/>/g, "&gt;");
   }
 
+  function escapeHtml(value) {
+    return String(value)
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;")
+      .replace(/'/g, "&#39;");
+  }
+
   function lineItems(text) {
     return String(text || "")
       .split("\n")
@@ -3562,6 +3816,141 @@ document.addEventListener("DOMContentLoaded", () => {
       .split(/\n{2,}/)
       .map((block) => block.trim())
       .filter(Boolean);
+  }
+
+  function cleanupPreviewAssets() {
+    state.previewObjectUrls.forEach((url) => URL.revokeObjectURL(url));
+    state.previewObjectUrls = [];
+  }
+
+  function buildPreviewFigureMarkup(files, data, availablePlacements, placement) {
+    const placedFiles = getFigureFilesForPlacement(data, placement, availablePlacements);
+    return placedFiles.map((file, index) => {
+      const objectUrl = URL.createObjectURL(file);
+      state.previewObjectUrls.push(objectUrl);
+      const detail = data.figureDetails?.[figureFileKey(file)] || getFigureDetailForFile(file, index);
+      const caption = `${detail.labelType || "Figure"} ${sanitizeFigureNumber(detail.labelNumber, index + 1)}. ${detail.caption || defaultFigureCaption(file)}`;
+      return `
+        <figure class="preview-figure">
+          <img src="${objectUrl}" alt="${escapeAttribute(caption)}">
+          <figcaption>${escapeHtml(caption)}</figcaption>
+        </figure>
+      `;
+    }).join("");
+  }
+
+  function renderPreviewSection(label, content) {
+    const items = lineItems(content);
+    if (label === "Key Takeaways") {
+      return `
+        <section class="preview-section">
+          <h3>${escapeHtml(label)}</h3>
+          <ul>${items.map((item) => `<li>${escapeHtml(item)}</li>`).join("")}</ul>
+        </section>
+      `;
+    }
+
+    return `
+      <section class="preview-section">
+        <h3>${escapeHtml(label)}</h3>
+        ${paragraphBlocks(content).map((block) => `<p>${escapeHtml(block).replace(/\n/g, "<br>")}</p>`).join("")}
+      </section>
+    `;
+  }
+
+  function openPreviewModal() {
+    if (!dom.previewModal || !dom.previewModalBody) return;
+
+    cleanupPreviewAssets();
+    const data = collectFormData();
+    const availablePlacements = new Set(getFigurePlacementOptions(data.noteType).map((option) => option.value));
+    const sections = normalizeBodySectionLayoutForExport(data).filter((entry) => !entry.hidden && entry.content);
+    const middleSections = sections.filter((entry) => entry.key !== "keyTakeaways" && entry.key !== "cordobaView");
+    const keyTakeaways = sections.find((entry) => entry.key === "keyTakeaways");
+    const cordobaView = sections.find((entry) => entry.key === "cordobaView");
+
+    const metaGrid = `
+      <div class="preview-meta-grid">
+        <div class="preview-meta-item"><strong>Type</strong><span>${escapeHtml(strategyLabelForNoteType(data.noteType) || "Research Note")}</span></div>
+        <div class="preview-meta-item"><strong>Published</strong><span>${escapeHtml(formatPublishedTimestampForDocument(data.generatedAt))}</span></div>
+        <div class="preview-meta-item"><strong>Desk</strong><span>${escapeHtml(data.deskLine || "Desk line pending")}</span></div>
+        <div class="preview-meta-item"><strong>Authors</strong><span>${escapeHtml(buildPrimaryAuthorLine() || "Primary author pending")}</span></div>
+      </div>
+    `;
+
+    const previewParts = [
+      `<article class="preview-sheet">`,
+      `<header class="preview-sheet-header">`,
+      `<p class="preview-sheet-kicker">${escapeHtml(strategyLabelForNoteType(data.noteType) || "Research Note")}</p>`,
+      `<h1 class="preview-sheet-title">${escapeHtml(data.title || "Untitled Research Note")}</h1>`,
+      `<p class="preview-sheet-deck">${escapeHtml(data.deck || "No deck supplied")}</p>`,
+      metaGrid,
+      `</header>`
+    ];
+
+    if (isMacroFiNoteType(data.noteType)) {
+      const ratingsRows = (data.ratingsProfile || []).filter((row) => row.agency || row.shortTerm || row.longTerm);
+      previewParts.push(
+        `<section class="preview-section"><h3>${escapeHtml(data.macroFiHeading || "Ratings Profile")}</h3>`,
+        `<p>${escapeHtml(`Coverage Country: ${data.coverageCountry ? getCoverageCountryLabel(data.coverageCountry) : (data.noteType === "Fixed Income Research" ? "Optional" : "Pending")} | Issuer Number: ${data.issuerId || (data.noteType === "Fixed Income Research" ? "Optional" : "Pending")}`)}</p>`,
+        ratingsRows.length
+          ? `<ul>${ratingsRows.map((row) => `<li>${escapeHtml(row.agency || "Agency")}: ${escapeHtml(row.shortTerm || "N/A")} / ${escapeHtml(row.longTerm || "N/A")}</li>`).join("")}</ul>`
+          : `<p>No ratings profile supplied yet.</p>`,
+        `</section>`,
+        buildPreviewFigureMarkup(data.imageFiles, data, availablePlacements, "after-macroFiProfile")
+      );
+    }
+
+    if (data.noteType === "Equity Research" && data.businessDescription) {
+      previewParts.push(renderPreviewSection("Business Description", data.businessDescription));
+      previewParts.push(buildPreviewFigureMarkup(data.imageFiles, data, availablePlacements, "after-businessDescription"));
+    }
+
+    if (keyTakeaways?.content) {
+      previewParts.push(renderPreviewSection(keyTakeaways.label, keyTakeaways.content));
+      previewParts.push(buildPreviewFigureMarkup(data.imageFiles, data, availablePlacements, "after-keyTakeaways"));
+    }
+
+    if (data.noteType === "Equity Research" && data.valuationSummary) {
+      previewParts.push(renderPreviewSection("Valuation Summary", data.valuationSummary));
+      previewParts.push(buildPreviewFigureMarkup(data.imageFiles, data, availablePlacements, "after-valuationSummary"));
+    }
+
+    middleSections.forEach((section) => {
+      if (data.noteType === "Equity Research" && (section.key === "keyTakeaways" || section.key === "cordobaView")) return;
+      previewParts.push(renderPreviewSection(section.label, section.content));
+      previewParts.push(buildPreviewFigureMarkup(data.imageFiles, data, availablePlacements, `after-${section.key}`));
+    });
+
+    if (cordobaView?.content) {
+      previewParts.push(renderPreviewSection(cordobaView.label, cordobaView.content));
+      previewParts.push(buildPreviewFigureMarkup(data.imageFiles, data, availablePlacements, "after-cordobaView"));
+    }
+
+    const endFigures = buildPreviewFigureMarkup(data.imageFiles, data, availablePlacements, "end");
+    if (endFigures) {
+      previewParts.push(`<section class="preview-section"><h3>Figures / Screenshots</h3>${endFigures}</section>`);
+    }
+
+    if (data.modelLink || data.modelFiles.length) {
+      previewParts.push(`<section class="preview-section"><h3>Model Files</h3>`);
+      if (data.modelLink) previewParts.push(`<p>${escapeHtml(data.modelLink)}</p>`);
+      if (data.modelFiles.length) {
+        previewParts.push(`<ul>${data.modelFiles.map((file) => `<li>${escapeHtml(file.name)}</li>`).join("")}</ul>`);
+      }
+      previewParts.push(`</section>`);
+    }
+
+    previewParts.push(`</article>`);
+    dom.previewModalBody.innerHTML = previewParts.join("");
+    dom.previewModal.hidden = false;
+  }
+
+  function closePreviewModal() {
+    if (!dom.previewModal || !dom.previewModalBody) return;
+    dom.previewModal.hidden = true;
+    dom.previewModalBody.innerHTML = "";
+    cleanupPreviewAssets();
   }
 
   async function createDocument(data) {
@@ -3626,7 +4015,8 @@ document.addEventListener("DOMContentLoaded", () => {
         docxLib,
         colors,
         getFigureFilesForPlacement(data, "after-macroFiProfile", availablePlacements),
-        figureCounterRef
+        figureCounterRef,
+        { figureDetails: data.figureDetails }
       );
     } else {
       documentChildren.push(new docxLib.Paragraph({ spacing: { after: 70 } }));
@@ -3640,7 +4030,8 @@ document.addEventListener("DOMContentLoaded", () => {
       docxLib,
       colors,
       getFigureFilesForPlacement(data, "after-keyTakeaways", availablePlacements),
-      figureCounterRef
+      figureCounterRef,
+      { figureDetails: data.figureDetails }
     );
 
     for (const section of middle) {
@@ -3650,7 +4041,8 @@ document.addEventListener("DOMContentLoaded", () => {
         docxLib,
         colors,
         getFigureFilesForPlacement(data, `after-${section.key}`, availablePlacements),
-        figureCounterRef
+        figureCounterRef,
+        { figureDetails: data.figureDetails }
       );
     }
 
@@ -3661,7 +4053,8 @@ document.addEventListener("DOMContentLoaded", () => {
         docxLib,
         colors,
         getFigureFilesForPlacement(data, "after-cordobaView", availablePlacements),
-        figureCounterRef
+        figureCounterRef,
+        { figureDetails: data.figureDetails }
       );
     }
 
@@ -3669,7 +4062,8 @@ document.addEventListener("DOMContentLoaded", () => {
     if (endFigures.length) {
       await appendPlacedFigures(documentChildren, docxLib, colors, endFigures, figureCounterRef, {
         withHeading: true,
-        heading: "Figures / Screenshots"
+        heading: "Figures / Screenshots",
+        figureDetails: data.figureDetails
       });
     }
 
@@ -3772,7 +4166,8 @@ document.addEventListener("DOMContentLoaded", () => {
         docxLib,
         colors,
         getFigureFilesForPlacement(data, "after-businessDescription", availablePlacements),
-        figureCounterRef
+        figureCounterRef,
+        { figureDetails: data.figureDetails }
       );
     }
 
@@ -3786,7 +4181,8 @@ document.addEventListener("DOMContentLoaded", () => {
         docxLib,
         colors,
         getFigureFilesForPlacement(data, "after-valuationSummary", availablePlacements),
-        figureCounterRef
+        figureCounterRef,
+        { figureDetails: data.figureDetails }
       );
     }
 
@@ -3797,7 +4193,8 @@ document.addEventListener("DOMContentLoaded", () => {
         docxLib,
         colors,
         getFigureFilesForPlacement(data, `after-${section.key}`, availablePlacements),
-        figureCounterRef
+        figureCounterRef,
+        { figureDetails: data.figureDetails }
       );
     }
 
@@ -3805,7 +4202,8 @@ document.addEventListener("DOMContentLoaded", () => {
     if (endFigures.length) {
       await appendPlacedFigures(children, docxLib, colors, endFigures, figureCounterRef, {
         withHeading: true,
-        heading: "Figures / Screenshots"
+        heading: "Figures / Screenshots",
+        figureDetails: data.figureDetails
       });
     }
 
@@ -3821,7 +4219,8 @@ document.addEventListener("DOMContentLoaded", () => {
         docxLib,
         colors,
         getFigureFilesForPlacement(data, "after-cordobaView", availablePlacements),
-        figureCounterRef
+        figureCounterRef,
+        { figureDetails: data.figureDetails }
       );
     }
 
@@ -4812,8 +5211,8 @@ document.addEventListener("DOMContentLoaded", () => {
     ];
   }
 
-  async function buildEquityOnlyImageParagraphs(docxLib, colors, files) {
-    return buildImageParagraphs(docxLib, files, colors, 1);
+  async function buildEquityOnlyImageParagraphs(docxLib, colors, files, figureDetails = {}) {
+    return buildImageParagraphs(docxLib, files, colors, 1, figureDetails);
   }
 
   function nomuraDisplayType(noteType) {
@@ -5545,7 +5944,7 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     const startIndex = output.length ? 2 : 1;
-    const imageParagraphs = await buildImageParagraphs(docxLib, data.imageFiles, colors, startIndex);
+    const imageParagraphs = await buildImageParagraphs(docxLib, data.imageFiles, colors, startIndex, data.figureDetails || {});
     output.push(...imageParagraphs);
 
     return output;
@@ -5601,52 +6000,79 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   function buildCrgRatingMethodologySection(docxLib, colors) {
+    const rows = [
+      ["Outperform (O)", "Expected 15%+ upside over 12 months, supported by clear fundamental progress and identifiable catalysts."],
+      ["Sector Perform (SP)", "Return profile looks broadly balanced versus the sector over 12 months, with upside and downside more evenly matched."],
+      ["Underperform (U)", "Meaningful downside risk or an inferior return profile over 12 months relative to the sector opportunity set."],
+      ["Restricted (R)", "Non-Shariah-compliant businesses are not rated for recommendation purposes within the CRG framework."],
+      ["Not Rated (NR)", "Coverage is incomplete, conviction is still forming, or available evidence is not yet sufficient for a formal rating call."]
+    ];
+
     return [
-      buildNomuraSubhead(docxLib, colors, "Priority CRG Rating Model"),
+      buildNomuraSubhead(docxLib, colors, "CRG Rating Definitions"),
       new docxLib.Paragraph({
         children: [
           new docxLib.TextRun({
-            text: "CRG ratings are assigned on a medium-term institutional horizon and reflect our internal view on fundamental compounding, balance-sheet quality, market-implied expectations, catalyst visibility, and valuation asymmetry rather than near-term price noise.",
+            text: "The CRG rating scale is intended to help readers interpret the return profile implied by our published view. The ratings below are reader-facing definitions rather than personal recommendations or regulated investment advice.",
             font: "Arial",
             size: 18,
             color: colors.ink
           })
         ],
-        spacing: { after: 52 }
+        spacing: { after: 46 }
       }),
-      new docxLib.Paragraph({
-        children: [
-          new docxLib.TextRun({
-            text: "Outperform is reserved for businesses where the five-year earnings path, reinvestment runway, and valuation setup combine to offer clear upside against the prevailing market base case. Sector Perform is used where quality is intact but upside looks more balanced, timing is less visible, or the market is already discounting much of the operating improvement. Underperform reflects a weak reward-to-risk profile, deteriorating economics, capital-allocation concerns, or valuation that still looks too generous relative to the underlying cash-flow path.",
-            font: "Arial",
-            size: 18,
-            color: colors.ink
+      new docxLib.Table({
+        width: { size: 100, type: docxLib.WidthType.PERCENTAGE },
+        borders: {
+          top: { color: colors.line, style: docxLib.BorderStyle.SINGLE, size: 4 },
+          bottom: { color: colors.line, style: docxLib.BorderStyle.SINGLE, size: 4 },
+          left: { color: colors.line, style: docxLib.BorderStyle.SINGLE, size: 4 },
+          right: { color: colors.line, style: docxLib.BorderStyle.SINGLE, size: 4 },
+          insideHorizontal: { color: colors.line, style: docxLib.BorderStyle.SINGLE, size: 4 },
+          insideVertical: { color: colors.line, style: docxLib.BorderStyle.SINGLE, size: 4 }
+        },
+        rows: rows.map((row) =>
+          new docxLib.TableRow({
+            children: row.map((cell, index) =>
+              new docxLib.TableCell({
+                width: { size: index === 0 ? 26 : 74, type: docxLib.WidthType.PERCENTAGE },
+                shading: { fill: index === 0 ? "F2F4F7" : "FAFBFC" },
+                margins: { top: 70, bottom: 70, left: 90, right: 90 },
+                children: [
+                  new docxLib.Paragraph({
+                    children: [
+                      new docxLib.TextRun({
+                        text: cell,
+                        bold: index === 0,
+                        font: "Arial",
+                        size: 17,
+                        color: index === 0 ? colors.black : colors.ink
+                      })
+                    ],
+                    spacing: { after: 0 }
+                  })
+                ]
+              })
+            )
           })
-        ],
-        spacing: { after: 52 }
+        )
       }),
-      new docxLib.Paragraph({
-        children: [
-          new docxLib.TextRun({
-            text: "Restricted is applied where the business falls outside our Shariah-compliant investment perimeter. Not Rated is used where coverage is still exploratory, diligence is incomplete, or conviction is not yet high enough to support a formal rating call. In every case, the CRG rating framework is intended to impose discipline on thesis quality, not to substitute for independent judgment or regulated investment advice.",
-            font: "Arial",
-            size: 18,
-            color: colors.ink
-          })
-        ],
-        spacing: { after: 58 }
-      })
+      new docxLib.Paragraph({ spacing: { after: 64 } })
     ];
   }
 
-  async function buildImageParagraphs(docxLib, files, colors, startIndex = 1) {
+  async function buildImageParagraphs(docxLib, files, colors, startIndex = 1, figureDetails = {}) {
     const output = [];
 
     for (let index = 0; index < files.length; index += 1) {
       const file = files[index];
       const buffer = await file.arrayBuffer();
       const size = await getImageFit(file, 560, 320);
-      const caption = file.name.replace(/\.[^.]+$/, "");
+      const figureKey = figureFileKey(file);
+      const detail = figureDetails[figureKey] || {};
+      const labelType = detail.labelType || defaultFigureLabelType(file);
+      const labelNumber = sanitizeFigureNumber(detail.labelNumber, startIndex + index);
+      const caption = detail.caption || defaultFigureCaption(file);
 
       output.push(
         new docxLib.Paragraph({
@@ -5663,7 +6089,7 @@ document.addEventListener("DOMContentLoaded", () => {
           alignment: docxLib.AlignmentType.CENTER,
           children: [
             new docxLib.TextRun({
-              text: `Figure ${startIndex + index}. ${caption}`,
+              text: `${labelType} ${labelNumber}. ${caption}`,
               italics: true,
               color: colors.muted,
               size: 15,
@@ -5680,7 +6106,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
   function formatProductionTimestamp(date) {
     const d = date instanceof Date ? date : new Date(date);
-    return formatLocalTimestamp(d);
+    return formatPublishedTimestampForDocument(d);
   }
 
   function formatLocalTimestamp(date) {
@@ -5698,6 +6124,22 @@ document.addEventListener("DOMContentLoaded", () => {
     const lookup = Object.fromEntries(parts.map((part) => [part.type, part.value]));
     const zone = lookup.timeZoneName || Intl.DateTimeFormat().resolvedOptions().timeZone || "";
     return `${lookup.day} ${lookup.month} ${lookup.year}, ${lookup.hour}:${lookup.minute} ${zone}`.replace(/\s+/g, " ").trim();
+  }
+
+  function formatPublishedTimestampForDocument(date) {
+    const d = date instanceof Date ? date : new Date(date);
+    const parts = new Intl.DateTimeFormat("en-GB", {
+      day: "numeric",
+      month: "long",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: false,
+      timeZoneName: "short"
+    }).formatToParts(d);
+    const lookup = Object.fromEntries(parts.map((part) => [part.type, part.value]));
+    const zone = lookup.timeZoneName || Intl.DateTimeFormat().resolvedOptions().timeZone || "";
+    return `${lookup.day} ${lookup.month} ${lookup.year} | ${lookup.hour}:${lookup.minute} ${zone}`.replace(/\s+/g, " ").trim();
   }
 
   function getImageFit(file, maxWidth, maxHeight) {
