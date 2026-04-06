@@ -1045,6 +1045,10 @@ input[type="file"]::file-selector-button {
   margin-bottom: 0;
 }
 
+.rich-editor-surface p.rich-text-spacer {
+  min-height: 0.85em;
+}
+
 .rich-editor-surface ul,
 .rich-editor-surface ol {
   padding-left: 22px;
