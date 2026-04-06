@@ -786,18 +786,8 @@ document.addEventListener("DOMContentLoaded", () => {
   function syncRichToolbarState(shell, surface) {
     if (!shell || !surface) return;
     const block = getRichTextBlockElement(surface) || surface.querySelector("p, ul, ol");
-    const styleSelect = shell.querySelector("[data-rich-paragraph-style]");
     const alignButtons = shell.querySelectorAll("[data-rich-align]");
-
-    const currentStyle = block instanceof Element && block.matches("p")
-      ? getBlockStyleFromElement(block)
-      : "body";
     const currentAlign = getBlockAlignmentFromElement(block);
-
-    if (styleSelect) {
-      styleSelect.value = currentStyle;
-      styleSelect.disabled = !(block instanceof Element);
-    }
 
     alignButtons.forEach((button) => {
       button.classList.toggle("is-active", button.getAttribute("data-rich-align") === currentAlign);
@@ -852,12 +842,6 @@ document.addEventListener("DOMContentLoaded", () => {
 
   function getRichTextToolbarMarkup() {
     return `
-      <select class="rich-editor-select" data-rich-paragraph-style aria-label="Paragraph style">
-        <option value="body">Body</option>
-        <option value="subheading">Subheading</option>
-        <option value="quote">Quote</option>
-        <option value="source-note">Source note</option>
-      </select>
       <button type="button" class="rich-editor-btn" data-rich-command="bold" aria-label="Bold"><strong>B</strong></button>
       <button type="button" class="rich-editor-btn" data-rich-command="italic" aria-label="Italic"><em>I</em></button>
       <button type="button" class="rich-editor-btn" data-rich-command="underline" aria-label="Underline"><span class="is-underlined">U</span></button>
@@ -932,15 +916,6 @@ document.addEventListener("DOMContentLoaded", () => {
       if (event.target.closest("[data-rich-command], [data-rich-align]")) {
         event.preventDefault();
       }
-    });
-
-    toolbar.addEventListener("change", (event) => {
-      const styleSelect = event.target.closest("[data-rich-paragraph-style]");
-      if (!styleSelect) return;
-      if (document.activeElement !== surface) surface.focus();
-      applyParagraphStyle(surface, styleSelect.value);
-      handleRichTextSurfaceUpdate(surface, sourceTextarea, true);
-      syncRichToolbarState(shell, surface);
     });
 
     toolbar.addEventListener("click", (event) => {
@@ -7579,7 +7554,7 @@ document.addEventListener("DOMContentLoaded", () => {
           new docxLib.TextRun({
             text: " ",
             font: "Arial",
-            size: 3,
+            size: 1,
             color: "1B1F24"
           })
         ],
