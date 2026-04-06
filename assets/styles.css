@@ -2016,7 +2016,7 @@ input[type="file"]::file-selector-button {
 }
 
 .preview-export-section p {
-  margin: 0 0 5px;
+  margin: 0 0 4px;
 }
 
 .preview-export-section ul {
@@ -2026,7 +2026,7 @@ input[type="file"]::file-selector-button {
 
 .preview-export-section p.rich-text-spacer {
   min-height: 0.08em;
-  margin-bottom: 2px;
+  margin-bottom: 1px;
 }
 
 .preview-export-section .rich-text-subheading {
@@ -2037,7 +2037,7 @@ input[type="file"]::file-selector-button {
 }
 
 .preview-export-section .rich-text-quote {
-  margin: 0 0 8px;
+  margin: 0 0 4px;
   padding-left: 12px;
   border-left: 1px solid #d7dce4;
   color: var(--ink-muted);
