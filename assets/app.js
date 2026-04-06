@@ -7511,6 +7511,8 @@ document.addEventListener("DOMContentLoaded", () => {
       };
     };
 
+    const getLineSpacing = (size) => Math.max(200, Math.round(Number(size || 18) * 15.8));
+
     const makeRuns = (runs, baseFormat, withPrefix = null) => {
       const children = [];
 
@@ -7579,7 +7581,11 @@ document.addEventListener("DOMContentLoaded", () => {
               indent: { left: 180, hanging: 120 },
               alignment: baseFormat.alignment,
               children: makeRuns(item.runs, baseFormat, prefix),
-              spacing: { after: itemIndex === block.items.length - 1 ? 0 : 24 }
+              spacing: {
+                after: itemIndex === block.items.length - 1 ? 0 : 24,
+                line: getLineSpacing(baseFormat.size),
+                lineRule: docxLib.LineRuleType?.AUTO || "auto"
+              }
             })
           );
         });
@@ -7589,7 +7595,11 @@ document.addEventListener("DOMContentLoaded", () => {
             alignment: baseFormat.alignment,
             indent: baseFormat.indent,
             children: makeRuns(block.runs, baseFormat),
-            spacing: { after: 0 }
+            spacing: {
+              after: 0,
+              line: getLineSpacing(baseFormat.size),
+              lineRule: docxLib.LineRuleType?.AUTO || "auto"
+            }
           })
         );
       }
