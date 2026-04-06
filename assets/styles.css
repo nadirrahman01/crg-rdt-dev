@@ -1033,7 +1033,8 @@ input[type="file"]::file-selector-button {
   min-height: 176px;
   padding: 12px 13px;
   color: var(--ink);
-  line-height: 1.6;
+  font-size: 13px;
+  line-height: 1.58;
   outline: none;
   white-space: normal;
 }
@@ -1049,7 +1050,7 @@ input[type="file"]::file-selector-button {
 .rich-editor-surface ol,
 .rich-editor-surface h3,
 .rich-editor-surface blockquote {
-  margin: 0 0 5px;
+  margin: 0 0 4px;
 }
 
 .rich-editor-surface p:last-child,
@@ -1062,7 +1063,7 @@ input[type="file"]::file-selector-button {
 
 .rich-editor-surface p.rich-text-spacer {
   min-height: 0.08em;
-  margin-bottom: 2px;
+  margin-bottom: 1px;
 }
 
 .rich-editor-surface ul,
@@ -1071,7 +1072,7 @@ input[type="file"]::file-selector-button {
 }
 
 .rich-editor-surface li + li {
-  margin-top: 6px;
+  margin-top: 5px;
 }
 
 .rich-editor-surface h3 {
