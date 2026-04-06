@@ -974,6 +974,96 @@ input[type="file"]::file-selector-button {
   font-size: 12px;
 }
 
+.rich-editor-shell {
+  margin-top: 8px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: #fff;
+  overflow: hidden;
+}
+
+.rich-editor-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--line);
+  background: #f8f9fb;
+}
+
+.rich-editor-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 30px;
+  height: 28px;
+  padding: 0 8px;
+  border: 1px solid var(--line-strong);
+  border-radius: 8px;
+  background: #fff;
+  color: var(--ink);
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.rich-editor-btn:hover {
+  background: var(--panel-soft);
+}
+
+.rich-editor-btn .is-underlined {
+  text-decoration: underline;
+}
+
+.rich-editor-surface {
+  min-height: 176px;
+  padding: 12px 13px;
+  color: var(--ink);
+  line-height: 1.6;
+  outline: none;
+  white-space: normal;
+}
+
+.rich-editor-surface.is-empty::before {
+  content: attr(data-placeholder);
+  color: var(--ink-muted);
+  pointer-events: none;
+}
+
+.rich-editor-surface p,
+.rich-editor-surface ul,
+.rich-editor-surface ol,
+.rich-editor-surface h3 {
+  margin: 0 0 12px;
+}
+
+.rich-editor-surface p:last-child,
+.rich-editor-surface ul:last-child,
+.rich-editor-surface ol:last-child,
+.rich-editor-surface h3:last-child {
+  margin-bottom: 0;
+}
+
+.rich-editor-surface ul,
+.rich-editor-surface ol {
+  padding-left: 22px;
+}
+
+.rich-editor-surface h3 {
+  color: var(--red-dark);
+  font-size: 15px;
+  line-height: 1.3;
+}
+
+.rich-editor-surface li + li {
+  margin-top: 6px;
+}
+
+.rich-editor-source {
+  display: none;
+}
+
 .methodology-panel {
   background: #fbfbfc;
 }
@@ -1484,6 +1574,55 @@ input[type="file"]::file-selector-button {
   overflow: auto;
   padding: 22px 24px 26px;
   background: #f3f5f8;
+}
+
+.summary-modal-dialog {
+  width: min(940px, calc(100vw - 32px));
+}
+
+.summary-modal-body {
+  background: #f6f7f9;
+}
+
+.summary-sheet {
+  margin: 0 auto;
+  max-width: 760px;
+  padding: 26px 28px 30px;
+  border: 1px solid var(--line);
+  background: #fff;
+  box-shadow: var(--shadow);
+}
+
+.summary-sheet-head {
+  margin-bottom: 16px;
+}
+
+.summary-note-title {
+  display: block;
+  color: var(--navy);
+  font-size: 22px;
+  line-height: 1.2;
+}
+
+.summary-sheet-copy {
+  margin: 8px 0 0;
+  color: var(--ink-soft);
+  font-size: 13px;
+  line-height: 1.55;
+}
+
+.summary-editor-shell {
+  margin-top: 0;
+}
+
+.summary-editor-surface {
+  min-height: 420px;
+}
+
+.preview-export-section ol,
+.summary-editor-surface ol {
+  margin: 0;
+  padding-left: 18px;
 }
 
 .preview-sheet {
