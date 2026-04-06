@@ -313,6 +313,16 @@ document.addEventListener("DOMContentLoaded", () => {
     previewModalBody: document.getElementById("previewModalBody"),
     closePreviewBtn: document.getElementById("closePreviewBtn"),
     previewGenerateBtn: document.getElementById("previewGenerateBtn"),
+    summariseBtn: document.getElementById("summariseBtn"),
+    summaryModal: document.getElementById("summaryModal"),
+    summaryModalBackdrop: document.getElementById("summaryModalBackdrop"),
+    closeSummaryBtn: document.getElementById("closeSummaryBtn"),
+    summaryNoteTitle: document.getElementById("summaryNoteTitle"),
+    summaryModalSubtitle: document.getElementById("summaryModalSubtitle"),
+    summaryToolbar: document.getElementById("summaryToolbar"),
+    summaryEditor: document.getElementById("summaryEditor"),
+    copySummaryBtn: document.getElementById("copySummaryBtn"),
+    publishSummaryBtn: document.getElementById("publishSummaryBtn"),
     generateDocBtn: document.getElementById("generateDocBtn"),
     emailToCrgBtn: document.getElementById("emailToCrgBtn"),
     resetFormBtn: document.getElementById("resetFormBtn"),
@@ -350,7 +360,9 @@ document.addEventListener("DOMContentLoaded", () => {
     figurePlacements: {},
     figureFiles: [],
     figureDetails: {},
-    previewObjectUrls: []
+    previewObjectUrls: [],
+    richEditors: new Map(),
+    summaryHtml: ""
   };
 
   const draftFieldIds = [
@@ -404,6 +416,16 @@ document.addEventListener("DOMContentLoaded", () => {
     "chartRange"
   ];
 
+  const RICH_TEXT_FIELD_IDS = [
+    "businessDescription",
+    "valuationSummary",
+    "analysis",
+    "content",
+    "fiveYearRationale",
+    "esgSummary",
+    "cordobaView"
+  ];
+
   init();
 
   function init() {
@@ -416,6 +438,8 @@ document.addEventListener("DOMContentLoaded", () => {
     initializeBodySectionEditor();
     wireFormEvents();
     restoreDraft();
+    initializeRichTextEditors();
+    initializeSummaryEditor();
     ensurePublicationDate();
     initializeFinancialTableEditor();
     ensureDeskLineDefault();
@@ -632,8 +656,14 @@ document.addEventListener("DOMContentLoaded", () => {
       closePreviewModal();
       form.requestSubmit(dom.generateDocBtn);
     });
+    dom.summariseBtn?.addEventListener("click", openSummaryModal);
+    dom.closeSummaryBtn?.addEventListener("click", closeSummaryModal);
+    dom.summaryModalBackdrop?.addEventListener("click", closeSummaryModal);
+    dom.copySummaryBtn?.addEventListener("click", copySummaryToClipboard);
+    dom.publishSummaryBtn?.addEventListener("click", publishSummaryToResearchCommentary);
     document.addEventListener("keydown", (event) => {
       if (event.key === "Escape" && !dom.previewModal?.hidden) closePreviewModal();
+      if (event.key === "Escape" && !dom.summaryModal?.hidden) closeSummaryModal();
     });
     dom.emailToCrgBtn.addEventListener("click", draftEmailToResearch);
     dom.resetFormBtn.addEventListener("click", resetDraft);
@@ -673,6 +703,168 @@ document.addEventListener("DOMContentLoaded", () => {
 
   function toggleRail() {
     applyRailState(!state.railCollapsed);
+  }
+
+  function getRichTextToolbarMarkup() {
+    return `
+      <button type="button" class="rich-editor-btn" data-rich-command="bold" aria-label="Bold"><strong>B</strong></button>
+      <button type="button" class="rich-editor-btn" data-rich-command="italic" aria-label="Italic"><em>I</em></button>
+      <button type="button" class="rich-editor-btn" data-rich-command="underline" aria-label="Underline"><span class="is-underlined">U</span></button>
+      <button type="button" class="rich-editor-btn" data-rich-command="insertUnorderedList" aria-label="Bullet list">•</button>
+      <button type="button" class="rich-editor-btn" data-rich-command="insertOrderedList" aria-label="Numbered list">1.</button>
+    `;
+  }
+
+  function initializeRichTextEditors() {
+    RICH_TEXT_FIELD_IDS.forEach((id) => enhanceRichTextField(document.getElementById(id)));
+    dom.bodySections?.querySelectorAll("textarea[data-custom-field='content']").forEach((textarea) => {
+      enhanceRichTextField(textarea);
+    });
+  }
+
+  function initializeSummaryEditor() {
+    const shell = dom.summaryEditor?.closest(".rich-editor-shell");
+    if (!shell || shell.dataset.richWired === "true") return;
+    wireRichTextShell(shell, null, { preserveStructure: true });
+    updateRichEditorEmptyState(dom.summaryEditor);
+  }
+
+  function enhanceRichTextField(textarea) {
+    if (!(textarea instanceof HTMLTextAreaElement) || textarea.dataset.richTextEnhanced === "true") return;
+
+    textarea.dataset.richTextEnhanced = "true";
+    textarea.classList.add("rich-editor-source");
+
+    const shell = document.createElement("div");
+    shell.className = "rich-editor-shell";
+    shell.innerHTML = `
+      <div class="rich-editor-toolbar" aria-label="Text formatting toolbar">${getRichTextToolbarMarkup()}</div>
+      <div class="rich-editor-surface" contenteditable="true" role="textbox" aria-multiline="true" data-placeholder="${escapeAttribute(textarea.getAttribute("placeholder") || "Write here.")}"></div>
+    `;
+
+    textarea.parentElement.insertBefore(shell, textarea);
+    shell.appendChild(textarea);
+
+    const surface = shell.querySelector(".rich-editor-surface");
+    wireRichTextShell(shell, textarea);
+    syncRichTextSurfaceFromSource(textarea, surface);
+
+    const label = document.querySelector(`label[for='${textarea.id}']`);
+    if (label && label.dataset.richTextBound !== "true") {
+      label.dataset.richTextBound = "true";
+      label.addEventListener("click", (event) => {
+        event.preventDefault();
+        surface.focus();
+      });
+    }
+  }
+
+  function wireRichTextShell(shell, sourceTextarea = null, options = {}) {
+    if (!shell || shell.dataset.richWired === "true") return;
+    const toolbar = shell.querySelector(".rich-editor-toolbar");
+    const surface = shell.querySelector(".rich-editor-surface");
+    if (!toolbar || !surface) return;
+
+    shell.dataset.richWired = "true";
+
+    if (sourceTextarea) {
+      state.richEditors.set(sourceTextarea, { shell, toolbar, surface, source: sourceTextarea });
+    }
+
+    toolbar.addEventListener("mousedown", (event) => {
+      if (event.target.closest("[data-rich-command]")) {
+        event.preventDefault();
+      }
+    });
+
+    toolbar.addEventListener("click", (event) => {
+      const button = event.target.closest("[data-rich-command]");
+      if (!button) return;
+      const command = button.getAttribute("data-rich-command");
+      if (document.activeElement !== surface) surface.focus();
+      if (command === "insertOrderedList" || command === "insertUnorderedList") {
+        document.execCommand(command, false, null);
+      } else {
+        document.execCommand(command, false, null);
+      }
+      handleRichTextSurfaceUpdate(surface, sourceTextarea, true);
+    });
+
+    surface.addEventListener("input", () => {
+      handleRichTextSurfaceUpdate(surface, sourceTextarea, true);
+    });
+
+    surface.addEventListener("blur", () => {
+      handleRichTextSurfaceUpdate(surface, sourceTextarea, false);
+      if (options.preserveStructure) {
+        updateRichEditorEmptyState(surface);
+      } else {
+        normalizeRichTextSurface(surface, sourceTextarea);
+      }
+    });
+
+    surface.addEventListener("paste", (event) => {
+      event.preventDefault();
+      const text = event.clipboardData?.getData("text/plain") || "";
+      document.execCommand("insertText", false, text);
+      handleRichTextSurfaceUpdate(surface, sourceTextarea, true);
+    });
+  }
+
+  function handleRichTextSurfaceUpdate(surface, sourceTextarea = null, shouldDispatch = false) {
+    if (!surface) return;
+    updateRichEditorEmptyState(surface);
+    if (!sourceTextarea) return;
+
+    const nextValue = buildRichTextStorageValue(surface.innerHTML);
+    const changed = sourceTextarea.value !== nextValue;
+    sourceTextarea.value = nextValue;
+    if (shouldDispatch && changed) {
+      sourceTextarea.dispatchEvent(new Event("input", { bubbles: true }));
+    }
+  }
+
+  function normalizeRichTextSurface(surface, sourceTextarea = null) {
+    if (!surface) return;
+    const nextHtml = buildRichTextStorageValue(surface.innerHTML);
+    const normalized = buildEditorRichTextHtml(nextHtml);
+    if (surface.innerHTML !== normalized) {
+      surface.innerHTML = normalized;
+    }
+    updateRichEditorEmptyState(surface);
+    if (sourceTextarea && sourceTextarea.value !== nextHtml) {
+      sourceTextarea.value = nextHtml;
+      sourceTextarea.dispatchEvent(new Event("change", { bubbles: true }));
+    } else if (sourceTextarea) {
+      sourceTextarea.dispatchEvent(new Event("change", { bubbles: true }));
+    }
+  }
+
+  function syncRichTextSurfaceFromSource(sourceTextarea, surface) {
+    if (!surface) return;
+    surface.innerHTML = buildEditorRichTextHtml(sourceTextarea?.value || "");
+    updateRichEditorEmptyState(surface);
+  }
+
+  function buildEditorRichTextHtml(value) {
+    const stored = String(value || "").trim();
+    if (!stored) return "";
+    return buildRichTextStorageValue(stored);
+  }
+
+  function updateRichEditorEmptyState(surface) {
+    if (!surface) return;
+    surface.classList.toggle("is-empty", !richTextToPlainText(surface.innerHTML));
+  }
+
+  function refreshRichTextEditorsFromSources() {
+    state.richEditors.forEach((entry, sourceTextarea) => {
+      if (!document.body.contains(sourceTextarea) || !document.body.contains(entry.surface)) {
+        state.richEditors.delete(sourceTextarea);
+        return;
+      }
+      syncRichTextSurfaceFromSource(sourceTextarea, entry.surface);
+    });
   }
 
   function todayIsoDate() {
@@ -1021,7 +1213,10 @@ document.addEventListener("DOMContentLoaded", () => {
 
     if (shouldAppend) {
       dom.bodySections.appendChild(fragment);
-      return dom.bodySections.querySelector(`[data-section-key='${key}']`);
+      const cardElement = dom.bodySections.querySelector(`[data-section-key='${key}']`);
+      const customTextarea = cardElement?.querySelector("textarea[data-custom-field='content']");
+      if (customTextarea) enhanceRichTextField(customTextarea);
+      return cardElement;
     }
 
     return card;
@@ -1775,7 +1970,7 @@ document.addEventListener("DOMContentLoaded", () => {
     if (element instanceof HTMLInputElement && element.type === "file") {
       return Array.from(element.files || []).length > 0;
     }
-    return String(element.value || "").trim().length > 0;
+    return richTextToPlainText(element.value).trim().length > 0;
   }
 
   function validateForm(showErrors = false) {
@@ -1815,7 +2010,7 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   function normalizeComparableText(value) {
-    return String(value || "")
+    return richTextToPlainText(value)
       .normalize("NFD")
       .replace(/[\u0300-\u036f]/g, "")
       .toLowerCase()
@@ -2504,11 +2699,14 @@ document.addEventListener("DOMContentLoaded", () => {
     updateCoverageCountryDisplayFromCode();
     renderIndustryOptions("");
     restoreBodySectionLayout([]);
+    initializeRichTextEditors();
+    refreshRichTextEditorsFromSources();
     updateFileSummary(dom.modelFiles, dom.modelSummaryHead, dom.modelSummaryList, "No supporting files attached.");
     updateFigureSummary();
     syncFigurePlacementControls();
     toggleNoteTypeSections();
     closePreviewModal();
+    closeSummaryModal();
     clearMessage();
     updateAllUI();
   }
@@ -3959,18 +4157,262 @@ document.addEventListener("DOMContentLoaded", () => {
       .replace(/'/g, "&#39;");
   }
 
-  function lineItems(text) {
+  function isHtmlLike(value) {
+    return /<[^>]+>/.test(String(value || ""));
+  }
+
+  function plainTextToRichTextHtml(text) {
     return String(text || "")
-      .split("\n")
-      .map((line) => line.replace(/^[-*•]\s*/, "").trim())
+      .replace(/\r\n/g, "\n")
+      .split(/\n+/)
+      .map((block) => block.trim())
+      .filter(Boolean)
+      .map((block) => `<p>${escapeHtml(block)}</p>`)
+      .join("");
+  }
+
+  function sanitizeRichTextHtml(html) {
+    const wrapper = document.createElement("div");
+    wrapper.innerHTML = String(html || "");
+    const output = document.createElement("div");
+    const allowedTags = new Set(["P", "DIV", "BR", "UL", "OL", "LI", "STRONG", "EM", "U"]);
+
+    function sanitizeNode(node) {
+      if (node.nodeType === Node.TEXT_NODE) {
+        return document.createTextNode((node.textContent || "").replace(/\u00A0/g, " "));
+      }
+
+      if (node.nodeType !== Node.ELEMENT_NODE) {
+        return document.createDocumentFragment();
+      }
+
+      const originalTag = node.tagName.toUpperCase();
+      if (["SCRIPT", "STYLE", "META", "LINK"].includes(originalTag)) {
+        return document.createDocumentFragment();
+      }
+
+      const mappedTag = originalTag === "B"
+        ? "STRONG"
+        : originalTag === "I"
+          ? "EM"
+          : originalTag === "DIV"
+            ? "P"
+          : originalTag;
+
+      const fragment = document.createDocumentFragment();
+      Array.from(node.childNodes).forEach((child) => {
+        fragment.appendChild(sanitizeNode(child));
+      });
+
+      if (!allowedTags.has(mappedTag)) {
+        return fragment;
+      }
+
+      const clean = document.createElement(mappedTag.toLowerCase());
+      Array.from(fragment.childNodes).forEach((child) => clean.appendChild(child));
+      return clean;
+    }
+
+    Array.from(wrapper.childNodes).forEach((child) => {
+      output.appendChild(sanitizeNode(child));
+    });
+
+    return output.innerHTML
+      .replace(/<(p|div)>(\s|&nbsp;|<br\s*\/?>)*<\/\1>/gi, "")
+      .trim();
+  }
+
+  function buildRichTextStorageValue(value) {
+    const text = String(value || "").trim();
+    if (!text) return "";
+    return sanitizeRichTextHtml(isHtmlLike(text) ? text : plainTextToRichTextHtml(text));
+  }
+
+  function parseInlineRuns(nodes, formatState = { bold: false, italic: false, underline: false }) {
+    const runs = [];
+
+    function pushRun(text, formats) {
+      const cleanText = String(text || "").replace(/\u00A0/g, " ");
+      if (!cleanText) return;
+      const previous = runs[runs.length - 1];
+      if (
+        previous &&
+        !previous.break &&
+        previous.bold === formats.bold &&
+        previous.italic === formats.italic &&
+        previous.underline === formats.underline
+      ) {
+        previous.text += cleanText;
+        return;
+      }
+
+      runs.push({
+        text: cleanText,
+        bold: formats.bold,
+        italic: formats.italic,
+        underline: formats.underline
+      });
+    }
+
+    function walk(node, formats) {
+      if (node.nodeType === Node.TEXT_NODE) {
+        pushRun(node.textContent || "", formats);
+        return;
+      }
+
+      if (node.nodeType !== Node.ELEMENT_NODE) return;
+
+      const tag = node.tagName.toUpperCase();
+      if (tag === "BR") {
+        runs.push({ break: true });
+        return;
+      }
+
+      const nextFormats = {
+        bold: formats.bold || tag === "STRONG" || tag === "B",
+        italic: formats.italic || tag === "EM" || tag === "I",
+        underline: formats.underline || tag === "U"
+      };
+
+      Array.from(node.childNodes).forEach((child) => walk(child, nextFormats));
+    }
+
+    Array.from(nodes || []).forEach((node) => walk(node, formatState));
+    return runs;
+  }
+
+  function inlineRunsToPlainText(runs) {
+    return (runs || [])
+      .map((run) => (run.break ? "\n" : run.text))
+      .join("")
+      .replace(/\n{3,}/g, "\n\n");
+  }
+
+  function hasVisibleRuns(runs) {
+    return inlineRunsToPlainText(runs).trim().length > 0;
+  }
+
+  function parseRichTextBlocks(value) {
+    const storedHtml = buildRichTextStorageValue(value);
+    if (!storedHtml) return [];
+
+    const wrapper = document.createElement("div");
+    wrapper.innerHTML = storedHtml;
+    const blocks = [];
+    let rootRuns = [];
+
+    function flushRootRuns() {
+      if (!hasVisibleRuns(rootRuns)) {
+        rootRuns = [];
+        return;
+      }
+      blocks.push({ type: "paragraph", runs: rootRuns });
+      rootRuns = [];
+    }
+
+    Array.from(wrapper.childNodes).forEach((node) => {
+      if (node.nodeType === Node.TEXT_NODE) {
+        rootRuns.push(...parseInlineRuns([node]));
+        return;
+      }
+
+      if (node.nodeType !== Node.ELEMENT_NODE) return;
+
+      const tag = node.tagName.toUpperCase();
+      if (tag === "P" || tag === "DIV") {
+        flushRootRuns();
+        const runs = parseInlineRuns(node.childNodes);
+        if (hasVisibleRuns(runs)) blocks.push({ type: "paragraph", runs });
+        return;
+      }
+
+      if (tag === "UL" || tag === "OL") {
+        flushRootRuns();
+        const items = Array.from(node.children)
+          .filter((child) => child.tagName.toUpperCase() === "LI")
+          .map((item) => ({ runs: parseInlineRuns(item.childNodes) }))
+          .filter((item) => hasVisibleRuns(item.runs));
+        if (items.length) blocks.push({ type: "list", ordered: tag === "OL", items });
+        return;
+      }
+
+      if (tag === "BR") {
+        flushRootRuns();
+        return;
+      }
+
+      rootRuns.push(...parseInlineRuns([node]));
+    });
+
+    flushRootRuns();
+    return blocks;
+  }
+
+  function richTextToPlainText(value) {
+    const blocks = parseRichTextBlocks(value);
+    if (!blocks.length) return String(value || "").trim();
+
+    return blocks
+      .flatMap((block) => {
+        if (block.type === "list") {
+          return block.items.map((item) => inlineRunsToPlainText(item.runs).trim()).filter(Boolean);
+        }
+        return [inlineRunsToPlainText(block.runs).trim()].filter(Boolean);
+      })
+      .join("\n\n")
+      .trim();
+  }
+
+  function serializeInlineRunsToHtml(runs) {
+    return (runs || []).map((run) => {
+      if (run.break) return "<br>";
+      let html = escapeHtml(run.text);
+      if (run.underline) html = `<u>${html}</u>`;
+      if (run.italic) html = `<em>${html}</em>`;
+      if (run.bold) html = `<strong>${html}</strong>`;
+      return html;
+    }).join("");
+  }
+
+  function serializeRichTextBlocksToHtml(blocks) {
+    return (blocks || []).map((block) => {
+      if (block.type === "list") {
+        const tag = block.ordered ? "ol" : "ul";
+        return `<${tag}>${block.items.map((item) => `<li>${serializeInlineRunsToHtml(item.runs)}</li>`).join("")}</${tag}>`;
+      }
+      return `<p>${serializeInlineRunsToHtml(block.runs)}</p>`;
+    }).join("");
+  }
+
+  function lineItems(text) {
+    const blocks = parseRichTextBlocks(text);
+    if (!blocks.length) {
+      return String(text || "")
+        .split("\n")
+        .map((line) => line.replace(/^[-*•]\s*/, "").trim())
+        .filter(Boolean);
+    }
+
+    return blocks
+      .flatMap((block) => {
+        if (block.type === "list") {
+          return block.items.map((item) => inlineRunsToPlainText(item.runs).trim());
+        }
+        return inlineRunsToPlainText(block.runs)
+          .split("\n")
+          .map((line) => line.replace(/^[-*•]\s*/, "").trim());
+      })
       .filter(Boolean);
   }
 
   function paragraphBlocks(text) {
-    return String(text || "")
-      .split(/\n{2,}/)
-      .map((block) => block.trim())
-      .filter(Boolean);
+    return parseRichTextBlocks(text)
+      .flatMap((block) => {
+        if (block.type === "list") {
+          return block.items.map((item) => inlineRunsToPlainText(item.runs).trim()).filter(Boolean);
+        }
+        return [inlineRunsToPlainText(block.runs).trim()].filter(Boolean);
+      });
   }
 
   function cleanupPreviewAssets() {
@@ -4043,10 +4485,11 @@ document.addEventListener("DOMContentLoaded", () => {
 
   function buildPreviewNarrativeHtml(label, content) {
     if (!content) return "";
+    const richHtml = serializeRichTextBlocksToHtml(parseRichTextBlocks(content));
     return `
       <section class="preview-export-section">
         <h3>${escapeHtml(label)}</h3>
-        ${paragraphBlocks(content).map((block) => `<p>${escapeHtml(block).replace(/\n/g, "<br>")}</p>`).join("")}
+        ${richHtml || "<p>No content supplied.</p>"}
       </section>
     `;
   }
@@ -4269,6 +4712,159 @@ document.addEventListener("DOMContentLoaded", () => {
         <span>Page ${pageNumber} of ${totalPages}</span>
       </footer>
     `;
+  }
+
+  function buildSummarySourceSections(data) {
+    const sections = [];
+
+    if (data.deck) {
+      sections.push({
+        key: "deck",
+        label: "Overview",
+        blocks: parseRichTextBlocks(data.deck),
+        suppressHeading: true
+      });
+    }
+
+    if (data.noteType === "Equity Research") {
+      if (data.businessDescription) {
+        sections.push({ key: "businessDescription", label: "Business Description", blocks: parseRichTextBlocks(data.businessDescription) });
+      }
+      if (data.valuationSummary) {
+        sections.push({ key: "valuationSummary", label: "Valuation Summary", blocks: parseRichTextBlocks(data.valuationSummary) });
+      }
+    }
+
+    normalizeBodySectionLayoutForExport(data)
+      .filter((entry) => !entry.hidden && entry.content)
+      .forEach((entry) => {
+        if (entry.key === "keyTakeaways") {
+          sections.push({
+            key: entry.key,
+            label: entry.label,
+            items: lineItems(entry.content)
+          });
+          return;
+        }
+
+        sections.push({
+          key: entry.key,
+          label: entry.label,
+          blocks: parseRichTextBlocks(entry.content)
+        });
+      });
+
+    return sections;
+  }
+
+  function buildSummaryDraftHtml(data) {
+    const sections = buildSummarySourceSections(data);
+    const totalWords = sections.reduce((sum, section) => {
+      if (section.items) return sum + countMeaningfulWords(section.items.join(" "));
+      return sum + countMeaningfulWords((section.blocks || []).map((block) => {
+        if (block.type === "list") {
+          return block.items.map((item) => inlineRunsToPlainText(item.runs)).join(" ");
+        }
+        return inlineRunsToPlainText(block.runs);
+      }).join(" "));
+    }, 0);
+
+    const targetWords = Math.max(90, Math.min(480, Math.round(totalWords * 0.56)));
+    const parts = [];
+    let usedWords = 0;
+    const wordCountForBlock = (block) => countMeaningfulWords(block.type === "list"
+      ? block.items.map((item) => inlineRunsToPlainText(item.runs)).join(" ")
+      : inlineRunsToPlainText(block.runs));
+
+    const narrativeSections = sections
+      .filter((section) => section.key !== "keyTakeaways")
+      .map((section) => ({ ...section, startBlockIndex: 0 }));
+
+    narrativeSections
+      .filter((section) => section.suppressHeading && section.blocks?.[0])
+      .forEach((section) => {
+        parts.push(serializeRichTextBlocksToHtml([section.blocks[0]]));
+        usedWords += wordCountForBlock(section.blocks[0]);
+        section.startBlockIndex = 1;
+      });
+
+    const keyTakeawaysSection = sections.find((section) => section.key === "keyTakeaways" && Array.isArray(section.items) && section.items.length);
+    if (keyTakeawaysSection) {
+      const items = keyTakeawaysSection.items.slice(0, Math.min(3, keyTakeawaysSection.items.length));
+      parts.push(`<h3>${escapeHtml(keyTakeawaysSection.label)}</h3>`);
+      parts.push(`<ul>${items.map((item) => `<li>${escapeHtml(item)}</li>`).join("")}</ul>`);
+      usedWords += countMeaningfulWords(items.join(" "));
+    }
+
+    const addedHeadings = new Set();
+    let round = 0;
+
+    while (usedWords < targetWords && narrativeSections.some((section) => (section.blocks || []).length > round + (section.startBlockIndex || 0))) {
+      narrativeSections.forEach((section) => {
+        const block = section.blocks?.[round + (section.startBlockIndex || 0)];
+        if (!block || usedWords >= targetWords) return;
+
+        if (!section.suppressHeading && !addedHeadings.has(section.key)) {
+          parts.push(`<h3>${escapeHtml(section.label)}</h3>`);
+          addedHeadings.add(section.key);
+        }
+
+        parts.push(serializeRichTextBlocksToHtml([block]));
+        usedWords += wordCountForBlock(block);
+      });
+      round += 1;
+    }
+
+    if (!parts.length && data.topic) {
+      parts.push(`<p>${escapeHtml(data.topic)}</p>`);
+    }
+
+    parts.push("<p><em>To read the full note, visit the Research Library.</em></p>");
+    return parts.join("");
+  }
+
+  function openSummaryModal() {
+    if (!dom.summaryModal || !dom.summaryEditor) return;
+
+    closePreviewModal();
+    const data = collectFormData();
+    const summaryHtml = buildSummaryDraftHtml(data);
+    state.summaryHtml = summaryHtml;
+    dom.summaryNoteTitle.textContent = data.title || "Untitled Research Note";
+    dom.summaryModalSubtitle.textContent = `Editable website summary generated from the current ${data.noteType || "research"} draft.`;
+    dom.summaryEditor.innerHTML = summaryHtml;
+    updateRichEditorEmptyState(dom.summaryEditor);
+    dom.summaryModal.hidden = false;
+  }
+
+  function closeSummaryModal() {
+    if (!dom.summaryModal) return;
+    dom.summaryModal.hidden = true;
+  }
+
+  async function copySummaryToClipboard() {
+    if (!dom.summaryEditor) return;
+    const summaryText = [dom.summaryNoteTitle?.textContent || "", richTextToPlainText(dom.summaryEditor.innerHTML)]
+      .filter(Boolean)
+      .join("\n\n")
+      .trim();
+
+    if (!summaryText) {
+      setMessage("error", "There is no summary copy available yet.");
+      return;
+    }
+
+    try {
+      await navigator.clipboard.writeText(summaryText);
+      setMessage("success", "Summary copied to clipboard.");
+    } catch (error) {
+      console.error("Summary copy failed:", error);
+      setMessage("error", "Unable to copy the summary from this browser session.");
+    }
+  }
+
+  function publishSummaryToResearchCommentary() {
+    window.open("https://cordobarg.com/research-commentary/", "_blank", "noopener");
   }
 
   function buildPreviewEquityCrgRatingDefinitionsPageHtml(data, pageNumber, totalPages) {
@@ -4566,6 +5162,7 @@ document.addEventListener("DOMContentLoaded", () => {
   function openPreviewModal() {
     if (!dom.previewModal || !dom.previewModalBody) return;
 
+    closeSummaryModal();
     cleanupPreviewAssets();
     const data = collectFormData();
     data.noteId = buildPreviewNoteId(data);
@@ -6384,24 +6981,90 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   function buildNomuraBodyParagraphs(docxLib, text) {
-    const blocks = paragraphBlocks(text);
+    const blocks = parseRichTextBlocks(text);
     if (!blocks.length) {
       return [new docxLib.Paragraph({ text: "No content supplied.", spacing: { after: 44 } })];
     }
 
-    return blocks.map((block) =>
-      new docxLib.Paragraph({
-        children: [
+    const makeRuns = (runs, withPrefix = null) => {
+      const children = [];
+
+      if (withPrefix) {
+        children.push(
           new docxLib.TextRun({
-            text: block.replace(/\s*\n\s*/g, " "),
+            text: withPrefix,
+            bold: true,
             font: "Arial",
             size: 18,
             color: "1B1F24"
           })
+        );
+      }
+
+      runs.forEach((run) => {
+        if (run.break) {
+          children.push(new docxLib.TextRun({ text: "", break: 1 }));
+          return;
+        }
+
+        children.push(
+          new docxLib.TextRun({
+            text: run.text,
+            bold: Boolean(run.bold),
+            italics: Boolean(run.italic),
+            underline: run.underline ? { type: docxLib.UnderlineType?.SINGLE || "single" } : undefined,
+            font: "Arial",
+            size: 18,
+            color: "1B1F24"
+          })
+        );
+      });
+
+      return children;
+    };
+
+    const makeSpacer = () =>
+      new docxLib.Paragraph({
+        children: [
+          new docxLib.TextRun({
+            text: " ",
+            font: "Arial",
+            size: 3,
+            color: "1B1F24"
+          })
         ],
-        spacing: { after: 58 }
-      })
-    );
+        spacing: { after: 0 }
+      });
+
+    return blocks.flatMap((block, index) => {
+      const paragraphs = [];
+
+      if (block.type === "list") {
+        block.items.forEach((item, itemIndex) => {
+          const prefix = block.ordered ? `${itemIndex + 1}. ` : "• ";
+          paragraphs.push(
+            new docxLib.Paragraph({
+              indent: { left: 180, hanging: 120 },
+              children: makeRuns(item.runs, prefix),
+              spacing: { after: itemIndex === block.items.length - 1 ? 0 : 24 }
+            })
+          );
+        });
+      } else {
+        paragraphs.push(
+          new docxLib.Paragraph({
+            children: makeRuns(block.runs),
+            spacing: { after: 0 }
+          })
+        );
+      }
+
+      if (index < blocks.length - 1) {
+        paragraphs.push(makeSpacer());
+      }
+
+      return paragraphs;
+    });
   }
 
   function buildNomuraMetricTable(docxLib, colors, rows) {
