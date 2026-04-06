@@ -705,13 +705,170 @@ document.addEventListener("DOMContentLoaded", () => {
     applyRailState(!state.railCollapsed);
   }
 
+  function normalizeParagraphStyle(value) {
+    const normalized = String(value || "").trim().toLowerCase();
+    if (normalized === "subheading") return "subheading";
+    if (normalized === "quote") return "quote";
+    if (normalized === "source-note" || normalized === "sourcenote") return "source-note";
+    return "body";
+  }
+
+  function normalizeParagraphAlignment(value) {
+    const normalized = String(value || "").trim().toLowerCase();
+    if (normalized === "center" || normalized === "centre") return "center";
+    if (normalized === "right") return "right";
+    if (normalized === "justify" || normalized === "justified") return "justify";
+    return "left";
+  }
+
+  function getRichTextSelectionNode(surface) {
+    const selection = window.getSelection?.();
+    if (!selection || !selection.rangeCount) return null;
+    let node = selection.anchorNode || selection.focusNode;
+    if (!node) return null;
+    if (node.nodeType === Node.TEXT_NODE) node = node.parentElement;
+    if (!(node instanceof Element) || !surface.contains(node)) return null;
+    return node;
+  }
+
+  function getRichTextBlockElement(surface) {
+    const node = getRichTextSelectionNode(surface);
+    if (!node) return null;
+    const block = node.closest("p, ul, ol");
+    return block && surface.contains(block) ? block : null;
+  }
+
+  function getBlockStyleFromElement(element) {
+    if (!(element instanceof Element)) return "body";
+    return normalizeParagraphStyle(element.getAttribute("data-paragraph-style"));
+  }
+
+  function getBlockAlignmentFromElement(element) {
+    if (!(element instanceof Element)) return "left";
+    return normalizeParagraphAlignment(
+      element.getAttribute("data-align") || element.style?.textAlign || element.getAttribute("align")
+    );
+  }
+
+  function syncRichBlockPresentation(element) {
+    if (!(element instanceof Element)) return;
+    const style = getBlockStyleFromElement(element);
+    const align = getBlockAlignmentFromElement(element);
+
+    element.classList.toggle("rich-text-subheading", style === "subheading");
+    element.classList.toggle("rich-text-quote", style === "quote");
+    element.classList.toggle("rich-text-source-note", style === "source-note");
+    element.classList.toggle("rt-align-center", align === "center");
+    element.classList.toggle("rt-align-right", align === "right");
+    element.classList.toggle("rt-align-justify", align === "justify");
+  }
+
+  function ensureRichTextParagraph(surface) {
+    if (!surface) return null;
+    let block = surface.querySelector("p, ul, ol");
+    if (block) return block;
+
+    surface.innerHTML = "<p><br></p>";
+    block = surface.querySelector("p");
+    return block;
+  }
+
+  function placeCaretAtEnd(element) {
+    if (!(element instanceof Element)) return;
+    const selection = window.getSelection?.();
+    const range = document.createRange();
+    range.selectNodeContents(element);
+    range.collapse(false);
+    selection?.removeAllRanges();
+    selection?.addRange(range);
+  }
+
+  function syncRichToolbarState(shell, surface) {
+    if (!shell || !surface) return;
+    const block = getRichTextBlockElement(surface) || surface.querySelector("p, ul, ol");
+    const styleSelect = shell.querySelector("[data-rich-paragraph-style]");
+    const alignButtons = shell.querySelectorAll("[data-rich-align]");
+
+    const currentStyle = block instanceof Element && block.matches("p")
+      ? getBlockStyleFromElement(block)
+      : "body";
+    const currentAlign = getBlockAlignmentFromElement(block);
+
+    if (styleSelect) {
+      styleSelect.value = currentStyle;
+      styleSelect.disabled = !(block instanceof Element);
+    }
+
+    alignButtons.forEach((button) => {
+      button.classList.toggle("is-active", button.getAttribute("data-rich-align") === currentAlign);
+    });
+  }
+
+  function applyParagraphStyle(surface, style) {
+    if (!surface) return;
+    const normalizedStyle = normalizeParagraphStyle(style);
+    const block = getRichTextBlockElement(surface) || ensureRichTextParagraph(surface);
+    if (!(block instanceof Element)) return;
+    if (!block.matches("p")) return;
+
+    if (normalizedStyle === "body") {
+      block.removeAttribute("data-paragraph-style");
+    } else {
+      block.setAttribute("data-paragraph-style", normalizedStyle);
+    }
+
+    syncRichBlockPresentation(block);
+    placeCaretAtEnd(block);
+  }
+
+  function applyParagraphAlignment(surface, align) {
+    if (!surface) return;
+    const normalizedAlign = normalizeParagraphAlignment(align);
+    const block = getRichTextBlockElement(surface) || ensureRichTextParagraph(surface);
+    if (!(block instanceof Element)) return;
+
+    if (normalizedAlign === "left") {
+      block.removeAttribute("data-align");
+    } else {
+      block.setAttribute("data-align", normalizedAlign);
+    }
+
+    syncRichBlockPresentation(block);
+  }
+
+  function insertSoftLineBreak(surface) {
+    if (!surface) return;
+    if (document.activeElement !== surface) surface.focus();
+    try {
+      if (document.queryCommandSupported?.("insertLineBreak")) {
+        document.execCommand("insertLineBreak", false, null);
+      } else {
+        document.execCommand("insertHTML", false, "<br>");
+      }
+    } catch (_) {
+      document.execCommand("insertHTML", false, "<br>");
+    }
+  }
+
   function getRichTextToolbarMarkup() {
     return `
+      <select class="rich-editor-select" data-rich-paragraph-style aria-label="Paragraph style">
+        <option value="body">Body</option>
+        <option value="subheading">Subheading</option>
+        <option value="quote">Quote</option>
+        <option value="source-note">Source note</option>
+      </select>
       <button type="button" class="rich-editor-btn" data-rich-command="bold" aria-label="Bold"><strong>B</strong></button>
       <button type="button" class="rich-editor-btn" data-rich-command="italic" aria-label="Italic"><em>I</em></button>
       <button type="button" class="rich-editor-btn" data-rich-command="underline" aria-label="Underline"><span class="is-underlined">U</span></button>
       <button type="button" class="rich-editor-btn" data-rich-command="insertUnorderedList" aria-label="Bullet list">•</button>
       <button type="button" class="rich-editor-btn" data-rich-command="insertOrderedList" aria-label="Numbered list">1.</button>
+      <button type="button" class="rich-editor-btn" data-rich-command="softBreak" aria-label="Soft line break">↵</button>
+      <span class="rich-editor-toolbar-divider" aria-hidden="true"></span>
+      <button type="button" class="rich-editor-btn" data-rich-align="left" aria-label="Align left">L</button>
+      <button type="button" class="rich-editor-btn" data-rich-align="center" aria-label="Align center">C</button>
+      <button type="button" class="rich-editor-btn" data-rich-align="right" aria-label="Align right">R</button>
+      <button type="button" class="rich-editor-btn" data-rich-align="justify" aria-label="Justify">J</button>
     `;
   }
 
@@ -772,26 +929,50 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     toolbar.addEventListener("mousedown", (event) => {
-      if (event.target.closest("[data-rich-command]")) {
+      if (event.target.closest("[data-rich-command], [data-rich-align]")) {
         event.preventDefault();
       }
     });
 
+    toolbar.addEventListener("change", (event) => {
+      const styleSelect = event.target.closest("[data-rich-paragraph-style]");
+      if (!styleSelect) return;
+      if (document.activeElement !== surface) surface.focus();
+      applyParagraphStyle(surface, styleSelect.value);
+      handleRichTextSurfaceUpdate(surface, sourceTextarea, true);
+      syncRichToolbarState(shell, surface);
+    });
+
     toolbar.addEventListener("click", (event) => {
       const button = event.target.closest("[data-rich-command]");
+      const alignButton = event.target.closest("[data-rich-align]");
+
+      if (alignButton) {
+        if (document.activeElement !== surface) surface.focus();
+        applyParagraphAlignment(surface, alignButton.getAttribute("data-rich-align"));
+        handleRichTextSurfaceUpdate(surface, sourceTextarea, true);
+        syncRichToolbarState(shell, surface);
+        return;
+      }
+
       if (!button) return;
       const command = button.getAttribute("data-rich-command");
       if (document.activeElement !== surface) surface.focus();
-      if (command === "insertOrderedList" || command === "insertUnorderedList") {
+
+      if (command === "softBreak") {
+        insertSoftLineBreak(surface);
+      } else if (command === "insertOrderedList" || command === "insertUnorderedList") {
         document.execCommand(command, false, null);
       } else {
         document.execCommand(command, false, null);
       }
       handleRichTextSurfaceUpdate(surface, sourceTextarea, true);
+      syncRichToolbarState(shell, surface);
     });
 
     surface.addEventListener("input", () => {
       handleRichTextSurfaceUpdate(surface, sourceTextarea, true);
+      syncRichToolbarState(shell, surface);
     });
 
     surface.addEventListener("blur", () => {
@@ -801,6 +982,7 @@ document.addEventListener("DOMContentLoaded", () => {
       } else {
         normalizeRichTextSurface(surface, sourceTextarea);
       }
+      syncRichToolbarState(shell, surface);
     });
 
     surface.addEventListener("paste", (event) => {
@@ -808,7 +990,14 @@ document.addEventListener("DOMContentLoaded", () => {
       const text = event.clipboardData?.getData("text/plain") || "";
       document.execCommand("insertText", false, text);
       handleRichTextSurfaceUpdate(surface, sourceTextarea, true);
+      syncRichToolbarState(shell, surface);
     });
+
+    ["keyup", "mouseup", "focus", "click"].forEach((eventName) => {
+      surface.addEventListener(eventName, () => syncRichToolbarState(shell, surface));
+    });
+
+    syncRichToolbarState(shell, surface);
   }
 
   function handleRichTextSurfaceUpdate(surface, sourceTextarea = null, shouldDispatch = false) {
@@ -843,6 +1032,7 @@ document.addEventListener("DOMContentLoaded", () => {
   function syncRichTextSurfaceFromSource(sourceTextarea, surface) {
     if (!surface) return;
     surface.innerHTML = buildEditorRichTextHtml(sourceTextarea?.value || "");
+    surface.querySelectorAll("p, ul, ol").forEach((block) => syncRichBlockPresentation(block));
     updateRichEditorEmptyState(surface);
   }
 
@@ -4251,6 +4441,23 @@ document.addEventListener("DOMContentLoaded", () => {
       const clean = document.createElement(mappedTag.toLowerCase());
       Array.from(fragment.childNodes).forEach((child) => clean.appendChild(child));
 
+      if (mappedTag === "P") {
+        const paragraphStyle = normalizeParagraphStyle(node.getAttribute("data-paragraph-style"));
+        const paragraphAlign = normalizeParagraphAlignment(
+          node.getAttribute("data-align") || node.style?.textAlign || node.getAttribute("align")
+        );
+
+        if (paragraphStyle !== "body") clean.setAttribute("data-paragraph-style", paragraphStyle);
+        if (paragraphAlign !== "left") clean.setAttribute("data-align", paragraphAlign);
+      }
+
+      if (mappedTag === "UL" || mappedTag === "OL") {
+        const paragraphAlign = normalizeParagraphAlignment(
+          node.getAttribute("data-align") || node.style?.textAlign || node.getAttribute("align")
+        );
+        if (paragraphAlign !== "left") clean.setAttribute("data-align", paragraphAlign);
+      }
+
       if ((mappedTag === "P" || mappedTag === "DIV") && !elementHasVisibleContent(clean)) {
         clean.innerHTML = "<br>";
       }
@@ -4353,7 +4560,7 @@ document.addEventListener("DOMContentLoaded", () => {
         rootRuns = [];
         return;
       }
-      blocks.push({ type: "paragraph", runs: rootRuns });
+      blocks.push({ type: "paragraph", runs: rootRuns, style: "body", align: "left" });
       rootRuns = [];
     }
 
@@ -4369,7 +4576,14 @@ document.addEventListener("DOMContentLoaded", () => {
       if (tag === "P" || tag === "DIV") {
         flushRootRuns();
         const runs = parseInlineRuns(node.childNodes);
-        if (hasVisibleRuns(runs)) blocks.push({ type: "paragraph", runs });
+        if (hasVisibleRuns(runs)) {
+          blocks.push({
+            type: "paragraph",
+            runs,
+            style: getBlockStyleFromElement(node),
+            align: getBlockAlignmentFromElement(node)
+          });
+        }
         else if ((node.innerHTML || "").match(/<br\s*\/?>/i)) blocks.push({ type: "spacer" });
         return;
       }
@@ -4380,7 +4594,7 @@ document.addEventListener("DOMContentLoaded", () => {
           .filter((child) => child.tagName.toUpperCase() === "LI")
           .map((item) => ({ runs: parseInlineRuns(item.childNodes) }))
           .filter((item) => hasVisibleRuns(item.runs));
-        if (items.length) blocks.push({ type: "list", ordered: tag === "OL", items });
+        if (items.length) blocks.push({ type: "list", ordered: tag === "OL", items, style: "body", align: getBlockAlignmentFromElement(node) });
         return;
       }
 
@@ -4426,23 +4640,32 @@ document.addEventListener("DOMContentLoaded", () => {
 
   function serializeRichTextBlocksToHtml(blocks) {
     return (blocks || []).map((block) => {
-      if (block.type === "spacer") return "<p><br></p>";
+      if (block.type === "spacer") return '<p class="rich-text-spacer"><br></p>';
       if (block.type === "list") {
         const tag = block.ordered ? "ol" : "ul";
-        return `<${tag}>${block.items.map((item) => `<li>${serializeInlineRunsToHtml(item.runs)}</li>`).join("")}</${tag}>`;
+        const align = normalizeParagraphAlignment(block.align);
+        const classes = align !== "left" ? ` class="rt-align-${align}"` : "";
+        const attrs = align !== "left" ? ` data-align="${escapeAttribute(align)}"` : "";
+        return `<${tag}${classes}${attrs}>${block.items.map((item) => `<li>${serializeInlineRunsToHtml(item.runs)}</li>`).join("")}</${tag}>`;
       }
-      return `<p>${serializeInlineRunsToHtml(block.runs)}</p>`;
+
+      const style = normalizeParagraphStyle(block.style);
+      const align = normalizeParagraphAlignment(block.align);
+      const classes = [
+        style !== "body" ? `rich-text-${style}` : "",
+        align !== "left" ? `rt-align-${align}` : ""
+      ].filter(Boolean).join(" ");
+      const classAttr = classes ? ` class="${classes}"` : "";
+      const styleAttr = style !== "body" ? ` data-paragraph-style="${escapeAttribute(style)}"` : "";
+      const alignAttr = align !== "left" ? ` data-align="${escapeAttribute(align)}"` : "";
+      return `<p${classAttr}${styleAttr}${alignAttr}>${serializeInlineRunsToHtml(block.runs)}</p>`;
     }).join("");
   }
 
   function serializeRichTextBlocksToEditorHtml(blocks) {
     return (blocks || []).map((block) => {
       if (block.type === "spacer") return '<p class="rich-text-spacer"><br></p>';
-      if (block.type === "list") {
-        const tag = block.ordered ? "ol" : "ul";
-        return `<${tag}>${block.items.map((item) => `<li>${serializeInlineRunsToHtml(item.runs)}</li>`).join("")}</${tag}>`;
-      }
-      return `<p>${serializeInlineRunsToHtml(block.runs)}</p>`;
+      return serializeRichTextBlocksToHtml([block]);
     }).join("");
   }
 
@@ -7259,7 +7482,61 @@ document.addEventListener("DOMContentLoaded", () => {
       return [new docxLib.Paragraph({ text: "No content supplied.", spacing: { after: 44 } })];
     }
 
-    const makeRuns = (runs, withPrefix = null) => {
+    const alignmentMap = {
+      left: docxLib.AlignmentType?.LEFT || "left",
+      center: docxLib.AlignmentType?.CENTER || "center",
+      right: docxLib.AlignmentType?.RIGHT || "right",
+      justify: docxLib.AlignmentType?.JUSTIFIED || "both"
+    };
+
+    const getBlockFormat = (block) => {
+      const style = normalizeParagraphStyle(block?.style);
+      const align = normalizeParagraphAlignment(block?.align);
+
+      if (style === "subheading") {
+        return {
+          size: 20,
+          color: "845F0F",
+          bold: true,
+          italics: false,
+          indent: undefined,
+          alignment: alignmentMap[align]
+        };
+      }
+
+      if (style === "quote") {
+        return {
+          size: 17,
+          color: "5D6470",
+          bold: false,
+          italics: true,
+          indent: { left: 220, right: 120 },
+          alignment: alignmentMap[align]
+        };
+      }
+
+      if (style === "source-note") {
+        return {
+          size: 14,
+          color: "6B7280",
+          bold: false,
+          italics: false,
+          indent: undefined,
+          alignment: alignmentMap[align]
+        };
+      }
+
+      return {
+        size: 18,
+        color: "1B1F24",
+        bold: false,
+        italics: false,
+        indent: undefined,
+        alignment: alignmentMap[align]
+      };
+    };
+
+    const makeRuns = (runs, baseFormat, withPrefix = null) => {
       const children = [];
 
       if (withPrefix) {
@@ -7268,8 +7545,8 @@ document.addEventListener("DOMContentLoaded", () => {
             text: withPrefix,
             bold: true,
             font: "Arial",
-            size: 18,
-            color: "1B1F24"
+            size: baseFormat.size,
+            color: baseFormat.color
           })
         );
       }
@@ -7283,12 +7560,12 @@ document.addEventListener("DOMContentLoaded", () => {
         children.push(
           new docxLib.TextRun({
             text: run.text,
-            bold: Boolean(run.bold),
-            italics: Boolean(run.italic),
+            bold: Boolean(run.bold) || baseFormat.bold,
+            italics: Boolean(run.italic) || baseFormat.italics,
             underline: run.underline ? { type: docxLib.UnderlineType?.SINGLE || "single" } : undefined,
             font: "Arial",
-            size: 18,
-            color: "1B1F24"
+            size: baseFormat.size,
+            color: baseFormat.color
           })
         );
       });
@@ -7312,6 +7589,7 @@ document.addEventListener("DOMContentLoaded", () => {
     return blocks.flatMap((block, index) => {
       const paragraphs = [];
       const nextBlock = blocks[index + 1] || null;
+      const baseFormat = getBlockFormat(block);
 
       if (block.type === "spacer") {
         paragraphs.push(makeSpacer());
@@ -7324,7 +7602,8 @@ document.addEventListener("DOMContentLoaded", () => {
           paragraphs.push(
             new docxLib.Paragraph({
               indent: { left: 180, hanging: 120 },
-              children: makeRuns(item.runs, prefix),
+              alignment: baseFormat.alignment,
+              children: makeRuns(item.runs, baseFormat, prefix),
               spacing: { after: itemIndex === block.items.length - 1 ? 0 : 24 }
             })
           );
@@ -7332,7 +7611,9 @@ document.addEventListener("DOMContentLoaded", () => {
       } else {
         paragraphs.push(
           new docxLib.Paragraph({
-            children: makeRuns(block.runs),
+            alignment: baseFormat.alignment,
+            indent: baseFormat.indent,
+            children: makeRuns(block.runs, baseFormat),
             spacing: { after: 0 }
           })
         );
