@@ -270,12 +270,12 @@
             <div class="field-grid field-grid-3">
               <div class="field">
                 <label for="authorLastName">Primary Author Last Name</label>
-                <input type="text" id="authorLastName" name="authorLastName" placeholder="Rahman" required>
+                <input type="text" id="authorLastName" name="authorLastName" placeholder="Surname" required>
               </div>
 
               <div class="field">
                 <label for="authorFirstName">Primary Author First Name</label>
-                <input type="text" id="authorFirstName" name="authorFirstName" placeholder="Nadir" required>
+                <input type="text" id="authorFirstName" name="authorFirstName" placeholder="Given name" required>
               </div>
 
               <div class="field">
@@ -301,7 +301,7 @@
                     <option value="995">+995 GE</option>
                     <option value="">Other</option>
                   </select>
-                  <input type="text" id="authorPhoneNational" placeholder="7398 344 190" inputmode="numeric">
+                  <input type="text" id="authorPhoneNational" placeholder="7123 456 789" inputmode="numeric">
                 </div>
                 <input type="hidden" id="authorPhone" name="authorPhone">
               </div>
@@ -760,6 +760,7 @@
 
             <div class="action-tray">
               <button type="button" class="btn btn-secondary" id="previewDocBtn">Preview Note</button>
+              <button type="button" class="btn btn-secondary" id="summariseBtn">Summarise</button>
               <button type="submit" class="btn btn-primary" id="generateDocBtn">Generate Word Document</button>
               <button type="button" class="btn btn-secondary" id="emailToCrgBtn">Email to CRG Research</button>
               <button type="button" class="btn btn-ghost" id="resetFormBtn">Reset Draft</button>
@@ -813,6 +814,41 @@
       <div class="preview-modal-body" id="previewModalBody"></div>
       <div class="preview-modal-actions">
         <button type="button" class="btn btn-secondary" id="previewGenerateBtn">Generate Word Document</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="preview-modal summary-modal" id="summaryModal" hidden>
+    <div class="preview-modal-backdrop" id="summaryModalBackdrop"></div>
+    <div class="preview-modal-dialog summary-modal-dialog" role="dialog" aria-modal="true" aria-labelledby="summaryModalTitle">
+      <div class="preview-modal-head">
+        <div>
+          <p class="section-kicker">Research &amp; Commentary</p>
+          <h2 id="summaryModalTitle">Website Summary</h2>
+        </div>
+        <button type="button" class="btn btn-ghost btn-xs" id="closeSummaryBtn">Close</button>
+      </div>
+      <div class="preview-modal-body summary-modal-body">
+        <div class="summary-sheet">
+          <div class="summary-sheet-head">
+            <strong class="summary-note-title" id="summaryNoteTitle">Untitled Research Note</strong>
+            <p class="summary-sheet-copy" id="summaryModalSubtitle">A shorter website-ready version of the current note.</p>
+          </div>
+          <div class="rich-editor-shell summary-editor-shell">
+            <div class="rich-editor-toolbar" id="summaryToolbar" aria-label="Summary formatting toolbar">
+              <button type="button" class="rich-editor-btn" data-rich-command="bold" aria-label="Bold"><strong>B</strong></button>
+              <button type="button" class="rich-editor-btn" data-rich-command="italic" aria-label="Italic"><em>I</em></button>
+              <button type="button" class="rich-editor-btn" data-rich-command="underline" aria-label="Underline"><span class="is-underlined">U</span></button>
+              <button type="button" class="rich-editor-btn" data-rich-command="insertUnorderedList" aria-label="Bullet list">•</button>
+              <button type="button" class="rich-editor-btn" data-rich-command="insertOrderedList" aria-label="Numbered list">1.</button>
+            </div>
+            <div class="rich-editor-surface summary-editor-surface" id="summaryEditor" contenteditable="true" role="textbox" aria-multiline="true" data-placeholder="Generated summary will appear here."></div>
+          </div>
+        </div>
+      </div>
+      <div class="preview-modal-actions">
+        <button type="button" class="btn btn-secondary" id="copySummaryBtn">Copy</button>
+        <button type="button" class="btn btn-primary" id="publishSummaryBtn">Publish in Research &amp; Commentary page</button>
       </div>
     </div>
   </div>
