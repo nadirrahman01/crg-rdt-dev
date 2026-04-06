@@ -849,7 +849,7 @@ document.addEventListener("DOMContentLoaded", () => {
   function buildEditorRichTextHtml(value) {
     const stored = String(value || "").trim();
     if (!stored) return "";
-    return buildRichTextStorageValue(stored);
+    return serializeRichTextBlocksToEditorHtml(parseRichTextBlocks(stored));
   }
 
   function updateRichEditorEmptyState(surface) {
@@ -4162,13 +4162,47 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   function plainTextToRichTextHtml(text) {
-    return String(text || "")
-      .replace(/\r\n/g, "\n")
-      .split(/\n+/)
-      .map((block) => block.trim())
-      .filter(Boolean)
-      .map((block) => `<p>${escapeHtml(block)}</p>`)
-      .join("");
+    const normalized = String(text || "").replace(/\r\n/g, "\n");
+    const lines = normalized.split("\n");
+    const blocks = [];
+    let currentParagraph = [];
+    let spacerPending = false;
+
+    const pushParagraph = () => {
+      const paragraphText = currentParagraph.join("\n").trim();
+      if (!paragraphText) return;
+      blocks.push({
+        type: "paragraph",
+        runs: [{ text: paragraphText }]
+      });
+      currentParagraph = [];
+    };
+
+    lines.forEach((line) => {
+      if (line.trim()) {
+        if (spacerPending && blocks.length && blocks[blocks.length - 1]?.type !== "spacer") {
+          blocks.push({ type: "spacer" });
+        }
+        spacerPending = false;
+        currentParagraph.push(line);
+        return;
+      }
+
+      if (currentParagraph.length) {
+        pushParagraph();
+      }
+      spacerPending = true;
+    });
+
+    if (currentParagraph.length) {
+      pushParagraph();
+    }
+
+    return blocks.map((block) => {
+      if (block.type === "spacer") return "<p><br></p>";
+      const paragraphText = block.runs?.[0]?.text || "";
+      return `<p>${escapeHtml(paragraphText).replace(/\n/g, "<br>")}</p>`;
+    }).join("");
   }
 
   function sanitizeRichTextHtml(html) {
@@ -4176,6 +4210,12 @@ document.addEventListener("DOMContentLoaded", () => {
     wrapper.innerHTML = String(html || "");
     const output = document.createElement("div");
     const allowedTags = new Set(["P", "DIV", "BR", "UL", "OL", "LI", "STRONG", "EM", "U"]);
+
+    function elementHasVisibleContent(element) {
+      if (!element) return false;
+      if ((element.textContent || "").replace(/\u00A0/g, " ").trim()) return true;
+      return Boolean(element.querySelector("br, strong, em, u"));
+    }
 
     function sanitizeNode(node) {
       if (node.nodeType === Node.TEXT_NODE) {
@@ -4210,6 +4250,15 @@ document.addEventListener("DOMContentLoaded", () => {
 
       const clean = document.createElement(mappedTag.toLowerCase());
       Array.from(fragment.childNodes).forEach((child) => clean.appendChild(child));
+
+      if ((mappedTag === "P" || mappedTag === "DIV") && !elementHasVisibleContent(clean)) {
+        clean.innerHTML = "<br>";
+      }
+
+      if (mappedTag === "LI" && !elementHasVisibleContent(clean)) {
+        clean.innerHTML = "<br>";
+      }
+
       return clean;
     }
 
@@ -4217,9 +4266,7 @@ document.addEventListener("DOMContentLoaded", () => {
       output.appendChild(sanitizeNode(child));
     });
 
-    return output.innerHTML
-      .replace(/<(p|div)>(\s|&nbsp;|<br\s*\/?>)*<\/\1>/gi, "")
-      .trim();
+    return output.innerHTML.trim();
   }
 
   function buildRichTextStorageValue(value) {
@@ -4323,6 +4370,7 @@ document.addEventListener("DOMContentLoaded", () => {
         flushRootRuns();
         const runs = parseInlineRuns(node.childNodes);
         if (hasVisibleRuns(runs)) blocks.push({ type: "paragraph", runs });
+        else if ((node.innerHTML || "").match(/<br\s*\/?>/i)) blocks.push({ type: "spacer" });
         return;
       }
 
@@ -4338,6 +4386,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
       if (tag === "BR") {
         flushRootRuns();
+        blocks.push({ type: "spacer" });
         return;
       }
 
@@ -4354,6 +4403,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
     return blocks
       .flatMap((block) => {
+        if (block.type === "spacer") return [""];
         if (block.type === "list") {
           return block.items.map((item) => inlineRunsToPlainText(item.runs).trim()).filter(Boolean);
         }
@@ -4376,6 +4426,18 @@ document.addEventListener("DOMContentLoaded", () => {
 
   function serializeRichTextBlocksToHtml(blocks) {
     return (blocks || []).map((block) => {
+      if (block.type === "spacer") return "<p><br></p>";
+      if (block.type === "list") {
+        const tag = block.ordered ? "ol" : "ul";
+        return `<${tag}>${block.items.map((item) => `<li>${serializeInlineRunsToHtml(item.runs)}</li>`).join("")}</${tag}>`;
+      }
+      return `<p>${serializeInlineRunsToHtml(block.runs)}</p>`;
+    }).join("");
+  }
+
+  function serializeRichTextBlocksToEditorHtml(blocks) {
+    return (blocks || []).map((block) => {
+      if (block.type === "spacer") return '<p class="rich-text-spacer"><br></p>';
       if (block.type === "list") {
         const tag = block.ordered ? "ol" : "ul";
         return `<${tag}>${block.items.map((item) => `<li>${serializeInlineRunsToHtml(item.runs)}</li>`).join("")}</${tag}>`;
@@ -4395,6 +4457,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
     return blocks
       .flatMap((block) => {
+        if (block.type === "spacer") return [];
         if (block.type === "list") {
           return block.items.map((item) => inlineRunsToPlainText(item.runs).trim());
         }
@@ -4408,6 +4471,7 @@ document.addEventListener("DOMContentLoaded", () => {
   function paragraphBlocks(text) {
     return parseRichTextBlocks(text)
       .flatMap((block) => {
+        if (block.type === "spacer") return [];
         if (block.type === "list") {
           return block.items.map((item) => inlineRunsToPlainText(item.runs).trim()).filter(Boolean);
         }
@@ -4757,11 +4821,169 @@ document.addEventListener("DOMContentLoaded", () => {
     return sections;
   }
 
+  function summarySectionPriority(sectionKey) {
+    const priorities = {
+      deck: 9.5,
+      keyTakeaways: 10,
+      cordobaView: 8.8,
+      fiveYearRationale: 8.5,
+      valuationSummary: 8.2,
+      analysis: 7.2,
+      esgSummary: 6.6,
+      content: 5.9,
+      businessDescription: 5.2
+    };
+
+    return priorities[sectionKey] || 5;
+  }
+
+  function isLowValueSummaryText(text, sectionKey = "") {
+    const normalized = normalizeComparableText(text);
+    if (!normalized) return true;
+
+    const genericPhrases = [
+      "the company is",
+      "the business is",
+      "the sector is",
+      "was established",
+      "operates in",
+      "provides products",
+      "important part of",
+      "in recent years",
+      "it is worth noting",
+      "should be noted",
+      "for context",
+      "more detail below",
+      "we discuss below",
+      "the note outlines",
+      "the note discusses"
+    ];
+
+    const genericHitCount = genericPhrases.filter((phrase) => normalized.includes(phrase)).length;
+    if (sectionKey === "businessDescription" && genericHitCount >= 1 && !/[0-9%$£€]/.test(text)) return true;
+    return genericHitCount >= 2;
+  }
+
+  function scoreSummaryText(text, sectionKey = "", options = {}) {
+    const wordCount = countMeaningfulWords(text);
+    if (!wordCount) return -Infinity;
+
+    const normalized = normalizeComparableText(text);
+    let score = summarySectionPriority(sectionKey);
+
+    const thesisKeywords = ["thesis", "conviction", "view", "mispriced", "underappreciated", "market implies", "pricing in", "we expect", "we believe", "our view"];
+    const catalystKeywords = ["catalyst", "trigger", "earnings", "policy", "meeting", "listing", "approval", "rerating", "inflection", "upgrade", "downgrade"];
+    const riskKeywords = ["risk", "downside", "bear case", "pressure", "uncertain", "volatility", "headwind", "execution", "funding"];
+    const valuationKeywords = ["valuation", "target price", "fair value", "multiple", "discount", "premium", "upside", "downside", "spread", "yield"];
+    const materialityKeywords = ["balance sheet", "margin", "cash flow", "earnings", "inflation", "rates", "duration", "default", "liquidity", "capital"];
+    const contrastKeywords = ["however", "but", "despite", "yet", "instead", "although", "while"];
+
+    if (containsAnyKeyword(text, thesisKeywords)) score += 4.1;
+    if (containsAnyKeyword(text, catalystKeywords)) score += 3.2;
+    if (containsAnyKeyword(text, riskKeywords)) score += 2.5;
+    if (containsAnyKeyword(text, valuationKeywords)) score += 2.8;
+    if (containsAnyKeyword(text, materialityKeywords)) score += 2.1;
+    if (containsAnyKeyword(text, contrastKeywords)) score += 1.1;
+
+    if (/[0-9]/.test(text)) score += 0.8;
+    if (/%|\bbps\b|\busd\b|\bgbp\b|\beur\b|\bx\b|\bcagr\b/i.test(text)) score += 0.9;
+    if (wordCount >= 14 && wordCount <= 48) score += 1.2;
+    if (wordCount > 90) score -= 1.6;
+    if (wordCount < 8) score -= 1.1;
+    if (isLowValueSummaryText(text, sectionKey)) score -= 3.3;
+    if (options.isKeyTakeaway) score += 2.7;
+    if (options.isDeck) score += 1.9;
+
+    return score;
+  }
+
+  function buildSummaryCandidate(section, payload, order, extra = {}) {
+    const text = String(payload?.text || "").trim();
+    if (!text) return null;
+
+    return {
+      sectionKey: section.key,
+      sectionLabel: section.label,
+      html: payload.html,
+      text,
+      words: countMeaningfulWords(text),
+      order,
+      score: scoreSummaryText(text, section.key, extra),
+      suppressHeading: Boolean(section.suppressHeading),
+      isKeyTakeaway: Boolean(extra.isKeyTakeaway)
+    };
+  }
+
+  function collectSummaryCandidates(section, startingOrder) {
+    let order = startingOrder;
+    const candidates = [];
+
+    if (Array.isArray(section.items)) {
+      section.items.forEach((item) => {
+        const cleaned = String(item || "").trim();
+        if (!cleaned) return;
+        const candidate = buildSummaryCandidate(
+          section,
+          {
+            text: cleaned,
+            html: `<li>${escapeHtml(cleaned)}</li>`
+          },
+          order,
+          { isKeyTakeaway: true }
+        );
+        order += 1;
+        if (candidate) candidates.push(candidate);
+      });
+      return { candidates, nextOrder: order };
+    }
+
+    (section.blocks || []).forEach((block) => {
+      if (block.type === "spacer") {
+        order += 1;
+        return;
+      }
+
+      if (block.type === "list") {
+        block.items.forEach((item) => {
+          const text = inlineRunsToPlainText(item.runs).trim();
+          const candidate = buildSummaryCandidate(
+            section,
+            {
+              text,
+              html: `<p>${serializeInlineRunsToHtml(item.runs)}</p>`
+            },
+            order,
+            { isKeyTakeaway: section.key === "keyTakeaways" }
+          );
+          order += 1;
+          if (candidate) candidates.push(candidate);
+        });
+        return;
+      }
+
+      const text = inlineRunsToPlainText(block.runs).trim();
+      const candidate = buildSummaryCandidate(
+        section,
+        {
+          text,
+          html: serializeRichTextBlocksToHtml([block])
+        },
+        order,
+        { isDeck: section.key === "deck" }
+      );
+      order += 1;
+      if (candidate) candidates.push(candidate);
+    });
+
+    return { candidates, nextOrder: order };
+  }
+
   function buildSummaryDraftHtml(data) {
     const sections = buildSummarySourceSections(data);
     const totalWords = sections.reduce((sum, section) => {
       if (section.items) return sum + countMeaningfulWords(section.items.join(" "));
       return sum + countMeaningfulWords((section.blocks || []).map((block) => {
+        if (block.type === "spacer") return "";
         if (block.type === "list") {
           return block.items.map((item) => inlineRunsToPlainText(item.runs)).join(" ");
         }
@@ -4769,51 +4991,102 @@ document.addEventListener("DOMContentLoaded", () => {
       }).join(" "));
     }, 0);
 
-    const targetWords = Math.max(90, Math.min(480, Math.round(totalWords * 0.56)));
+    const targetWords = Math.max(90, Math.min(360, Math.round(totalWords * 0.5)));
     const parts = [];
     let usedWords = 0;
-    const wordCountForBlock = (block) => countMeaningfulWords(block.type === "list"
-      ? block.items.map((item) => inlineRunsToPlainText(item.runs)).join(" ")
-      : inlineRunsToPlainText(block.runs));
-
-    const narrativeSections = sections
-      .filter((section) => section.key !== "keyTakeaways")
-      .map((section) => ({ ...section, startBlockIndex: 0 }));
-
-    narrativeSections
-      .filter((section) => section.suppressHeading && section.blocks?.[0])
-      .forEach((section) => {
-        parts.push(serializeRichTextBlocksToHtml([section.blocks[0]]));
-        usedWords += wordCountForBlock(section.blocks[0]);
-        section.startBlockIndex = 1;
-      });
+    let runningOrder = 0;
+    const usedSummarySignatures = new Set();
+    const rememberSummaryText = (text) => {
+      const signature = normalizeComparableText(text);
+      if (signature) usedSummarySignatures.add(signature);
+    };
 
     const keyTakeawaysSection = sections.find((section) => section.key === "keyTakeaways" && Array.isArray(section.items) && section.items.length);
+    const deckSection = sections.find((section) => section.key === "deck" && Array.isArray(section.blocks) && section.blocks.length);
+    const detailSections = sections.filter((section) => section.key !== "keyTakeaways" && section.key !== "deck");
+
+    if (deckSection?.blocks?.length) {
+      const openerBlock = deckSection.blocks.find((block) => block.type === "paragraph" || block.type === "list") || deckSection.blocks[0];
+      const openerText = openerBlock.type === "list"
+        ? openerBlock.items.map((item) => inlineRunsToPlainText(item.runs)).join(" ")
+        : inlineRunsToPlainText(openerBlock.runs);
+      if (countMeaningfulWords(openerText)) {
+        parts.push(serializeRichTextBlocksToHtml([openerBlock]));
+        usedWords += countMeaningfulWords(openerText);
+        rememberSummaryText(openerText);
+      }
+    }
+
     if (keyTakeawaysSection) {
-      const items = keyTakeawaysSection.items.slice(0, Math.min(3, keyTakeawaysSection.items.length));
-      parts.push(`<h3>${escapeHtml(keyTakeawaysSection.label)}</h3>`);
-      parts.push(`<ul>${items.map((item) => `<li>${escapeHtml(item)}</li>`).join("")}</ul>`);
-      usedWords += countMeaningfulWords(items.join(" "));
+      const takeawayCandidates = keyTakeawaysSection.items
+        .map((item, index) => buildSummaryCandidate(
+          keyTakeawaysSection,
+          { text: item, html: `<li>${escapeHtml(item)}</li>` },
+          index,
+          { isKeyTakeaway: true }
+        ))
+        .filter(Boolean)
+        .sort((left, right) => right.score - left.score || left.order - right.order)
+        .filter((candidate) => !usedSummarySignatures.has(normalizeComparableText(candidate.text)))
+        .slice(0, Math.min(3, keyTakeawaysSection.items.length))
+        .sort((left, right) => left.order - right.order);
+
+      if (takeawayCandidates.length) {
+        parts.push(`<h3>${escapeHtml(keyTakeawaysSection.label)}</h3>`);
+        parts.push(`<ul>${takeawayCandidates.map((candidate) => candidate.html).join("")}</ul>`);
+        usedWords += takeawayCandidates.reduce((sum, candidate) => sum + candidate.words, 0);
+        takeawayCandidates.forEach((candidate) => rememberSummaryText(candidate.text));
+      }
+    }
+
+    const allCandidates = [];
+    detailSections.forEach((section) => {
+      const collected = collectSummaryCandidates(section, runningOrder);
+      runningOrder = collected.nextOrder;
+      allCandidates.push(...collected.candidates);
+    });
+
+    const selected = [];
+    const perSectionCounts = new Map();
+    const sortedCandidates = allCandidates
+      .filter((candidate) => candidate.score > 2.8)
+      .sort((left, right) => right.score - left.score || left.order - right.order);
+
+    for (const candidate of sortedCandidates) {
+      if (usedWords >= targetWords && selected.length >= 2) break;
+      const sectionCount = perSectionCounts.get(candidate.sectionKey) || 0;
+      const sectionLimit = candidate.sectionKey === "analysis" ? 2 : 1;
+      if (sectionCount >= sectionLimit) continue;
+      if (usedSummarySignatures.has(normalizeComparableText(candidate.text))) continue;
+      if (selected.some((existing) => normalizeComparableText(existing.text) === normalizeComparableText(candidate.text))) continue;
+
+      const projectedWords = usedWords + candidate.words;
+      if (selected.length >= 2 && projectedWords > targetWords * 1.16) continue;
+
+      selected.push(candidate);
+      perSectionCounts.set(candidate.sectionKey, sectionCount + 1);
+      usedWords = projectedWords;
+      rememberSummaryText(candidate.text);
+    }
+
+    if (!selected.length) {
+      const fallback = allCandidates
+        .sort((left, right) => right.score - left.score || left.order - right.order)
+        .slice(0, 2)
+        .sort((left, right) => left.order - right.order);
+      selected.push(...fallback);
+    } else {
+      selected.sort((left, right) => left.order - right.order);
     }
 
     const addedHeadings = new Set();
-    let round = 0;
-
-    while (usedWords < targetWords && narrativeSections.some((section) => (section.blocks || []).length > round + (section.startBlockIndex || 0))) {
-      narrativeSections.forEach((section) => {
-        const block = section.blocks?.[round + (section.startBlockIndex || 0)];
-        if (!block || usedWords >= targetWords) return;
-
-        if (!section.suppressHeading && !addedHeadings.has(section.key)) {
-          parts.push(`<h3>${escapeHtml(section.label)}</h3>`);
-          addedHeadings.add(section.key);
-        }
-
-        parts.push(serializeRichTextBlocksToHtml([block]));
-        usedWords += wordCountForBlock(block);
-      });
-      round += 1;
-    }
+    selected.forEach((candidate) => {
+      if (!candidate.suppressHeading && !addedHeadings.has(candidate.sectionKey)) {
+        parts.push(`<h3>${escapeHtml(candidate.sectionLabel)}</h3>`);
+        addedHeadings.add(candidate.sectionKey);
+      }
+      parts.push(candidate.html);
+    });
 
     if (!parts.length && data.topic) {
       parts.push(`<p>${escapeHtml(data.topic)}</p>`);
@@ -7038,6 +7311,12 @@ document.addEventListener("DOMContentLoaded", () => {
 
     return blocks.flatMap((block, index) => {
       const paragraphs = [];
+      const nextBlock = blocks[index + 1] || null;
+
+      if (block.type === "spacer") {
+        paragraphs.push(makeSpacer());
+        return paragraphs;
+      }
 
       if (block.type === "list") {
         block.items.forEach((item, itemIndex) => {
@@ -7059,7 +7338,7 @@ document.addEventListener("DOMContentLoaded", () => {
         );
       }
 
-      if (index < blocks.length - 1) {
+      if (nextBlock && nextBlock.type !== "spacer") {
         paragraphs.push(makeSpacer());
       }
 
