@@ -1024,8 +1024,8 @@ input[type="file"]::file-selector-button {
   min-height: 176px;
   padding: 12px 13px;
   color: var(--ink);
-  font-size: 13px;
-  line-height: 1.58;
+  font-size: 14px;
+  line-height: 1.5;
   outline: none;
   white-space: normal;
 }
@@ -1041,20 +1041,15 @@ input[type="file"]::file-selector-button {
 .rich-editor-surface ol,
 .rich-editor-surface h3,
 .rich-editor-surface blockquote {
-  margin: 0 0 4px;
-}
-
-.rich-editor-surface p:last-child,
-.rich-editor-surface ul:last-child,
-.rich-editor-surface ol:last-child,
-.rich-editor-surface h3:last-child,
-.rich-editor-surface blockquote:last-child {
   margin-bottom: 0;
+  margin-top: 0;
+  margin-left: 0;
+  margin-right: 0;
 }
 
 .rich-editor-surface p.rich-text-spacer {
-  min-height: 0.08em;
-  margin-bottom: 1px;
+  min-height: 1.5em;
+  margin: 0;
 }
 
 .rich-editor-surface ul,
@@ -2007,17 +2002,12 @@ input[type="file"]::file-selector-button {
 }
 
 .preview-export-section p {
-  margin: 0 0 4px;
+  margin: 0 0 11px;
 }
 
 .preview-export-section ul {
   margin: 0;
   padding-left: 18px;
-}
-
-.preview-export-section p.rich-text-spacer {
-  min-height: 0.08em;
-  margin-bottom: 1px;
 }
 
 .preview-export-section .rich-text-subheading {
@@ -2028,7 +2018,7 @@ input[type="file"]::file-selector-button {
 }
 
 .preview-export-section .rich-text-quote {
-  margin: 0 0 4px;
+  margin: 0 0 11px;
   padding-left: 12px;
   border-left: 1px solid #d7dce4;
   color: var(--ink-muted);
