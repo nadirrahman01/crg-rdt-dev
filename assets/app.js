@@ -1,4 +1,4 @@
-console.log("CRG Research Production Console loaded");
+console.log("Cordoba Publishing Platform loaded");
 
 document.addEventListener("DOMContentLoaded", () => {
   const STORAGE_KEY = "crg-rdt-draft-v2";
@@ -200,6 +200,10 @@ document.addEventListener("DOMContentLoaded", () => {
     toggleRailIcon: document.getElementById("toggleRailIcon"),
     toggleRailText: document.getElementById("toggleRailText"),
     headerDateTime: document.getElementById("headerDateTime"),
+    homeDraftTitle: document.getElementById("homeDraftTitle"),
+    homeDraftType: document.getElementById("homeDraftType"),
+    homeDraftState: document.getElementById("homeDraftState"),
+    homeDraftAuthor: document.getElementById("homeDraftAuthor"),
     noteType: document.getElementById("noteType"),
     distribution: document.getElementById("distribution"),
     publicationDate: document.getElementById("publicationDate"),
@@ -433,6 +437,7 @@ document.addEventListener("DOMContentLoaded", () => {
     restoreRailState();
     populateCoverageCountryOptions();
     populateIndustryOptions();
+    wirePlatformNavigation();
     wireSectionNavigation();
     wirePrimaryPhone();
     initializeBodySectionEditor();
@@ -490,6 +495,42 @@ document.addEventListener("DOMContentLoaded", () => {
     );
 
     document.querySelectorAll(".section-card").forEach((section) => observer.observe(section));
+  }
+
+  function wirePlatformNavigation() {
+    const jumpButtons = Array.from(document.querySelectorAll("[data-jump-target]"));
+    jumpButtons.forEach((button) => {
+      button.addEventListener("click", () => {
+        const targetId = button.getAttribute("data-jump-target");
+        const target = targetId ? document.getElementById(targetId) : null;
+        if (target) {
+          target.scrollIntoView({ behavior: "smooth", block: "start" });
+        }
+      });
+    });
+
+    const headerNavButtons = Array.from(document.querySelectorAll(".header-nav-link"));
+    const sections = Array.from(document.querySelectorAll(".platform-anchor"));
+    if (!headerNavButtons.length || !sections.length) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const visibleEntry = entries
+          .filter((entry) => entry.isIntersecting)
+          .sort((left, right) => right.intersectionRatio - left.intersectionRatio)[0];
+        if (!visibleEntry) return;
+
+        headerNavButtons.forEach((button) => {
+          button.classList.toggle("is-active", button.getAttribute("data-jump-target") === visibleEntry.target.id);
+        });
+      },
+      {
+        rootMargin: "-25% 0px -55% 0px",
+        threshold: [0.15, 0.35, 0.6]
+      }
+    );
+
+    sections.forEach((section) => observer.observe(section));
   }
 
   function wirePrimaryPhone() {
@@ -2715,6 +2756,25 @@ document.addEventListener("DOMContentLoaded", () => {
     dom.summaryOutputDetail.textContent = attachmentBits.length
       ? `${reviewSummary} Support pack includes ${attachmentBits.join(", ")}.`
       : reviewSummary;
+
+    if (dom.homeDraftTitle) {
+      dom.homeDraftTitle.textContent = data.title || "Untitled draft";
+    }
+    if (dom.homeDraftType) {
+      dom.homeDraftType.textContent = strategyLabelForNoteType(noteType) || "Select a note type";
+    }
+    if (dom.homeDraftAuthor) {
+      dom.homeDraftAuthor.textContent = authorLine || "Primary author pending";
+    }
+    if (dom.homeDraftState) {
+      dom.homeDraftState.textContent = review.blockingCount > 0
+        ? "Critical issues to resolve"
+        : review.warningCount > 0
+          ? "Ready with warnings"
+          : validation.valid
+            ? "Publication package ready"
+            : "Draft in progress";
+    }
   }
 
   function updatePreview(data) {
@@ -7550,30 +7610,21 @@ document.addEventListener("DOMContentLoaded", () => {
       return children;
     };
 
-    const makeSpacer = () =>
-      new docxLib.Paragraph({
-        children: [
-          new docxLib.TextRun({
-            text: " ",
-            font: "Arial",
-            size: 1,
-            color: "1B1F24"
-          })
-        ],
-        spacing: { after: 0 }
-      });
+    const getParagraphAfter = (currentIndex) => {
+      const hasNextVisibleBlock = blocks.slice(currentIndex + 1).some((entry) => entry.type !== "spacer");
+      return hasNextVisibleBlock ? 60 : 0;
+    };
 
     return blocks.flatMap((block, index) => {
       const paragraphs = [];
-      const nextBlock = blocks[index + 1] || null;
       const baseFormat = getBlockFormat(block);
 
       if (block.type === "spacer") {
-        paragraphs.push(makeSpacer());
         return paragraphs;
       }
 
       if (block.type === "list") {
+        const blockAfter = getParagraphAfter(index);
         block.items.forEach((item, itemIndex) => {
           const prefix = block.ordered ? `${itemIndex + 1}. ` : "• ";
           paragraphs.push(
@@ -7582,7 +7633,7 @@ document.addEventListener("DOMContentLoaded", () => {
               alignment: baseFormat.alignment,
               children: makeRuns(item.runs, baseFormat, prefix),
               spacing: {
-                after: itemIndex === block.items.length - 1 ? 0 : 24,
+                after: itemIndex === block.items.length - 1 ? blockAfter : 18,
                 line: getLineSpacing(baseFormat.size),
                 lineRule: docxLib.LineRuleType?.AUTO || "auto"
               }
@@ -7596,16 +7647,12 @@ document.addEventListener("DOMContentLoaded", () => {
             indent: baseFormat.indent,
             children: makeRuns(block.runs, baseFormat),
             spacing: {
-              after: 0,
+              after: getParagraphAfter(index),
               line: getLineSpacing(baseFormat.size),
               lineRule: docxLib.LineRuleType?.AUTO || "auto"
             }
           })
         );
-      }
-
-      if (nextBlock && nextBlock.type !== "spacer") {
-        paragraphs.push(makeSpacer());
       }
 
       return paragraphs;
