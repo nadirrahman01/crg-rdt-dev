@@ -4638,6 +4638,30 @@ document.addEventListener("DOMContentLoaded", () => {
     }).join("");
   }
 
+  function serializeRichTextBlocksToPreviewHtml(blocks) {
+    return (blocks || []).map((block) => {
+      if (block.type === "spacer") return "";
+      if (block.type === "list") {
+        const tag = block.ordered ? "ol" : "ul";
+        const align = normalizeParagraphAlignment(block.align);
+        const classes = align !== "left" ? ` class="rt-align-${align}"` : "";
+        const attrs = align !== "left" ? ` data-align="${escapeAttribute(align)}"` : "";
+        return `<${tag}${classes}${attrs}>${block.items.map((item) => `<li>${serializeInlineRunsToHtml(item.runs)}</li>`).join("")}</${tag}>`;
+      }
+
+      const style = normalizeParagraphStyle(block.style);
+      const align = normalizeParagraphAlignment(block.align);
+      const classes = [
+        style !== "body" ? `rich-text-${style}` : "",
+        align !== "left" ? `rt-align-${align}` : ""
+      ].filter(Boolean).join(" ");
+      const classAttr = classes ? ` class="${classes}"` : "";
+      const styleAttr = style !== "body" ? ` data-paragraph-style="${escapeAttribute(style)}"` : "";
+      const alignAttr = align !== "left" ? ` data-align="${escapeAttribute(align)}"` : "";
+      return `<p${classAttr}${styleAttr}${alignAttr}>${serializeInlineRunsToHtml(block.runs)}</p>`;
+    }).join("");
+  }
+
   function serializeRichTextBlocksToEditorHtml(blocks) {
     return (blocks || []).map((block) => {
       if (block.type === "spacer") return '<p class="rich-text-spacer"><br></p>';
@@ -4748,7 +4772,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
   function buildPreviewNarrativeHtml(label, content) {
     if (!content) return "";
-    const richHtml = serializeRichTextBlocksToHtml(parseRichTextBlocks(content));
+    const richHtml = serializeRichTextBlocksToPreviewHtml(parseRichTextBlocks(content));
     return `
       <section class="preview-export-section">
         <h3>${escapeHtml(label)}</h3>
@@ -7512,8 +7536,6 @@ document.addEventListener("DOMContentLoaded", () => {
       };
     };
 
-    const getLineSpacing = (size) => Math.max(200, Math.round(Number(size || 18) * 15.8));
-
     const makeRuns = (runs, baseFormat, withPrefix = null) => {
       const children = [];
 
@@ -7551,21 +7573,30 @@ document.addEventListener("DOMContentLoaded", () => {
       return children;
     };
 
-    const getParagraphAfter = (currentIndex) => {
-      const hasNextVisibleBlock = blocks.slice(currentIndex + 1).some((entry) => entry.type !== "spacer");
-      return hasNextVisibleBlock ? 60 : 0;
-    };
-
     return blocks.flatMap((block, index) => {
       const paragraphs = [];
       const baseFormat = getBlockFormat(block);
+      const hasNextVisibleBlock = blocks.slice(index + 1).some((entry) => entry.type !== "spacer");
 
       if (block.type === "spacer") {
+        if (!hasNextVisibleBlock || index === 0) return paragraphs;
+        paragraphs.push(
+          new docxLib.Paragraph({
+            children: [
+              new docxLib.TextRun({
+                text: " ",
+                font: "Arial",
+                size: 3,
+                color: "1B1F24"
+              })
+            ],
+            spacing: { after: 0 }
+          })
+        );
         return paragraphs;
       }
 
       if (block.type === "list") {
-        const blockAfter = getParagraphAfter(index);
         block.items.forEach((item, itemIndex) => {
           const prefix = block.ordered ? `${itemIndex + 1}. ` : "• ";
           paragraphs.push(
@@ -7573,11 +7604,7 @@ document.addEventListener("DOMContentLoaded", () => {
               indent: { left: 180, hanging: 120 },
               alignment: baseFormat.alignment,
               children: makeRuns(item.runs, baseFormat, prefix),
-              spacing: {
-                after: itemIndex === block.items.length - 1 ? blockAfter : 18,
-                line: getLineSpacing(baseFormat.size),
-                lineRule: docxLib.LineRuleType?.AUTO || "auto"
-              }
+              spacing: { after: itemIndex === block.items.length - 1 ? 0 : 18 }
             })
           );
         });
@@ -7587,11 +7614,7 @@ document.addEventListener("DOMContentLoaded", () => {
             alignment: baseFormat.alignment,
             indent: baseFormat.indent,
             children: makeRuns(block.runs, baseFormat),
-            spacing: {
-              after: getParagraphAfter(index),
-              line: getLineSpacing(baseFormat.size),
-              lineRule: docxLib.LineRuleType?.AUTO || "auto"
-            }
+            spacing: { after: 0 }
           })
         );
       }
