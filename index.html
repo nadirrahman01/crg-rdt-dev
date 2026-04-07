@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Cordoba Publishing Platform</title>
+  <title>Research Production Console</title>
   <link rel="stylesheet" href="assets/styles.css">
 </head>
 <body>
@@ -14,16 +14,9 @@
           <div class="brand-topline">
             <p class="brand-overline">Cordoba Research Group</p>
           </div>
-          <h1>Publishing Platform</h1>
-          <p class="header-copy">Institutional drafting, review, and publication for research teams.</p>
+          <h1>Research Production Console</h1>
         </div>
       </div>
-
-      <nav class="header-nav" aria-label="Platform navigation">
-        <button type="button" class="header-nav-link is-active" data-jump-target="homeHub">Home</button>
-        <button type="button" class="header-nav-link" data-jump-target="workspaceHub">Workspace</button>
-        <button type="button" class="header-nav-link" data-jump-target="frameworkHub">Research Framework</button>
-      </nav>
 
       <div class="header-meta">
         <span class="header-meta-label">Current Time</span>
@@ -32,79 +25,14 @@
       </div>
     </header>
 
-    <section class="platform-home platform-anchor" id="homeHub">
-      <div class="platform-home-grid">
-        <div class="home-hero-card">
-          <p class="home-kicker">Institutional Research Publishing Platform</p>
-          <h2>Draft, review, and publish research with allocation-first discipline.</h2>
-          <p class="home-copy">Built for macro, fixed income, equity, commodity, and market-alert workflows. Structured drafting, export-safe formatting, and publication controls run from the same workstation.</p>
+    <div class="app-tools">
+      <button type="button" class="rail-toggle" id="toggleRailBtn" aria-expanded="true" aria-label="Hide workflow side panel">
+        <span class="rail-toggle-icon" id="toggleRailIcon">&lt;</span>
+        <span class="rail-toggle-text" id="toggleRailText">Hide Workflow Panel</span>
+      </button>
+    </div>
 
-          <div class="home-action-row">
-            <button type="button" class="btn btn-primary" data-jump-target="workspaceHub">Open Publishing Workspace</button>
-            <button type="button" class="btn btn-secondary" data-jump-target="frameworkHub">Open Research Framework</button>
-          </div>
-        </div>
-
-        <aside class="home-status-card">
-          <p class="home-kicker">Current Draft</p>
-          <strong id="homeDraftTitle">No active draft</strong>
-          <div class="home-status-list">
-            <div class="home-status-item">
-              <span>Note type</span>
-              <strong id="homeDraftType">Select a note type</strong>
-            </div>
-            <div class="home-status-item">
-              <span>Publication state</span>
-              <strong id="homeDraftState">Draft in progress</strong>
-            </div>
-            <div class="home-status-item">
-              <span>Authoring line</span>
-              <strong id="homeDraftAuthor">Primary author pending</strong>
-            </div>
-          </div>
-        </aside>
-      </div>
-
-      <div class="home-card-grid">
-        <article class="home-card">
-          <p class="home-card-kicker">Workstations</p>
-          <h3>Macro, FI, equity, commodities, and alerts</h3>
-          <p>Each note type runs through a structured editorial path with the right metadata, tear-sheet logic, and end matter.</p>
-        </article>
-
-        <article class="home-card">
-          <p class="home-card-kicker">Publishing Controls</p>
-          <h3>Preview, readiness review, export, and summary</h3>
-          <p>Draft review, preview, website summary, and DOCX publication sit inside one controlled publishing engine.</p>
-        </article>
-
-        <article class="home-card">
-          <p class="home-card-kicker">Research Discipline</p>
-          <h3>Return-first writing standards from the CRG manual</h3>
-          <p>Notes are anchored in valuation, the return driver, the break point, and a final Cordoba View that tells allocators what to do.</p>
-        </article>
-      </div>
-    </section>
-
-    <section class="platform-workspace-shell platform-anchor" id="workspaceHub">
-      <div class="workspace-shell-head">
-        <div>
-          <p class="section-kicker">Publishing Workspace</p>
-          <h2>Research drafting workstation</h2>
-        </div>
-        <div class="workspace-shell-actions">
-          <button type="button" class="btn btn-secondary btn-xs" data-jump-target="frameworkHub">Open Research Framework</button>
-        </div>
-      </div>
-
-      <div class="app-tools">
-        <button type="button" class="rail-toggle" id="toggleRailBtn" aria-expanded="true" aria-label="Hide workflow side panel">
-          <span class="rail-toggle-icon" id="toggleRailIcon">&lt;</span>
-          <span class="rail-toggle-text" id="toggleRailText">Hide Workflow Panel</span>
-        </button>
-      </div>
-
-      <div class="app-body" id="appBody">
+    <div class="app-body" id="appBody">
       <aside class="workflow-rail" id="workflowRail">
         <div class="rail-panel rail-panel-accent">
           <div class="rail-panel-head">
@@ -187,20 +115,6 @@
               <span id="summaryOutputDetail">Pre-publish review: 0 critical, 0 warnings, 0 suggestions.</span>
             </div>
           </div>
-        </div>
-
-        <div class="rail-panel">
-          <div class="rail-panel-head">
-            <p class="rail-label">Research Framework</p>
-          </div>
-          <ul class="framework-mini-list">
-            <li><strong>Start from the return:</strong> explain what the investor is being paid to hold.</li>
-            <li><strong>Anchor in valuation:</strong> compare the asset against real alternatives.</li>
-            <li><strong>Follow the mechanism:</strong> write from the economics, not the headlines.</li>
-            <li><strong>Name the break point:</strong> make the base case and invalidation clear.</li>
-            <li><strong>End with the Cordoba View:</strong> state the allocation call and structural implication.</li>
-          </ul>
-          <button type="button" class="btn btn-secondary btn-xs rail-link-btn" data-jump-target="frameworkHub">Open Full Framework</button>
         </div>
 
         <div class="rail-panel">
@@ -857,92 +771,7 @@
           </section>
         </form>
       </main>
-      </div>
-    </section>
-
-    <section class="platform-framework platform-anchor" id="frameworkHub">
-      <div class="framework-head">
-        <div>
-          <p class="section-kicker">Research Framework</p>
-          <h2>Write from the return, not from the news flow.</h2>
-          <p class="section-copy">Guidance distilled from the CRG Research Manual for analysts building publication-ready notes.</p>
-        </div>
-        <button type="button" class="btn btn-secondary" data-jump-target="workspaceHub">Open Workspace</button>
-      </div>
-
-      <div class="framework-grid">
-        <article class="framework-card">
-          <p class="framework-card-index">01</p>
-          <h3>Deliver an implementable allocation call</h3>
-          <p>Every note should help an allocator decide what to do with the asset now, while also deepening structural understanding of the market behind it.</p>
-        </article>
-
-        <article class="framework-card">
-          <p class="framework-card-index">02</p>
-          <h3>Start from valuation and the investor’s choice set</h3>
-          <p>Anchor the note in where the asset trades and what the investor is being paid to hold relative to alternatives before discussing macro, policy, or company developments.</p>
-        </article>
-
-        <article class="framework-card">
-          <p class="framework-card-index">03</p>
-          <h3>Follow the economic mechanism that drives the return</h3>
-          <p>Build the view from the variables that actually change the return path. Avoid collecting information for its own sake or writing from headline flow.</p>
-        </article>
-
-        <article class="framework-card">
-          <p class="framework-card-index">04</p>
-          <h3>State the base case and the break point</h3>
-          <p>Make clear which conditions keep the position valid, and which development would force a change in the recommendation or weight.</p>
-        </article>
-
-        <article class="framework-card">
-          <p class="framework-card-index">05</p>
-          <h3>End with a decisive Cordoba View</h3>
-          <p>Close with a clear allocation instruction and a structural interpretation so the note remains active after publication and useful in portfolio monitoring.</p>
-        </article>
-      </div>
-
-      <div class="framework-detail-grid">
-        <article class="framework-panel">
-          <div class="framework-panel-head">
-            <h3>Asset anchors</h3>
-            <p>Different assets begin from different return drivers, but the framework stays the same.</p>
-          </div>
-          <div class="framework-driver-table">
-            <div class="framework-driver-row">
-              <strong>Local markets</strong>
-              <span>Real yield, policy credibility, and currency stability.</span>
-            </div>
-            <div class="framework-driver-row">
-              <strong>Hard currency sovereigns</strong>
-              <span>Spread versus peers, funding path, fiscal trajectory, and external financing.</span>
-            </div>
-            <div class="framework-driver-row">
-              <strong>Equities</strong>
-              <span>Cash flow durability, reinvestment quality, and the multiple already paid for future earnings.</span>
-            </div>
-            <div class="framework-driver-row">
-              <strong>Commodities</strong>
-              <span>Incentive price, effective supply, demand persistence, and the asset’s position on the cost curve.</span>
-            </div>
-          </div>
-        </article>
-
-        <article class="framework-panel">
-          <div class="framework-panel-head">
-            <h3>What strong notes do</h3>
-            <p>Use the draft to separate signal from background.</p>
-          </div>
-          <ul class="framework-checklist">
-            <li>Translate fundamentals into expected return and relative allocation value.</li>
-            <li>Identify the variable that actually changes the return if it keeps moving.</li>
-            <li>Explain why the current valuation is justified or mispriced.</li>
-            <li>Show what would confirm the thesis and what would break it.</li>
-            <li>Avoid descriptive country, sector, or company writing that never reaches a portfolio decision.</li>
-          </ul>
-        </article>
-      </div>
-    </section>
+    </div>
   </div>
 
   <template id="customBodySectionTemplate">
