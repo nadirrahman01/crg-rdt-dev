@@ -1459,15 +1459,15 @@ input[type="file"]::file-selector-button {
 .figure-placement-list {
   margin-top: 8px;
   display: grid;
-  gap: 10px;
+  gap: 8px;
 }
 
 .figure-placement-row {
   display: grid;
-  grid-template-columns: minmax(280px, 0.95fr) minmax(0, 1.05fr);
-  gap: 12px;
+  grid-template-columns: minmax(260px, 0.82fr) minmax(0, 1.18fr);
+  gap: 10px;
   align-items: start;
-  padding: 10px 0;
+  padding: 9px 0;
   border-top: 1px solid #eef1f4;
 }
 
@@ -1483,14 +1483,14 @@ input[type="file"]::file-selector-button {
 .figure-placement-summary {
   display: grid;
   grid-template-columns: 1fr;
-  gap: 7px;
+  gap: 6px;
   align-items: start;
 }
 
 .figure-placement-thumb {
   display: block;
   width: 100%;
-  height: 210px;
+  height: 190px;
   border: 1px solid var(--line);
   border-radius: var(--radius-sm);
   background: #fff;
@@ -1506,39 +1506,45 @@ input[type="file"]::file-selector-button {
 
 .figure-placement-meta {
   display: grid;
-  gap: 6px;
+  gap: 5px;
 }
 
 .figure-placement-meta-grid {
   display: grid;
-  grid-template-columns: 92px 64px minmax(0, 1fr);
-  gap: 6px;
+  grid-template-columns: 86px 58px minmax(0, 1fr);
+  gap: 5px;
 }
 
 .figure-placement-layout-grid {
   display: grid;
-  grid-template-columns: 104px 88px minmax(0, 1fr);
-  gap: 6px;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 5px;
   align-items: center;
+}
+
+.figure-placement-header-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 0.86fr);
+  gap: 5px;
 }
 
 .figure-placement-meta input[type="text"],
 .figure-placement-meta textarea,
 .figure-placement-meta select {
-  padding: 7px 9px;
+  padding: 6px 8px;
   font-size: 12px;
 }
 
 .figure-placement-meta textarea {
-  min-height: 54px;
+  min-height: 46px;
 }
 
 .figure-keep-toggle {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  min-height: 34px;
-  padding: 0 9px;
+  min-height: 30px;
+  padding: 0 8px;
   border: 1px solid var(--line-strong);
   border-radius: var(--radius-sm);
   background: #fff;
@@ -1549,6 +1555,32 @@ input[type="file"]::file-selector-button {
 
 .figure-keep-toggle input {
   width: auto;
+}
+
+.figure-placement-quality {
+  margin-top: 3px;
+  color: var(--ink-muted);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.figure-placement-quality.is-warning {
+  color: var(--red-dark);
+}
+
+.figure-placement-utility-row {
+  display: grid;
+  grid-template-columns: minmax(132px, 1fr) auto auto auto;
+  gap: 6px;
+  align-items: center;
+}
+
+.figure-reference-token {
+  font-family: "SFMono-Regular", "Cascadia Code", "Consolas", monospace;
+  color: var(--ink-muted);
+  background: var(--panel-soft);
 }
 
 .figure-placement-row .btn {
@@ -2548,11 +2580,12 @@ input[type="file"]::file-selector-button {
 
 .preview-figure {
   margin: 18px 0 20px;
-  padding: 9px 0 0;
-  border-top: 1px solid #a7adb5;
+  padding: 0;
+  border-top: 0;
   background: transparent;
   break-inside: avoid;
   page-break-inside: avoid;
+  text-align: center;
 }
 
 .preview-figure-inline {
@@ -2582,11 +2615,72 @@ input[type="file"]::file-selector-button {
   page-break-after: avoid;
 }
 
+.preview-figure-frame-top {
+  padding-top: 9px;
+  border-top: 1px solid #a7adb5;
+}
+
+.preview-figure-frame-bottom .preview-figure-footer {
+  padding-top: 7px;
+  border-top: 1px solid #a7adb5;
+}
+
+.preview-figure-frame-none .preview-figure-footer {
+  padding-top: 0;
+  border-top: 0;
+}
+
+.preview-figure-header {
+  display: grid;
+  gap: 3px;
+  justify-items: center;
+  text-align: center;
+}
+
+.preview-figure-label {
+  color: var(--ink-muted);
+  font-size: 11px;
+  line-height: 1.2;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.preview-figure-title,
+.preview-figure-heading {
+  margin: 0;
+  color: var(--ink);
+  font-size: 16px;
+  line-height: 1.24;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  text-align: center;
+}
+
+.preview-figure-subtitle {
+  color: var(--ink-soft);
+  font-size: 13px;
+  line-height: 1.32;
+  font-weight: 600;
+}
+
+.preview-figure-takeaway {
+  color: var(--red-dark);
+  font-size: 12px;
+  line-height: 1.3;
+  font-weight: 800;
+}
+
+.preview-figure-image-frame {
+  width: 100%;
+  margin: 12px auto 10px;
+}
+
 .preview-figure img {
   display: block;
   max-width: 100%;
   max-height: 340px;
-  margin: 13px auto 10px;
+  margin: 0 auto;
   object-fit: contain;
 }
 
@@ -2602,23 +2696,65 @@ input[type="file"]::file-selector-button {
   max-height: 390px;
 }
 
-.preview-figure-heading {
+.preview-figure-crop-fit img,
+.preview-figure-crop-contain img {
+  object-fit: contain;
+}
+
+.preview-figure-crop-fill .preview-figure-image-frame {
+  height: 300px;
+  overflow: hidden;
+}
+
+.preview-figure-crop-fill img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.preview-figure-crop-fixed .preview-figure-image-frame {
+  aspect-ratio: 16 / 9;
+  overflow: hidden;
+}
+
+.preview-figure-crop-fixed img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.preview-figure-pair {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 18px;
+  align-items: start;
+  margin: 18px 0 20px;
+  break-inside: avoid;
+  page-break-inside: avoid;
+}
+
+.preview-figure-pair .preview-figure {
   margin: 0;
-  color: var(--ink);
-  font-size: 16px;
-  line-height: 1.24;
-  font-weight: 800;
-  letter-spacing: -0.01em;
+}
+
+.preview-figure.is-paired {
+  max-width: none;
+}
+
+.preview-figure.is-paired .preview-figure-title {
+  font-size: 13px;
+}
+
+.preview-figure.is-paired .preview-figure-subtitle {
+  font-size: 11px;
 }
 
 .preview-figure-footer {
   margin-top: 8px;
-  padding-top: 7px;
-  border-top: 1px solid #a7adb5;
   color: var(--ink);
   font-size: 11px;
   line-height: 1.35;
-  text-align: left;
+  text-align: center;
   font-style: normal;
 }
 
@@ -2772,8 +2908,11 @@ code {
 
   .figure-placement-meta-grid,
   .figure-placement-layout-grid,
+  .figure-placement-header-grid,
+  .figure-placement-utility-row,
   .figure-placement-summary,
-  .preview-meta-grid {
+  .preview-meta-grid,
+  .preview-figure-pair {
     grid-template-columns: 1fr;
   }
 
