@@ -155,8 +155,14 @@ body::before {
 
 .app-tools {
   display: flex;
-  justify-content: flex-start;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
   padding: 10px 18px 0;
+}
+
+.top-reset-btn {
+  flex: 0 0 auto;
 }
 
 .rail-toggle {
@@ -1656,11 +1662,42 @@ input[type="file"]::file-selector-button {
 
 .summary-editor-surface {
   min-height: 420px;
+  line-height: 1.5;
 }
 
-.preview-export-section ol,
-.summary-editor-surface ol {
+.summary-editor-surface p,
+.summary-editor-surface ul,
+.summary-editor-surface ol,
+.summary-editor-surface blockquote {
+  margin: 0 0 11px;
+}
+
+.summary-editor-surface p:last-child,
+.summary-editor-surface ul:last-child,
+.summary-editor-surface ol:last-child,
+.summary-editor-surface blockquote:last-child {
+  margin-bottom: 0;
+}
+
+.summary-editor-surface p.rich-text-spacer {
+  min-height: 1.5em;
   margin: 0;
+}
+
+.summary-editor-surface h3 {
+  margin: 16px 0 8px;
+}
+
+.summary-editor-surface h3:first-child {
+  margin-top: 0;
+}
+
+.preview-export-section ol {
+  margin: 0;
+  padding-left: 18px;
+}
+
+.summary-editor-surface ol {
   padding-left: 18px;
 }
 
@@ -2469,6 +2506,10 @@ code {
 
   .btn {
     width: 100%;
+  }
+
+  .top-reset-btn {
+    width: auto;
   }
 
   .figure-placement-row {
