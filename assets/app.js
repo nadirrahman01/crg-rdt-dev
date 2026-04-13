@@ -175,8 +175,8 @@ document.addEventListener("DOMContentLoaded", () => {
     { value: "large", label: "Large" }
   ];
   const FIGURE_CROP_MODES = [
-    { value: "fit", label: "Fit" },
     { value: "fill", label: "Fill" },
+    { value: "fit", label: "Fit" },
     { value: "contain", label: "Contain" },
     { value: "fixed", label: "Fixed ratio" }
   ];
@@ -978,6 +978,14 @@ document.addEventListener("DOMContentLoaded", () => {
       <button type="button" class="rich-editor-btn" data-rich-align="center" aria-label="Align center">C</button>
       <button type="button" class="rich-editor-btn" data-rich-align="right" aria-label="Align right">R</button>
       <button type="button" class="rich-editor-btn" data-rich-align="justify" aria-label="Justify">J</button>
+      <span class="rich-editor-toolbar-divider" aria-hidden="true"></span>
+      <span class="rich-editor-figure-ref">
+        <select class="rich-editor-figure-select" data-rich-figure-select aria-label="Figure reference token">
+          <option value="">Figure ref</option>
+        </select>
+        <button type="button" class="rich-editor-btn rich-editor-token-btn" data-rich-figure-action="insert" aria-label="Insert figure token">Insert</button>
+        <button type="button" class="rich-editor-btn rich-editor-token-btn" data-rich-figure-action="copy" aria-label="Copy figure token">Copy</button>
+      </span>
     `;
   }
 
@@ -993,6 +1001,32 @@ document.addEventListener("DOMContentLoaded", () => {
     if (!shell || shell.dataset.richWired === "true") return;
     wireRichTextShell(shell, null, { preserveStructure: true });
     updateRichEditorEmptyState(dom.summaryEditor);
+  }
+
+  function buildFigureTokenOptionsHtml(selectedValue = "") {
+    const options = (state.figureFiles || []).map((file, index) => {
+      const key = figureFileKey(file);
+      const detail = getFigureDetailForFile(file, index);
+      const label = `${buildFigureLabel(detail, index + 1)} token`;
+      const token = figureReferenceToken(key);
+      const selected = token === selectedValue ? " selected" : "";
+      return `<option value="${escapeAttribute(token)}"${selected}>${escapeHtml(label)}</option>`;
+    }).join("");
+
+    return `<option value="">Figure ref</option>${options}`;
+  }
+
+  function refreshFigureTokenControls(scope = document) {
+    const selects = Array.from(scope.querySelectorAll?.("[data-rich-figure-select]") || []);
+    selects.forEach((select) => {
+      const selectedValue = select.value;
+      select.innerHTML = buildFigureTokenOptionsHtml(selectedValue);
+      const hasFigures = (state.figureFiles || []).length > 0;
+      select.disabled = !hasFigures;
+      select.closest(".rich-editor-figure-ref")?.querySelectorAll("[data-rich-figure-action]").forEach((button) => {
+        button.disabled = !hasFigures;
+      });
+    });
   }
 
   function enhanceRichTextField(textarea) {
@@ -1036,9 +1070,10 @@ document.addEventListener("DOMContentLoaded", () => {
     if (sourceTextarea) {
       state.richEditors.set(sourceTextarea, { shell, toolbar, surface, source: sourceTextarea });
     }
+    refreshFigureTokenControls(toolbar);
 
     toolbar.addEventListener("mousedown", (event) => {
-      if (event.target.closest("[data-rich-command], [data-rich-align]")) {
+      if (event.target.closest("[data-rich-command], [data-rich-align], [data-rich-figure-action]")) {
         event.preventDefault();
       }
     });
@@ -1046,6 +1081,28 @@ document.addEventListener("DOMContentLoaded", () => {
     toolbar.addEventListener("click", (event) => {
       const button = event.target.closest("[data-rich-command]");
       const alignButton = event.target.closest("[data-rich-align]");
+      const figureButton = event.target.closest("[data-rich-figure-action]");
+
+      if (figureButton) {
+        const select = toolbar.querySelector("[data-rich-figure-select]");
+        const token = String(select?.value || "").trim();
+        if (!token) return;
+
+        if (figureButton.getAttribute("data-rich-figure-action") === "copy") {
+          try {
+            navigator.clipboard?.writeText(token);
+          } catch (_) {
+            // The selected token remains visible if clipboard access is unavailable.
+          }
+          return;
+        }
+
+        if (document.activeElement !== surface) surface.focus();
+        document.execCommand("insertText", false, token);
+        handleRichTextSurfaceUpdate(surface, sourceTextarea, true);
+        syncRichToolbarState(shell, surface);
+        return;
+      }
 
       if (alignButton) {
         if (document.activeElement !== surface) surface.focus();
@@ -3521,7 +3578,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
   function sanitizeFigureCropMode(value) {
     const normalized = String(value || "").trim();
-    return FIGURE_CROP_MODES.some((option) => option.value === normalized) ? normalized : "fit";
+    return FIGURE_CROP_MODES.some((option) => option.value === normalized) ? normalized : "fill";
   }
 
   function buildFigureLabel(detail, fallbackNumber) {
@@ -3591,7 +3648,6 @@ document.addEventListener("DOMContentLoaded", () => {
     detail.displayMode = sanitizeFigureDisplayMode(detail.displayMode);
     detail.size = sanitizeFigureSize(detail.size);
     detail.cropMode = sanitizeFigureCropMode(detail.cropMode);
-    detail.keepWithNext = Boolean(detail.keepWithNext);
     detail.pairWithNext = Boolean(detail.pairWithNext);
     detail.pairWithKey = String(detail.pairWithKey || "").trim();
     return detail;
@@ -3664,6 +3720,33 @@ document.addEventListener("DOMContentLoaded", () => {
       .filter(Boolean);
   }
 
+  function figurePlacementValue(figureKey, fallback = "end") {
+    return state.figurePlacements[figureKey] || state.figureDetails[figureKey]?.placement || fallback || "end";
+  }
+
+  function applyFigurePlacementToKey(figureKey, placement) {
+    if (!figureKey) return;
+    const nextPlacement = placement || "end";
+    state.figurePlacements[figureKey] = nextPlacement;
+    state.figureDetails[figureKey] = {
+      ...(state.figureDetails[figureKey] || {}),
+      placement: nextPlacement
+    };
+  }
+
+  function syncFigurePairPlacementGroup(changedKey) {
+    const changedDetail = state.figureDetails[changedKey] || {};
+
+    if (changedDetail.pairWithKey) {
+      applyFigurePlacementToKey(changedKey, figurePlacementValue(changedDetail.pairWithKey, changedDetail.placement || "end"));
+    }
+
+    Object.entries(state.figureDetails || {}).forEach(([candidateKey, detail]) => {
+      if (candidateKey === changedKey || detail?.pairWithKey !== changedKey) return;
+      applyFigurePlacementToKey(candidateKey, figurePlacementValue(changedKey, detail.placement || "end"));
+    });
+  }
+
   function buildPreviewFigureFooterHtml(source, notes) {
     const sourceLine = formatFigureSourceLine(source);
     const notesLine = formatFigureNotesLine(notes);
@@ -3698,7 +3781,6 @@ document.addEventListener("DOMContentLoaded", () => {
       displayMode: sanitizeFigureDisplayMode(existing.displayMode),
       size: sanitizeFigureSize(existing.size),
       cropMode: sanitizeFigureCropMode(existing.cropMode),
-      keepWithNext: Boolean(existing.keepWithNext),
       pairWithNext: Boolean(existing.pairWithNext),
       pairWithKey: String(existing.pairWithKey || "").trim()
     };
@@ -3718,7 +3800,9 @@ document.addEventListener("DOMContentLoaded", () => {
     state.figurePlacements = Object.fromEntries(
       Object.entries(nextDetails).map(([key, detail]) => [key, detail.placement || "end"])
     );
+    Object.keys(nextDetails).forEach((key) => syncFigurePairPlacementGroup(key));
     updateFigureSummary();
+    refreshFigureTokenControls();
     refreshFigureQualityForFiles(state.figureFiles);
   }
 
@@ -3961,21 +4045,10 @@ document.addEventListener("DOMContentLoaded", () => {
       ));
       utilityRow.appendChild(tokenWrap);
 
-      const keepLabel = document.createElement("label");
-      keepLabel.className = "figure-keep-toggle";
-      const keepInput = document.createElement("input");
-      keepInput.type = "checkbox";
-      keepInput.checked = Boolean(detail.keepWithNext);
-      keepInput.setAttribute("data-figure-key", key);
-      keepInput.setAttribute("data-figure-field", "keepWithNext");
-      keepLabel.appendChild(keepInput);
-      keepLabel.appendChild(document.createTextNode("Keep"));
-      utilityRow.appendChild(keepLabel);
-
       const pairWrap = document.createElement("div");
       pairWrap.className = "figure-pair-control";
       const pairLabel = document.createElement("label");
-      pairLabel.className = "figure-keep-toggle";
+      pairLabel.className = "figure-pair-toggle";
       const pairInput = document.createElement("input");
       pairInput.type = "checkbox";
       const pairableOptions = buildFigurePairOptions(key);
@@ -4048,8 +4121,6 @@ document.addEventListener("DOMContentLoaded", () => {
     } else if (field === "cropMode") {
       current.cropMode = sanitizeFigureCropMode(target.value);
       target.value = current.cropMode;
-    } else if (field === "keepWithNext") {
-      current.keepWithNext = target instanceof HTMLInputElement ? target.checked : Boolean(target.value);
     } else if (field === "pairWithNext") {
       current.pairWithNext = target instanceof HTMLInputElement ? target.checked : Boolean(target.value);
       if (current.pairWithNext && !current.pairWithKey) {
@@ -4063,14 +4134,11 @@ document.addEventListener("DOMContentLoaded", () => {
       current[field] = target.value;
     }
     if (field === "placement") state.figurePlacements[figureKey] = current.placement || "end";
-    if ((field === "placement" || field === "pairWithKey" || field === "pairWithNext") && current.pairWithKey) {
-      state.figurePlacements[current.pairWithKey] = current.placement || "end";
-      state.figureDetails[current.pairWithKey] = {
-        ...(state.figureDetails[current.pairWithKey] || {}),
-        placement: current.placement || "end"
-      };
-    }
     state.figureDetails[figureKey] = current;
+    if (field === "placement" || field === "pairWithKey" || field === "pairWithNext") {
+      syncFigurePairPlacementGroup(figureKey);
+    }
+    refreshFigureTokenControls();
     const nameEl = target.closest(".figure-placement-row")?.querySelector(".figure-placement-name");
     if (nameEl) {
       const caption = String(current.caption || "").trim() || "Untitled figure";
@@ -4107,9 +4175,10 @@ document.addEventListener("DOMContentLoaded", () => {
       return acc;
     }, {});
     files.forEach((file, index) => {
+      const key = figureFileKey(file);
       const detail = getFigureDetailForFile(file, index);
       if (detail.pairWithNext && detail.pairWithKey && placements[detail.pairWithKey]) {
-        placements[detail.pairWithKey] = detail.placement || placements[figureFileKey(file)] || "end";
+        placements[key] = placements[detail.pairWithKey];
       }
     });
     return placements;
@@ -5932,7 +6001,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const cropMode = sanitizeFigureCropMode(detail.cropMode);
 
     return `
-      <figure class="preview-figure preview-figure-${displayMode} preview-figure-${size} preview-figure-crop-${cropMode}${detail.keepWithNext ? " is-keep-with-next" : ""}${options.paired ? " is-paired" : ""}">
+      <figure class="preview-figure preview-figure-${displayMode} preview-figure-${size} preview-figure-crop-${cropMode}${options.paired ? " is-paired" : ""}">
         <div class="preview-figure-header">
           <div class="preview-figure-title">${escapeHtml(displayTitle)}</div>
           ${detail.subtitle ? `<div class="preview-figure-subtitle">${escapeHtml(detail.subtitle)}</div>` : ""}
@@ -9160,7 +9229,7 @@ document.addEventListener("DOMContentLoaded", () => {
           })
         ],
         alignment: center,
-        keepNext: Boolean(detail.keepWithNext) || Boolean(footerText),
+        keepNext: Boolean(footerText),
         spacing: { before: 0, after: footerText ? 14 : (paired ? 26 : 82) }
       }),
       ...(footerText
