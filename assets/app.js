@@ -325,6 +325,7 @@ document.addEventListener("DOMContentLoaded", () => {
     publishSummaryBtn: document.getElementById("publishSummaryBtn"),
     generateDocBtn: document.getElementById("generateDocBtn"),
     emailToCrgBtn: document.getElementById("emailToCrgBtn"),
+    resetDraftTopBtn: document.getElementById("resetDraftTopBtn"),
     resetFormBtn: document.getElementById("resetFormBtn"),
     message: document.getElementById("message"),
     navNote: document.getElementById("nav-note"),
@@ -666,6 +667,7 @@ document.addEventListener("DOMContentLoaded", () => {
       if (event.key === "Escape" && !dom.summaryModal?.hidden) closeSummaryModal();
     });
     dom.emailToCrgBtn.addEventListener("click", draftEmailToResearch);
+    dom.resetDraftTopBtn?.addEventListener("click", resetDraft);
     dom.resetFormBtn.addEventListener("click", resetDraft);
 
     form.addEventListener("input", (event) => {
@@ -5360,7 +5362,7 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   function publishSummaryToResearchCommentary() {
-    window.open("https://cordobarg.com/research-commentary/", "_blank", "noopener");
+    window.open("https://cordobarg.com/wp-admin/post-new.php", "_blank", "noopener");
   }
 
   function buildPreviewEquityCrgRatingDefinitionsPageHtml(data, pageNumber, totalPages) {
