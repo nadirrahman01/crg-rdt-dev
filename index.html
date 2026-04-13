@@ -244,15 +244,27 @@
 
                 <div class="field">
                   <div class="label-row">
-                    <label for="sovereignClassification">Classification</label>
+                    <span class="label-help-row">
+                      <label for="sovereignClassification">Classification</label>
+                      <span class="info-help">
+                        <span class="info-dot" tabindex="0" aria-label="Classification autofill guidance">i</span>
+                        <span class="info-tooltip">Auto-filled where possible. If the classification is missing or not right, enter it manually.</span>
+                      </span>
+                    </span>
                     <span class="field-tag">Auto</span>
                   </div>
-                  <input type="text" id="sovereignClassification" name="sovereignClassification" placeholder="Developed / emerging market sovereign">
+                  <input type="text" id="sovereignClassification" name="sovereignClassification" placeholder="Developed / Emerging / Frontier Market">
                 </div>
 
                 <div class="field field-span-2">
                   <div class="label-row">
-                    <label for="sovereignBenchmark">Benchmark Reference</label>
+                    <span class="label-help-row">
+                      <label for="sovereignBenchmark">Benchmark Reference</label>
+                      <span class="info-help">
+                        <span class="info-dot" tabindex="0" aria-label="Benchmark reference autofill guidance">i</span>
+                        <span class="info-tooltip">Auto-filled where possible. If no benchmark appears, add the preferred reference manually.</span>
+                      </span>
+                    </span>
                     <span class="field-tag">Auto</span>
                   </div>
                   <input type="text" id="sovereignBenchmark" name="sovereignBenchmark" placeholder="10Y sovereign benchmark reference">
@@ -453,7 +465,13 @@
 
               <div class="field">
                 <div class="label-row">
-                  <label for="benchmarkName">Benchmark Label</label>
+                  <span class="label-help-row">
+                    <label for="benchmarkName">Benchmark Label</label>
+                    <span class="info-help">
+                      <span class="info-dot" tabindex="0" aria-label="Equity benchmark guidance">i</span>
+                      <span class="info-tooltip">Benchmark stays manual. Add the preferred index or reference if needed.</span>
+                    </span>
+                  </span>
                   <span class="field-tag">Optional</span>
                 </div>
                 <input type="text" id="benchmarkName" name="benchmarkName" placeholder="TAIEX Index">
