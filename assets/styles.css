@@ -1033,6 +1033,31 @@ input[type="file"]::file-selector-button {
   margin: 0 2px;
 }
 
+.rich-editor-figure-ref {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  min-width: 0;
+}
+
+.rich-editor-figure-select {
+  width: 116px;
+  min-height: 28px;
+  padding: 4px 22px 4px 8px;
+  border: 1px solid var(--line-strong);
+  border-radius: 8px;
+  background-color: #fff;
+  color: var(--ink-soft);
+  font: inherit;
+  font-size: 12px;
+}
+
+.rich-editor-token-btn {
+  min-width: 48px;
+  padding: 0 7px;
+  color: var(--ink-soft);
+}
+
 .rich-editor-btn .is-underlined {
   text-decoration: underline;
 }
@@ -1539,7 +1564,7 @@ input[type="file"]::file-selector-button {
   min-height: 46px;
 }
 
-.figure-keep-toggle {
+.figure-pair-toggle {
   display: inline-flex;
   align-items: center;
   gap: 6px;
@@ -1553,7 +1578,7 @@ input[type="file"]::file-selector-button {
   font-weight: 700;
 }
 
-.figure-keep-toggle input {
+.figure-pair-toggle input {
   width: auto;
 }
 
@@ -2632,11 +2657,6 @@ input[type="file"]::file-selector-button {
 
 .preview-figure-large img {
   max-height: 390px;
-}
-
-.preview-figure.is-keep-with-next {
-  break-after: avoid;
-  page-break-after: avoid;
 }
 
 .preview-figure-header {
