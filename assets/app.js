@@ -409,6 +409,7 @@ document.addEventListener("DOMContentLoaded", () => {
     figurePlacements: {},
     figureFiles: [],
     figureDetails: {},
+    figurePreviewUrls: {},
     previewObjectUrls: [],
     richEditors: new Map(),
     summaryHtml: ""
@@ -1414,7 +1415,7 @@ document.addEventListener("DOMContentLoaded", () => {
       </div>
       <div class="field">
         <label>&nbsp;</label>
-        <button type="button" class="btn btn-ghost remove-coauthor">Remove</button>
+        <button type="button" class="btn btn-ghost remove-coauthor icon-action-btn" aria-label="Remove co-author" title="Remove co-author">&times;</button>
       </div>
     `;
 
@@ -1824,10 +1825,10 @@ document.addEventListener("DOMContentLoaded", () => {
                 placeholder="FY26F"
               >
               <div class="financial-header-actions">
-                <button type="button" class="btn btn-ghost btn-xs" data-action="move-col-left" data-col-index="${index}" ${index === 0 ? "disabled" : ""}>&lt;</button>
-                <button type="button" class="btn btn-ghost btn-xs" data-action="move-col-right" data-col-index="${index}" ${index === matrix.headers.length - 1 ? "disabled" : ""}>&gt;</button>
-                <button type="button" class="btn btn-ghost btn-xs" data-action="duplicate-col" data-col-index="${index}" ${matrix.headers.length >= 6 ? "disabled" : ""}>Dup</button>
-                <button type="button" class="btn btn-ghost btn-xs" data-action="delete-col" data-col-index="${index}" ${matrix.headers.length === 1 ? "disabled" : ""}>Del</button>
+                <button type="button" class="btn btn-ghost btn-xs icon-action-btn" data-action="move-col-left" data-col-index="${index}" aria-label="Move column left" title="Move column left" ${index === 0 ? "disabled" : ""}>&lt;</button>
+                <button type="button" class="btn btn-ghost btn-xs icon-action-btn" data-action="move-col-right" data-col-index="${index}" aria-label="Move column right" title="Move column right" ${index === matrix.headers.length - 1 ? "disabled" : ""}>&gt;</button>
+                <button type="button" class="btn btn-ghost btn-xs icon-action-btn" data-action="duplicate-col" data-col-index="${index}" aria-label="Duplicate column" title="Duplicate column" ${matrix.headers.length >= 6 ? "disabled" : ""}>&#x29C9;</button>
+                <button type="button" class="btn btn-ghost btn-xs icon-action-btn" data-action="delete-col" data-col-index="${index}" aria-label="Delete column" title="Delete column" ${matrix.headers.length === 1 ? "disabled" : ""}>&times;</button>
               </div>
             </div>
           </th>
@@ -1876,10 +1877,10 @@ document.addEventListener("DOMContentLoaded", () => {
         `).join("")}
         <td class="financial-grid-actions-col">
           <div class="financial-row-actions">
-            <button type="button" class="btn btn-ghost btn-xs" data-action="move-row-up" data-row-index="${rowIndex}" ${rowIndex === 0 ? "disabled" : ""}>Up</button>
-            <button type="button" class="btn btn-ghost btn-xs" data-action="move-row-down" data-row-index="${rowIndex}" ${rowIndex === matrix.rows.length - 1 ? "disabled" : ""}>Dn</button>
-            <button type="button" class="btn btn-ghost btn-xs" data-action="duplicate-row" data-row-index="${rowIndex}">Dup</button>
-            <button type="button" class="btn btn-ghost btn-xs" data-action="delete-row" data-row-index="${rowIndex}" ${matrix.rows.length === 1 ? "disabled" : ""}>Del</button>
+            <button type="button" class="btn btn-ghost btn-xs icon-action-btn" data-action="move-row-up" data-row-index="${rowIndex}" aria-label="Move row up" title="Move row up" ${rowIndex === 0 ? "disabled" : ""}>&uarr;</button>
+            <button type="button" class="btn btn-ghost btn-xs icon-action-btn" data-action="move-row-down" data-row-index="${rowIndex}" aria-label="Move row down" title="Move row down" ${rowIndex === matrix.rows.length - 1 ? "disabled" : ""}>&darr;</button>
+            <button type="button" class="btn btn-ghost btn-xs icon-action-btn" data-action="duplicate-row" data-row-index="${rowIndex}" aria-label="Duplicate row" title="Duplicate row">&#x29C9;</button>
+            <button type="button" class="btn btn-ghost btn-xs icon-action-btn" data-action="delete-row" data-row-index="${rowIndex}" aria-label="Delete row" title="Delete row" ${matrix.rows.length === 1 ? "disabled" : ""}>&times;</button>
           </div>
         </td>
       </tr>
@@ -3182,6 +3183,7 @@ document.addEventListener("DOMContentLoaded", () => {
     state.lastSavedAt = null;
     state.customSectionCount = 0;
     state.financialHeaderLocked = false;
+    clearFigurePreviewUrls();
     state.figurePlacements = {};
     state.figureDetails = {};
     state.figureFiles = [];
@@ -3251,6 +3253,7 @@ document.addEventListener("DOMContentLoaded", () => {
       : "No figures attached.";
 
     dom.imageSummaryList.innerHTML = "";
+    dom.imageSummaryList.classList.toggle("figure-summary-list", files.length > 0);
     if (!files.length) {
       dom.imageSummaryList.hidden = true;
       return;
@@ -3258,13 +3261,47 @@ document.addEventListener("DOMContentLoaded", () => {
 
     files.forEach((file, index) => {
       const item = document.createElement("li");
+      item.className = "figure-summary-item";
+      const thumbnail = document.createElement("img");
+      thumbnail.className = "figure-summary-thumb";
+      thumbnail.src = getFigurePreviewUrl(file);
+      thumbnail.alt = "";
+      thumbnail.loading = "lazy";
+      item.appendChild(thumbnail);
+
+      const copy = document.createElement("span");
+      copy.className = "figure-summary-copy";
       const meta = getFigureDetailForFile(file, index);
       const label = `${meta.labelType} ${meta.labelNumber}`;
-      item.textContent = `${label} - ${meta.caption || file.name.replace(/\.[^.]+$/, "")}`;
+      copy.textContent = `${label} - ${meta.caption || file.name.replace(/\.[^.]+$/, "")}`;
+      item.appendChild(copy);
       dom.imageSummaryList.appendChild(item);
     });
 
     dom.imageSummaryList.hidden = false;
+  }
+
+  function getFigurePreviewUrl(file) {
+    const key = figureFileKey(file);
+    if (!state.figurePreviewUrls[key]) {
+      state.figurePreviewUrls[key] = URL.createObjectURL(file);
+    }
+    return state.figurePreviewUrls[key];
+  }
+
+  function syncFigurePreviewUrls(files = state.figureFiles || []) {
+    const activeKeys = new Set(files.map((file) => figureFileKey(file)));
+    Object.entries(state.figurePreviewUrls || {}).forEach(([key, objectUrl]) => {
+      if (!activeKeys.has(key)) {
+        URL.revokeObjectURL(objectUrl);
+        delete state.figurePreviewUrls[key];
+      }
+    });
+  }
+
+  function clearFigurePreviewUrls() {
+    Object.values(state.figurePreviewUrls || {}).forEach((objectUrl) => URL.revokeObjectURL(objectUrl));
+    state.figurePreviewUrls = {};
   }
 
   function figureFileKey(file) {
@@ -3329,6 +3366,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
   function setManagedFigureFiles(files) {
     state.figureFiles = files;
+    syncFigurePreviewUrls(state.figureFiles);
     const nextDetails = {};
 
     state.figureFiles.forEach((file, index) => {
@@ -3433,15 +3471,25 @@ document.addEventListener("DOMContentLoaded", () => {
       row.setAttribute("data-figure-row", key);
 
       const nameWrap = document.createElement("div");
+      nameWrap.className = "figure-placement-summary";
+      const thumb = document.createElement("img");
+      thumb.className = "figure-placement-thumb";
+      thumb.src = getFigurePreviewUrl(file);
+      thumb.alt = "";
+      thumb.loading = "lazy";
+      nameWrap.appendChild(thumb);
+
+      const nameCopy = document.createElement("div");
       const name = document.createElement("div");
       name.className = "figure-placement-name";
       name.textContent = `${buildFigureLabel(detail, index + 1)}: ${detail.caption}`;
-      nameWrap.appendChild(name);
+      nameCopy.appendChild(name);
 
       const origin = document.createElement("div");
       origin.className = "figure-placement-origin";
       origin.textContent = file.name;
-      nameWrap.appendChild(origin);
+      nameCopy.appendChild(origin);
+      nameWrap.appendChild(nameCopy);
       row.appendChild(nameWrap);
 
       const meta = document.createElement("div");
@@ -3539,10 +3587,12 @@ document.addEventListener("DOMContentLoaded", () => {
       actionRow.className = "figure-placement-actions";
       const removeBtn = document.createElement("button");
       removeBtn.type = "button";
-      removeBtn.className = "btn btn-ghost btn-xs";
+      removeBtn.className = "btn btn-ghost btn-xs icon-action-btn";
       removeBtn.setAttribute("data-figure-action", "remove");
       removeBtn.setAttribute("data-figure-key", key);
-      removeBtn.textContent = "Remove";
+      removeBtn.setAttribute("aria-label", "Remove figure");
+      removeBtn.setAttribute("title", "Remove figure");
+      removeBtn.innerHTML = "&times;";
       actionRow.appendChild(removeBtn);
       meta.appendChild(actionRow);
 
@@ -5336,7 +5386,7 @@ document.addEventListener("DOMContentLoaded", () => {
       const size = sanitizeFigureSize(detail.size);
       return `
         <figure class="preview-figure preview-figure-${displayMode} preview-figure-${size}${detail.keepWithNext ? " is-keep-with-next" : ""}">
-          <img src="${objectUrl}" alt="${escapeAttribute(caption)}">
+          <img src="${escapeAttribute(objectUrl)}" alt="${escapeAttribute(caption)}">
           <figcaption>
             <span class="preview-figure-caption">${escapeHtml(caption)}</span>
             ${source ? `<span class="preview-figure-source">${escapeHtml(source)}</span>` : ""}
