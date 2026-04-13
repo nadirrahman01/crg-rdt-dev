@@ -118,6 +118,46 @@ document.addEventListener("DOMContentLoaded", () => {
     ID: "643210"
   };
 
+  const SOVEREIGN_METADATA_MAP = {
+    US: { region: "North America", currency: "USD", classification: "Developed market sovereign", benchmark: "US 10Y Treasury" },
+    GB: { region: "Europe", currency: "GBP", classification: "Developed market sovereign", benchmark: "UK 10Y Gilt" },
+    DE: { region: "Europe", currency: "EUR", classification: "Developed market sovereign", benchmark: "German 10Y Bund" },
+    FR: { region: "Europe", currency: "EUR", classification: "Developed market sovereign", benchmark: "French 10Y OAT" },
+    IT: { region: "Europe", currency: "EUR", classification: "Developed market sovereign", benchmark: "Italian 10Y BTP" },
+    ES: { region: "Europe", currency: "EUR", classification: "Developed market sovereign", benchmark: "Spanish 10Y Bonos" },
+    JP: { region: "Asia Pacific", currency: "JPY", classification: "Developed market sovereign", benchmark: "Japan 10Y JGB" },
+    CN: { region: "Asia Pacific", currency: "CNY", classification: "Emerging market sovereign", benchmark: "China 10Y government bond" },
+    IN: { region: "Asia Pacific", currency: "INR", classification: "Emerging market sovereign", benchmark: "India 10Y government bond" },
+    SA: { region: "Middle East", currency: "SAR", classification: "Emerging market sovereign", benchmark: "Saudi Arabia 10Y government bond" },
+    AE: { region: "Middle East", currency: "AED", classification: "Emerging market sovereign", benchmark: "UAE 10Y sovereign / federal benchmark" },
+    BR: { region: "Latin America", currency: "BRL", classification: "Emerging market sovereign", benchmark: "Brazil 10Y government bond" },
+    ZA: { region: "Africa", currency: "ZAR", classification: "Emerging market sovereign", benchmark: "South Africa 10Y government bond" },
+    TR: { region: "EMEA", currency: "TRY", classification: "Emerging market sovereign", benchmark: "Turkey 10Y government bond" },
+    MX: { region: "Latin America", currency: "MXN", classification: "Emerging market sovereign", benchmark: "Mexico 10Y government bond" },
+    ID: { region: "Asia Pacific", currency: "IDR", classification: "Emerging market sovereign", benchmark: "Indonesia 10Y government bond" }
+  };
+
+  const FINANCIAL_ROW_FORMATS = [
+    { value: "auto", label: "Auto" },
+    { value: "currency", label: "Currency" },
+    { value: "percentage", label: "Percentage" },
+    { value: "bps", label: "Bps" },
+    { value: "turns", label: "Turns" },
+    { value: "number", label: "Plain number" },
+    { value: "text", label: "Text" }
+  ];
+
+  const FIGURE_LABEL_TYPES = ["Figure", "Chart", "Exhibit", "Table"];
+  const FIGURE_DISPLAY_MODES = [
+    { value: "full", label: "Full-width" },
+    { value: "inline", label: "Inline" }
+  ];
+  const FIGURE_SIZE_OPTIONS = [
+    { value: "small", label: "Small" },
+    { value: "medium", label: "Medium" },
+    { value: "large", label: "Large" }
+  ];
+
   const FIELD_LABELS = {
     noteType: "Note type",
     distribution: "Distribution",
@@ -220,9 +260,14 @@ document.addEventListener("DOMContentLoaded", () => {
     industryOptions: document.getElementById("industryOptions"),
     issuerId: document.getElementById("issuerId"),
     macroFiHeading: document.getElementById("macroFiHeading"),
+    sovereignRegion: document.getElementById("sovereignRegion"),
+    sovereignCurrency: document.getElementById("sovereignCurrency"),
+    sovereignClassification: document.getElementById("sovereignClassification"),
+    sovereignBenchmark: document.getElementById("sovereignBenchmark"),
     agencyRating: document.getElementById("agencyRating"),
     shortTermRating: document.getElementById("shortTermRating"),
     longTermRating: document.getElementById("longTermRating"),
+    ratingsProfileNotes: document.getElementById("ratingsProfileNotes"),
     ratingsProfileRows: document.getElementById("ratingsProfileRows"),
     addRatingProfileRowBtn: document.getElementById("addRatingProfileRowBtn"),
     ratingProfileRowTemplate: document.getElementById("ratingProfileRowTemplate"),
@@ -259,12 +304,14 @@ document.addEventListener("DOMContentLoaded", () => {
     valuationSummary: document.getElementById("valuationSummary"),
     financialTableTitle: document.getElementById("financialTableTitle"),
     financialSourceNote: document.getElementById("financialSourceNote"),
+    financialTableNotes: document.getElementById("financialTableNotes"),
     financialTableEditor: document.getElementById("financialTableEditor"),
     financialTableHead: document.getElementById("financialTableHead"),
     financialTableBody: document.getElementById("financialTableBody"),
     financialTableInput: document.getElementById("financialTableInput"),
     financialDownloadTemplateBtn: document.getElementById("financialDownloadTemplateBtn"),
     financialUploadTriggerBtn: document.getElementById("financialUploadTriggerBtn"),
+    financialToggleHeaderLockBtn: document.getElementById("financialToggleHeaderLockBtn"),
     financialTemplateUpload: document.getElementById("financialTemplateUpload"),
     financialAddColumnBtn: document.getElementById("financialAddColumnBtn"),
     financialAddRowBtn: document.getElementById("financialAddRowBtn"),
@@ -353,6 +400,7 @@ document.addEventListener("DOMContentLoaded", () => {
       range: ""
     },
     financialTable: null,
+    financialHeaderLocked: false,
     railCollapsed: false,
     saveTimer: null,
     lastSavedAt: null,
@@ -377,9 +425,14 @@ document.addEventListener("DOMContentLoaded", () => {
     "coverageCountry",
     "issuerId",
     "macroFiHeading",
+    "sovereignRegion",
+    "sovereignCurrency",
+    "sovereignClassification",
+    "sovereignBenchmark",
     "agencyRating",
     "shortTermRating",
     "longTermRating",
+    "ratingsProfileNotes",
     "authorLastName",
     "authorFirstName",
     "authorPhoneCountry",
@@ -401,6 +454,7 @@ document.addEventListener("DOMContentLoaded", () => {
     "valuationSummary",
     "financialTableTitle",
     "financialSourceNote",
+    "financialTableNotes",
     "financialTableInput",
     "headingKeyTakeaways",
     "headingAnalysis",
@@ -443,8 +497,10 @@ document.addEventListener("DOMContentLoaded", () => {
     initializeSummaryEditor();
     ensurePublicationDate();
     initializeFinancialTableEditor();
+    applyFinancialHeaderLockState();
     ensureDeskLineDefault();
     syncIssuerId();
+    applySovereignMetadataFromCountry(dom.coverageCountry?.value || "");
     updateCoverageCountryDisplayFromCode();
     syncPrimaryPhone();
     toggleNoteTypeSections();
@@ -575,8 +631,35 @@ document.addEventListener("DOMContentLoaded", () => {
       dom.equityCompanyName.dataset.autofill = "false";
     });
 
+    dom.equitySecurityDisplay?.addEventListener("input", () => {
+      dom.equitySecurityDisplay.dataset.autofill = "false";
+    });
+
     dom.priceCurrency.addEventListener("input", () => {
       dom.priceCurrency.dataset.autofill = "false";
+    });
+
+    dom.marketCapUsd?.addEventListener("input", () => {
+      dom.marketCapUsd.dataset.autofill = "false";
+    });
+
+    dom.benchmarkName?.addEventListener("input", () => {
+      dom.benchmarkName.dataset.autofill = "false";
+    });
+
+    dom.benchmarkTicker?.addEventListener("input", () => {
+      dom.benchmarkTicker.dataset.autofill = "false";
+    });
+
+    [
+      dom.sovereignRegion,
+      dom.sovereignCurrency,
+      dom.sovereignClassification,
+      dom.sovereignBenchmark
+    ].forEach((input) => {
+      input?.addEventListener("input", () => {
+        input.dataset.autofill = "false";
+      });
     });
 
     dom.addCustomSectionBtn?.addEventListener("click", () => {
@@ -625,11 +708,14 @@ document.addEventListener("DOMContentLoaded", () => {
       if (!ensureXlsxAvailable("import the completed Excel template")) return;
       dom.financialTemplateUpload.click();
     });
+    dom.financialToggleHeaderLockBtn?.addEventListener("click", toggleFinancialHeaderLock);
     dom.financialTemplateUpload.addEventListener("change", handleFinancialTemplateUpload);
 
     dom.financialTableEditor.addEventListener("input", handleFinancialGridInput);
+    dom.financialTableEditor.addEventListener("change", handleFinancialGridInput);
     dom.financialTableEditor.addEventListener("focusout", handleFinancialGridFocusOut);
     dom.financialTableEditor.addEventListener("click", handleFinancialGridClick);
+    dom.financialTableEditor.addEventListener("paste", handleFinancialGridPaste);
     dom.toggleRailBtn.addEventListener("click", toggleRail);
 
     dom.addCoAuthor.addEventListener("click", () => {
@@ -1138,6 +1224,7 @@ document.addEventListener("DOMContentLoaded", () => {
     dom.coverageCountry.value = normalized;
     updateCoverageCountryDisplayFromCode();
     syncIssuerId();
+    applySovereignMetadataFromCountry(normalized);
     renderCoverageCountryOptions(dom.coverageCountrySearch?.value || "");
     closeCoverageCountryPanel();
     updateAllUI();
@@ -1267,6 +1354,23 @@ document.addEventListener("DOMContentLoaded", () => {
     if (!dom.issuerId) return;
     const selectedCountry = String(dom.coverageCountry?.value || "").trim().toUpperCase();
     dom.issuerId.value = selectedCountry ? (ISSUER_COUNTRY_MAP[selectedCountry] || buildIssuerIdFromCountry(selectedCountry)) : "";
+  }
+
+  function applySovereignMetadataFromCountry(countryCode) {
+    const normalized = String(countryCode || "").trim().toUpperCase();
+    const metadata = SOVEREIGN_METADATA_MAP[normalized];
+    if (!metadata) return false;
+
+    let changed = false;
+    changed = setAutoFilledField(dom.sovereignRegion, metadata.region) || changed;
+    changed = setAutoFilledField(dom.sovereignCurrency, metadata.currency) || changed;
+    changed = setAutoFilledField(dom.sovereignClassification, metadata.classification) || changed;
+    changed = setAutoFilledField(dom.sovereignBenchmark, metadata.benchmark) || changed;
+    if (Array.isArray(metadata.ratings) && metadata.ratings.length && !collectRatingsProfile().length) {
+      restoreRatingsProfile(metadata.ratings);
+      changed = true;
+    }
+    return changed;
   }
 
   function buildIssuerIdFromCountry(countryCode) {
@@ -1604,7 +1708,17 @@ document.addEventListener("DOMContentLoaded", () => {
     const actionButton = event.target.closest("[data-rating-action]");
     if (!actionButton) return;
 
-    if (actionButton.getAttribute("data-rating-action") === "remove") {
+    if (actionButton.getAttribute("data-rating-action") === "duplicate") {
+      const row = actionButton.closest(".ratings-profile-row");
+      if (!row) return;
+      addRatingProfileRow({
+        agency: String(row.querySelector("[data-rating-field='agency']")?.value || "").trim(),
+        shortTerm: String(row.querySelector("[data-rating-field='short']")?.value || "").trim(),
+        longTerm: String(row.querySelector("[data-rating-field='long']")?.value || "").trim()
+      });
+      updateAllUI();
+      queueDraftSave();
+    } else if (actionButton.getAttribute("data-rating-action") === "remove") {
       actionButton.closest(".ratings-profile-row")?.remove();
       updateAllUI();
       queueDraftSave();
@@ -1640,6 +1754,36 @@ document.addEventListener("DOMContentLoaded", () => {
     dom.shortTermRating.value = primaryRow?.shortTerm || "";
     dom.longTermRating.value = primaryRow?.longTerm || "";
     extraRows.forEach((row) => addRatingProfileRow(row));
+  }
+
+  function financialRowFormatOptionsHtml(selectedValue) {
+    const normalized = normalizeFinancialRowFormat(selectedValue);
+    return FINANCIAL_ROW_FORMATS.map((option) => {
+      const selected = option.value === normalized ? " selected" : "";
+      return `<option value="${option.value}"${selected}>${option.label}</option>`;
+    }).join("");
+  }
+
+  function normalizeFinancialRowFormat(value) {
+    const normalized = String(value || "").trim().toLowerCase();
+    return FINANCIAL_ROW_FORMATS.some((option) => option.value === normalized) ? normalized : "auto";
+  }
+
+  function inferFinancialRowFormat(label) {
+    const metricType = classifyFinancialMetric(label);
+    if (metricType === "percent") return "percentage";
+    if (metricType === "multiple") return "turns";
+    if (metricType === "monetary") return "currency";
+    return "number";
+  }
+
+  function getFinancialRowFormat(rowOrLabel) {
+    if (rowOrLabel && typeof rowOrLabel === "object") {
+      const explicitFormat = normalizeFinancialRowFormat(rowOrLabel.format);
+      return explicitFormat === "auto" ? inferFinancialRowFormat(rowOrLabel.label) : explicitFormat;
+    }
+
+    return inferFinancialRowFormat(rowOrLabel);
   }
 
   function initializeFinancialTableEditor(forceReset = false) {
@@ -1682,13 +1826,14 @@ document.addEventListener("DOMContentLoaded", () => {
               <div class="financial-header-actions">
                 <button type="button" class="btn btn-ghost btn-xs" data-action="move-col-left" data-col-index="${index}" ${index === 0 ? "disabled" : ""}>&lt;</button>
                 <button type="button" class="btn btn-ghost btn-xs" data-action="move-col-right" data-col-index="${index}" ${index === matrix.headers.length - 1 ? "disabled" : ""}>&gt;</button>
+                <button type="button" class="btn btn-ghost btn-xs" data-action="duplicate-col" data-col-index="${index}" ${matrix.headers.length >= 6 ? "disabled" : ""}>Dup</button>
                 <button type="button" class="btn btn-ghost btn-xs" data-action="delete-col" data-col-index="${index}" ${matrix.headers.length === 1 ? "disabled" : ""}>Del</button>
               </div>
             </div>
           </th>
         `).join("")}
         <th class="financial-grid-actions-col">
-          <span class="financial-grid-label">Row Order</span>
+          <span class="financial-grid-label">Row Tools</span>
         </th>
       </tr>
     `;
@@ -1706,13 +1851,21 @@ document.addEventListener("DOMContentLoaded", () => {
               data-row-index="${rowIndex}"
               placeholder="Revenue (mn)"
             >
+            <select
+              class="financial-row-format"
+              data-kind="row-format"
+              data-row-index="${rowIndex}"
+              aria-label="Row format"
+            >
+              ${financialRowFormatOptionsHtml(row.format)}
+            </select>
           </div>
         </td>
         ${row.values.map((value, colIndex) => `
           <td class="financial-grid-period-col">
             <input
               type="text"
-              class="financial-cell-input is-${classifyFinancialMetric(row.label)}"
+              class="financial-cell-input is-${getFinancialRowFormat(row)}"
               value="${escapeAttribute(value)}"
               data-kind="value"
               data-row-index="${rowIndex}"
@@ -1725,6 +1878,7 @@ document.addEventListener("DOMContentLoaded", () => {
           <div class="financial-row-actions">
             <button type="button" class="btn btn-ghost btn-xs" data-action="move-row-up" data-row-index="${rowIndex}" ${rowIndex === 0 ? "disabled" : ""}>Up</button>
             <button type="button" class="btn btn-ghost btn-xs" data-action="move-row-down" data-row-index="${rowIndex}" ${rowIndex === matrix.rows.length - 1 ? "disabled" : ""}>Dn</button>
+            <button type="button" class="btn btn-ghost btn-xs" data-action="duplicate-row" data-row-index="${rowIndex}">Dup</button>
             <button type="button" class="btn btn-ghost btn-xs" data-action="delete-row" data-row-index="${rowIndex}" ${matrix.rows.length === 1 ? "disabled" : ""}>Del</button>
           </div>
         </td>
@@ -1736,7 +1890,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
   function handleFinancialGridInput(event) {
     const target = event.target;
-    if (!(target instanceof HTMLInputElement)) return;
+    if (!(target instanceof HTMLInputElement || target instanceof HTMLSelectElement)) return;
 
     const kind = target.getAttribute("data-kind");
     if (!kind || !state.financialTable) return;
@@ -1748,6 +1902,14 @@ document.addEventListener("DOMContentLoaded", () => {
       state.financialTable.headers[colIndex] = target.value.trim() || `Period ${colIndex + 1}`;
     } else if (kind === "row-label" && Number.isInteger(rowIndex)) {
       state.financialTable.rows[rowIndex].label = target.value;
+    } else if (kind === "row-format" && Number.isInteger(rowIndex)) {
+      state.financialTable.rows[rowIndex].format = normalizeFinancialRowFormat(target.value);
+      formatFinancialRowValues(rowIndex);
+      syncFinancialTableStorage();
+      renderFinancialTableEditor();
+      updateAllUI();
+      queueDraftSave();
+      return;
     } else if (kind === "value" && Number.isInteger(rowIndex) && Number.isInteger(colIndex)) {
       state.financialTable.rows[rowIndex].values[colIndex] = target.value;
     }
@@ -1764,8 +1926,8 @@ document.addEventListener("DOMContentLoaded", () => {
     const colIndex = Number(target.getAttribute("data-col-index"));
 
     if (kind === "value" && Number.isInteger(rowIndex) && Number.isInteger(colIndex)) {
-      const rowLabel = state.financialTable.rows[rowIndex]?.label || "";
-      const formattedValue = formatFinancialValueForDisplay(target.value, rowLabel);
+      const row = state.financialTable.rows[rowIndex] || {};
+      const formattedValue = formatFinancialValueForDisplay(target.value, row);
       state.financialTable.rows[rowIndex].values[colIndex] = formattedValue;
       target.value = formattedValue;
       syncFinancialTableStorage();
@@ -1793,12 +1955,16 @@ document.addEventListener("DOMContentLoaded", () => {
       moveFinancialColumn(colIndex, colIndex - 1);
     } else if (action === "move-col-right" && colIndex < state.financialTable.headers.length - 1) {
       moveFinancialColumn(colIndex, colIndex + 1);
+    } else if (action === "duplicate-col") {
+      duplicateFinancialColumn(colIndex);
     } else if (action === "delete-col") {
       removeFinancialColumn(colIndex);
     } else if (action === "move-row-up" && rowIndex > 0) {
       moveFinancialRow(rowIndex, rowIndex - 1);
     } else if (action === "move-row-down" && rowIndex < state.financialTable.rows.length - 1) {
       moveFinancialRow(rowIndex, rowIndex + 1);
+    } else if (action === "duplicate-row") {
+      duplicateFinancialRow(rowIndex);
     } else if (action === "delete-row") {
       removeFinancialRow(rowIndex);
     } else {
@@ -1831,6 +1997,7 @@ document.addEventListener("DOMContentLoaded", () => {
     if (!state.financialTable) initializeFinancialTableEditor();
     state.financialTable.rows.push({
       label: "",
+      format: "auto",
       values: Array.from({ length: state.financialTable.headers.length }, () => "")
     });
     syncFinancialTableStorage();
@@ -1858,7 +2025,8 @@ document.addEventListener("DOMContentLoaded", () => {
     const matrix = pruneEmptyFinancialRows(normalizeFinancialMatrix(state.financialTable, publicationDate));
     const workbook = buildFinancialTemplateWorkbook(matrix, {
       title: dom.financialTableTitle.value.trim() || "Year-end 31 Dec",
-      sourceNote: dom.financialSourceNote.value.trim() || "Source: Company data, Cordoba Research Group estimates"
+      sourceNote: dom.financialSourceNote.value.trim() || "Source: Company data, Cordoba Research Group estimates",
+      tableNotes: dom.financialTableNotes?.value.trim() || ""
     });
     const tickerSlug = slugify(dom.ticker.value.trim() || "financial_forecast");
     window.XLSX.writeFile(workbook, `${tickerSlug}_forecast_template.xlsx`);
@@ -1912,7 +2080,8 @@ document.addEventListener("DOMContentLoaded", () => {
       ["5. Upload the completed workbook back into the research production tool."],
       [""],
       [`Caption: ${meta.title}`],
-      [`Source note: ${meta.sourceNote}`]
+      [`Source note: ${meta.sourceNote}`],
+      [`Table notes: ${meta.tableNotes || "None supplied"}`]
     ]);
     instructionsSheet["!cols"] = [{ wch: 88 }];
 
@@ -1926,7 +2095,7 @@ document.addEventListener("DOMContentLoaded", () => {
       ["Metric", ...(matrix?.headers || [])],
       ...(matrix?.rows || []).map((row) => [
         row.label || "",
-        ...(row.values || []).map((value) => formatFinancialValueForDisplay(value, row.label))
+        ...(row.values || []).map((value) => formatFinancialValueForDisplay(value, row))
       ])
     ];
   }
@@ -1957,6 +2126,7 @@ document.addEventListener("DOMContentLoaded", () => {
       .slice(1)
       .map((cells) => ({
         label: cells[0] || "",
+        format: "auto",
         values: normalizeFinancialValues(cells.slice(1), headers.length || buildDefaultFinancialHeaders(publicationDate).length)
       }));
 
@@ -1982,20 +2152,154 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
+  function duplicateFinancialColumn(index) {
+    if (state.financialTable.headers.length >= 6) {
+      setMessage("error", "Financial forecast export supports up to six period columns in the current layout.");
+      return;
+    }
+
+    const sourceHeader = state.financialTable.headers[index] || `Period ${index + 1}`;
+    state.financialTable.headers.splice(index + 1, 0, `${sourceHeader} copy`);
+    state.financialTable.rows.forEach((row) => {
+      row.values.splice(index + 1, 0, row.values[index] || "");
+    });
+  }
+
   function moveFinancialRow(fromIndex, toIndex) {
     const [row] = state.financialTable.rows.splice(fromIndex, 1);
     state.financialTable.rows.splice(toIndex, 0, row);
+  }
+
+  function duplicateFinancialRow(index) {
+    const source = state.financialTable.rows[index];
+    if (!source) return;
+    state.financialTable.rows.splice(index + 1, 0, {
+      label: source.label ? `${source.label} copy` : "",
+      format: normalizeFinancialRowFormat(source.format),
+      values: [...(source.values || [])]
+    });
   }
 
   function removeFinancialRow(index) {
     if (state.financialTable.rows.length === 1) {
       state.financialTable.rows = [{
         label: "",
+        format: "auto",
         values: Array.from({ length: state.financialTable.headers.length }, () => "")
       }];
       return;
     }
     state.financialTable.rows.splice(index, 1);
+  }
+
+  function toggleFinancialHeaderLock() {
+    state.financialHeaderLocked = !state.financialHeaderLocked;
+    applyFinancialHeaderLockState();
+    queueDraftSave();
+  }
+
+  function applyFinancialHeaderLockState() {
+    if (!dom.financialTableEditor) return;
+    dom.financialTableEditor.classList.toggle("is-header-locked", state.financialHeaderLocked);
+    if (!dom.financialToggleHeaderLockBtn) return;
+    dom.financialToggleHeaderLockBtn.textContent = state.financialHeaderLocked ? "Unlock Header" : "Lock Header";
+    dom.financialToggleHeaderLockBtn.setAttribute("aria-pressed", String(state.financialHeaderLocked));
+  }
+
+  function handleFinancialGridPaste(event) {
+    const target = event.target;
+    if (!(target instanceof HTMLInputElement)) return;
+    const kind = target.getAttribute("data-kind");
+    if (!["header", "row-label", "value"].includes(kind)) return;
+
+    const pasteText = event.clipboardData?.getData("text/plain") || "";
+    if (!pasteText || !/[\t\r\n]/.test(pasteText)) return;
+
+    const range = parsePastedFinancialRange(pasteText);
+    if (!range.length) return;
+
+    event.preventDefault();
+    applyPastedFinancialRange(range, target);
+    syncFinancialTableStorage();
+    renderFinancialTableEditor();
+    updateAllUI();
+    queueDraftSave();
+  }
+
+  function parsePastedFinancialRange(text) {
+    return String(text || "")
+      .replace(/\r/g, "")
+      .split("\n")
+      .filter((line) => line.length)
+      .map((line) => splitDelimitedLine(line, detectTableDelimiter(line)).map((cell) => String(cell ?? "").trim()));
+  }
+
+  function ensureFinancialRows(count) {
+    if (!state.financialTable) return;
+    while (state.financialTable.rows.length < count) {
+      state.financialTable.rows.push({
+        label: "",
+        format: "auto",
+        values: Array.from({ length: state.financialTable.headers.length }, () => "")
+      });
+    }
+  }
+
+  function ensureFinancialColumns(count) {
+    if (!state.financialTable) return;
+    const safeCount = Math.min(Math.max(count, state.financialTable.headers.length), 6);
+    while (state.financialTable.headers.length < safeCount) {
+      state.financialTable.headers.push(buildNextFinancialHeaderLabel(state.financialTable.headers, parseInputDate(dom.publicationDate.value) || new Date()));
+      state.financialTable.rows.forEach((row) => row.values.push(""));
+    }
+  }
+
+  function applyPastedFinancialRange(range, target) {
+    if (!state.financialTable) initializeFinancialTableEditor();
+    const kind = target.getAttribute("data-kind");
+    const startRow = Number(target.getAttribute("data-row-index"));
+    const startCol = Number(target.getAttribute("data-col-index"));
+
+    if (kind === "header") {
+      const colIndex = Number.isInteger(startCol) ? startCol : 0;
+      ensureFinancialColumns(colIndex + range[0].length);
+      range[0].forEach((cell, offset) => {
+        const targetCol = colIndex + offset;
+        if (targetCol < state.financialTable.headers.length) state.financialTable.headers[targetCol] = cell || state.financialTable.headers[targetCol];
+      });
+      return;
+    }
+
+    if (kind === "row-label") {
+      const rowIndex = Number.isInteger(startRow) ? startRow : 0;
+      ensureFinancialRows(rowIndex + range.length);
+      const maxValueColumns = Math.max(...range.map((row) => Math.max(0, row.length - 1)));
+      ensureFinancialColumns(maxValueColumns);
+      range.forEach((cells, rowOffset) => {
+        const row = state.financialTable.rows[rowIndex + rowOffset];
+        row.label = cells[0] || row.label;
+        cells.slice(1).forEach((cell, colOffset) => {
+          if (colOffset < row.values.length) row.values[colOffset] = cell;
+        });
+        row.values = row.values.map((value) => formatFinancialValueForDisplay(value, row));
+      });
+      return;
+    }
+
+    if (kind === "value") {
+      const rowIndex = Number.isInteger(startRow) ? startRow : 0;
+      const colIndex = Number.isInteger(startCol) ? startCol : 0;
+      ensureFinancialRows(rowIndex + range.length);
+      ensureFinancialColumns(colIndex + Math.max(...range.map((row) => row.length)));
+      range.forEach((cells, rowOffset) => {
+        const row = state.financialTable.rows[rowIndex + rowOffset];
+        cells.forEach((cell, colOffset) => {
+          const targetCol = colIndex + colOffset;
+          if (targetCol < row.values.length) row.values[targetCol] = cell;
+        });
+        row.values = row.values.map((value) => formatFinancialValueForDisplay(value, row));
+      });
+    }
   }
 
   function buildNextFinancialHeaderLabel(headers, publicationDate) {
@@ -2014,7 +2318,7 @@ document.addEventListener("DOMContentLoaded", () => {
   function formatFinancialRowValues(rowIndex) {
     const row = state.financialTable?.rows?.[rowIndex];
     if (!row) return;
-    row.values = row.values.map((value) => formatFinancialValueForDisplay(value, row.label));
+    row.values = row.values.map((value) => formatFinancialValueForDisplay(value, row));
   }
 
   function classifyFinancialMetric(label) {
@@ -2046,32 +2350,40 @@ document.addEventListener("DOMContentLoaded", () => {
     return "numeric";
   }
 
-  function formatFinancialValueForDisplay(value, rowLabel) {
+  function formatFinancialValueForDisplay(value, rowOrLabel) {
     const text = String(value ?? "").trim();
     if (!text || text === "-") return "";
     if (/^(n\/a|nm|n\.m\.|na)$/i.test(text)) return text.toUpperCase();
     if (/^[=]/.test(text)) return text;
 
-    const numericText = text.replace(/,/g, "").replace(/%/g, "").trim();
+    const numericText = text.replace(/,/g, "").replace(/[$€£¥]/g, "").replace(/%/g, "").replace(/\bbps\b/i, "").replace(/x$/i, "").trim();
     if (!/^-?\d*\.?\d+$/.test(numericText)) return text;
 
     const number = Number(numericText);
     if (!Number.isFinite(number)) return text;
 
-    const metricType = classifyFinancialMetric(rowLabel);
+    const metricType = getFinancialRowFormat(rowOrLabel);
     const decimalPart = numericText.includes(".") ? numericText.split(".")[1] : "";
     const decimals = decimalPart.length;
 
-    if (metricType === "percent") {
+    if (metricType === "percentage") {
       return `${formatNumericForDisplay(number, decimals)}%`;
     }
 
-    if (metricType === "monetary") {
+    if (metricType === "bps") {
+      return `${formatNumericForDisplay(number, decimals)}bps`;
+    }
+
+    if (metricType === "turns") {
+      return `${formatNumericForDisplay(number, decimals || 1)}x`;
+    }
+
+    if (metricType === "currency" || metricType === "number") {
       return formatNumericForDisplay(number, decimals);
     }
 
-    if (metricType === "eps" || metricType === "multiple" || metricType === "numeric") {
-      return formatNumericForDisplay(number, decimals);
+    if (metricType === "text") {
+      return text;
     }
 
     return text;
@@ -2108,6 +2420,7 @@ document.addEventListener("DOMContentLoaded", () => {
     toggleEquitySection();
     toggleMacroFiPanel();
     syncIssuerId();
+    applySovereignMetadataFromCountry(dom.coverageCountry?.value || "");
     syncBodySectionVisibility();
   }
 
@@ -2798,6 +3111,7 @@ document.addEventListener("DOMContentLoaded", () => {
       coAuthors: getCoAuthors(),
       bodySectionLayout: collectBodySectionLayout(),
       ratingsProfile: collectRatingsProfile(),
+      financialHeaderLocked: state.financialHeaderLocked,
       savedAt: new Date().toISOString()
     };
   }
@@ -2830,14 +3144,29 @@ document.addEventListener("DOMContentLoaded", () => {
       restoreBodySectionLayout(payload.bodySectionLayout || []);
       restoreRatingsProfile(payload.ratingsProfile || []);
       state.lastSavedAt = payload.savedAt || null;
+      state.financialHeaderLocked = Boolean(payload.financialHeaderLocked);
       dom.deskLine.dataset.autofill = "true";
       dom.equityCompanyName.dataset.autofill = dom.equityCompanyName.value.trim() ? "false" : "true";
+      dom.equitySecurityDisplay.dataset.autofill = dom.equitySecurityDisplay.value.trim() ? "false" : "true";
       dom.priceCurrency.dataset.autofill = dom.priceCurrency.value.trim() ? "false" : "true";
+      dom.marketCapUsd.dataset.autofill = dom.marketCapUsd.value.trim() ? "false" : "true";
+      dom.benchmarkName.dataset.autofill = dom.benchmarkName.value.trim() ? "false" : "true";
+      dom.benchmarkTicker.dataset.autofill = dom.benchmarkTicker.value.trim() ? "false" : "true";
+      [
+        dom.sovereignRegion,
+        dom.sovereignCurrency,
+        dom.sovereignClassification,
+        dom.sovereignBenchmark
+      ].forEach((input) => {
+        if (input) input.dataset.autofill = input.value.trim() ? "false" : "true";
+      });
       syncIssuerId();
+      applySovereignMetadataFromCountry(dom.coverageCountry?.value || "");
       updateCoverageCountryDisplayFromCode();
       renderIndustryOptions("");
       syncBodySectionVisibility();
       ensureDeskLineDefault(true);
+      applyFinancialHeaderLockState();
     } catch (error) {
       console.error("Draft restore failed:", error);
     }
@@ -2852,17 +3181,31 @@ document.addEventListener("DOMContentLoaded", () => {
     state.coAuthorCount = 0;
     state.lastSavedAt = null;
     state.customSectionCount = 0;
+    state.financialHeaderLocked = false;
     state.figurePlacements = {};
     state.figureDetails = {};
     state.figureFiles = [];
     syncPrimaryPhone();
     restoreRatingsProfile([]);
     dom.equityCompanyName.dataset.autofill = "true";
+    dom.equitySecurityDisplay.dataset.autofill = "true";
     dom.priceCurrency.dataset.autofill = "true";
+    dom.marketCapUsd.dataset.autofill = "true";
+    dom.benchmarkName.dataset.autofill = "true";
+    dom.benchmarkTicker.dataset.autofill = "true";
+    [
+      dom.sovereignRegion,
+      dom.sovereignCurrency,
+      dom.sovereignClassification,
+      dom.sovereignBenchmark
+    ].forEach((input) => {
+      if (input) input.dataset.autofill = "true";
+    });
     resetChartState({ keepStatusText: false });
     window.localStorage.removeItem(STORAGE_KEY);
     ensurePublicationDate();
     initializeFinancialTableEditor(true);
+    applyFinancialHeaderLockState();
     ensureDeskLineDefault(true);
     updateCoverageCountryDisplayFromCode();
     renderIndustryOptions("");
@@ -2941,6 +3284,33 @@ document.addEventListener("DOMContentLoaded", () => {
     return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
   }
 
+  function sanitizeFigureDisplayMode(value) {
+    const normalized = String(value || "").trim();
+    return FIGURE_DISPLAY_MODES.some((option) => option.value === normalized) ? normalized : "full";
+  }
+
+  function sanitizeFigureSize(value) {
+    const normalized = String(value || "").trim();
+    return FIGURE_SIZE_OPTIONS.some((option) => option.value === normalized) ? normalized : "medium";
+  }
+
+  function buildFigureLabel(detail, fallbackNumber) {
+    const labelType = detail.labelType || "Figure";
+    const labelNumber = sanitizeFigureNumber(detail.labelNumber, fallbackNumber);
+    return `${labelType} ${labelNumber}`;
+  }
+
+  function buildFigureCaptionText(detail, file, fallbackNumber) {
+    return `${buildFigureLabel(detail, fallbackNumber)}. ${detail.caption || defaultFigureCaption(file)}`;
+  }
+
+  function figureSelectOptionsHtml(options, selectedValue) {
+    return options.map((option) => {
+      const selected = option.value === selectedValue ? " selected" : "";
+      return `<option value="${option.value}"${selected}>${option.label}</option>`;
+    }).join("");
+  }
+
   function getFigureDetailForFile(file, index = 0) {
     const key = figureFileKey(file);
     const existing = state.figureDetails[key] || {};
@@ -2948,7 +3318,12 @@ document.addEventListener("DOMContentLoaded", () => {
       placement: state.figurePlacements[key] || existing.placement || "end",
       labelType: existing.labelType || defaultFigureLabelType(file),
       labelNumber: sanitizeFigureNumber(existing.labelNumber, index + 1),
-      caption: String(existing.caption || "").trim() || defaultFigureCaption(file)
+      caption: String(existing.caption || "").trim() || defaultFigureCaption(file),
+      source: String(existing.source || "").trim(),
+      notes: String(existing.notes || "").trim(),
+      displayMode: sanitizeFigureDisplayMode(existing.displayMode),
+      size: sanitizeFigureSize(existing.size),
+      keepWithNext: Boolean(existing.keepWithNext)
     };
   }
 
@@ -3060,7 +3435,7 @@ document.addEventListener("DOMContentLoaded", () => {
       const nameWrap = document.createElement("div");
       const name = document.createElement("div");
       name.className = "figure-placement-name";
-      name.textContent = `${detail.labelType} ${detail.labelNumber}: ${detail.caption}`;
+      name.textContent = `${buildFigureLabel(detail, index + 1)}: ${detail.caption}`;
       nameWrap.appendChild(name);
 
       const origin = document.createElement("div");
@@ -3078,7 +3453,7 @@ document.addEventListener("DOMContentLoaded", () => {
       const kindSelect = document.createElement("select");
       kindSelect.setAttribute("data-figure-key", key);
       kindSelect.setAttribute("data-figure-field", "labelType");
-      ["Figure", "Chart", "Exhibit"].forEach((labelType) => {
+      FIGURE_LABEL_TYPES.forEach((labelType) => {
         const optionEl = document.createElement("option");
         optionEl.value = labelType;
         optionEl.textContent = labelType;
@@ -3109,6 +3484,33 @@ document.addEventListener("DOMContentLoaded", () => {
       metaGrid.appendChild(select);
       meta.appendChild(metaGrid);
 
+      const layoutGrid = document.createElement("div");
+      layoutGrid.className = "figure-placement-layout-grid";
+
+      const displaySelect = document.createElement("select");
+      displaySelect.setAttribute("data-figure-key", key);
+      displaySelect.setAttribute("data-figure-field", "displayMode");
+      displaySelect.innerHTML = figureSelectOptionsHtml(FIGURE_DISPLAY_MODES, detail.displayMode);
+      layoutGrid.appendChild(displaySelect);
+
+      const sizeSelect = document.createElement("select");
+      sizeSelect.setAttribute("data-figure-key", key);
+      sizeSelect.setAttribute("data-figure-field", "size");
+      sizeSelect.innerHTML = figureSelectOptionsHtml(FIGURE_SIZE_OPTIONS, detail.size);
+      layoutGrid.appendChild(sizeSelect);
+
+      const keepLabel = document.createElement("label");
+      keepLabel.className = "figure-keep-toggle";
+      const keepInput = document.createElement("input");
+      keepInput.type = "checkbox";
+      keepInput.checked = Boolean(detail.keepWithNext);
+      keepInput.setAttribute("data-figure-key", key);
+      keepInput.setAttribute("data-figure-field", "keepWithNext");
+      keepLabel.appendChild(keepInput);
+      keepLabel.appendChild(document.createTextNode("Keep with next"));
+      layoutGrid.appendChild(keepLabel);
+      meta.appendChild(layoutGrid);
+
       const captionInput = document.createElement("input");
       captionInput.type = "text";
       captionInput.value = detail.caption;
@@ -3116,6 +3518,22 @@ document.addEventListener("DOMContentLoaded", () => {
       captionInput.setAttribute("data-figure-key", key);
       captionInput.setAttribute("data-figure-field", "caption");
       meta.appendChild(captionInput);
+
+      const sourceInput = document.createElement("input");
+      sourceInput.type = "text";
+      sourceInput.value = detail.source;
+      sourceInput.placeholder = "Source: Bloomberg, Cordoba Research Group calculations";
+      sourceInput.setAttribute("data-figure-key", key);
+      sourceInput.setAttribute("data-figure-field", "source");
+      meta.appendChild(sourceInput);
+
+      const notesInput = document.createElement("textarea");
+      notesInput.rows = 2;
+      notesInput.value = detail.notes;
+      notesInput.placeholder = "Figure note or calculation caveat";
+      notesInput.setAttribute("data-figure-key", key);
+      notesInput.setAttribute("data-figure-field", "notes");
+      meta.appendChild(notesInput);
 
       const actionRow = document.createElement("div");
       actionRow.className = "figure-placement-actions";
@@ -3138,16 +3556,29 @@ document.addEventListener("DOMContentLoaded", () => {
 
   function handleFigurePlacementChange(event) {
     const target = event.target;
-    if (!(target instanceof HTMLSelectElement || target instanceof HTMLInputElement)) return;
+    if (!(target instanceof HTMLSelectElement || target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement)) return;
     const figureKey = target.getAttribute("data-figure-key");
     if (!figureKey) return;
     const field = target.getAttribute("data-figure-field");
     if (!field) return;
 
-    const current = state.figureDetails[figureKey] || {};
+    const fileIndex = (state.figureFiles || []).findIndex((file) => figureFileKey(file) === figureKey);
+    const file = fileIndex >= 0 ? state.figureFiles[fileIndex] : null;
+    const current = {
+      ...(file ? getFigureDetailForFile(file, fileIndex) : {}),
+      ...(state.figureDetails[figureKey] || {})
+    };
     if (field === "labelNumber") {
       current.labelNumber = sanitizeFigureNumber(target.value, current.labelNumber || 1);
       target.value = String(current.labelNumber);
+    } else if (field === "displayMode") {
+      current.displayMode = sanitizeFigureDisplayMode(target.value);
+      target.value = current.displayMode;
+    } else if (field === "size") {
+      current.size = sanitizeFigureSize(target.value);
+      target.value = current.size;
+    } else if (field === "keepWithNext") {
+      current.keepWithNext = target instanceof HTMLInputElement ? target.checked : Boolean(target.value);
     } else {
       current[field] = target.value;
     }
@@ -3155,13 +3586,12 @@ document.addEventListener("DOMContentLoaded", () => {
     state.figureDetails[figureKey] = current;
     const nameEl = target.closest(".figure-placement-row")?.querySelector(".figure-placement-name");
     if (nameEl) {
-      const labelType = current.labelType || "Figure";
-      const labelNumber = sanitizeFigureNumber(current.labelNumber, 1);
       const caption = String(current.caption || "").trim() || "Untitled figure";
-      nameEl.textContent = `${labelType} ${labelNumber}: ${caption}`;
+      nameEl.textContent = `${buildFigureLabel(current, fileIndex + 1 || 1)}: ${caption}`;
     }
     updateFigureSummary();
     updateAllUI();
+    queueDraftSave();
   }
 
   function handleFigurePlacementActions(event) {
@@ -3472,7 +3902,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
   async function resolveMarketSecurityProfile(symbol, chartMeta = {}) {
     const baseProfile = buildMarketSecurityProfile(chartMeta, symbol);
-    const needsQuoteLookup = !baseProfile.companyName || !baseProfile.currency || !baseProfile.exchangeName;
+    const needsQuoteLookup = !baseProfile.companyName || !baseProfile.currency || !baseProfile.exchangeName || !baseProfile.marketCap || !baseProfile.sector || !baseProfile.industry;
 
     if (!needsQuoteLookup) return baseProfile;
 
@@ -3481,7 +3911,13 @@ document.addEventListener("DOMContentLoaded", () => {
       return {
         companyName: quoteProfile.companyName || baseProfile.companyName,
         exchangeName: quoteProfile.exchangeName || baseProfile.exchangeName,
-        currency: quoteProfile.currency || baseProfile.currency
+        currency: quoteProfile.currency || baseProfile.currency,
+        marketCap: quoteProfile.marketCap || baseProfile.marketCap,
+        sector: quoteProfile.sector || baseProfile.sector,
+        industry: quoteProfile.industry || baseProfile.industry,
+        market: quoteProfile.market || baseProfile.market,
+        quoteType: quoteProfile.quoteType || baseProfile.quoteType,
+        symbol: quoteProfile.symbol || baseProfile.symbol
       };
     } catch (error) {
       console.warn(`Unable to resolve quote profile for ${symbol}:`, error);
@@ -3494,6 +3930,11 @@ document.addEventListener("DOMContentLoaded", () => {
       companyName: String(meta.longName || meta.shortName || meta.displayName || "").trim(),
       exchangeName: String(meta.fullExchangeName || meta.exchangeName || meta.exchange || "").trim(),
       currency: normalizeMarketCurrency(meta.currency || ""),
+      marketCap: Number(meta.marketCap) || null,
+      sector: String(meta.sector || "").trim(),
+      industry: String(meta.industry || "").trim(),
+      market: String(meta.market || "").trim(),
+      quoteType: String(meta.quoteType || "").trim(),
       symbol: String(meta.symbol || fallbackSymbol || "").trim()
     };
   }
@@ -3548,9 +3989,15 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     return {
+      symbol: String(quote.symbol || symbol || "").trim(),
       companyName: String(quote.longName || quote.shortName || quote.displayName || "").trim(),
       exchangeName: String(quote.fullExchangeName || quote.exchange || quote.exchangeName || "").trim(),
-      currency: normalizeMarketCurrency(quote.currency || "")
+      currency: normalizeMarketCurrency(quote.currency || ""),
+      marketCap: Number(quote.marketCap) || null,
+      sector: String(quote.sector || "").trim(),
+      industry: String(quote.industry || "").trim(),
+      market: String(quote.market || "").trim(),
+      quoteType: String(quote.quoteType || "").trim()
     };
   }
 
@@ -3705,14 +4152,66 @@ document.addEventListener("DOMContentLoaded", () => {
       changed = setAutoFilledField(dom.equityCompanyName, profile.companyName) || changed;
     }
 
+    const securityDisplay = buildSecurityDisplayFromProfile(profile);
+    if (securityDisplay) {
+      changed = setAutoFilledField(dom.equitySecurityDisplay, securityDisplay) || changed;
+    }
+
     if (profile.currency) {
       changed = setAutoFilledField(dom.priceCurrency, profile.currency) || changed;
+    }
+
+    const sectorLine = [profile.sector, profile.industry].filter(Boolean).join(" - ");
+    if (sectorLine) {
+      changed = setAutoFilledField(dom.equitySectorLine, sectorLine) || changed;
+      renderIndustryOptions("");
+    }
+
+    if (profile.marketCap && profile.currency === "USD") {
+      changed = setAutoFilledField(dom.marketCapUsd, formatMarketCapMillions(profile.marketCap)) || changed;
+    }
+
+    const benchmark = resolveBenchmarkForProfile(profile);
+    if (benchmark) {
+      changed = setAutoFilledField(dom.benchmarkName, benchmark.name) || changed;
+      changed = setAutoFilledField(dom.benchmarkTicker, benchmark.ticker) || changed;
     }
 
     if (changed) {
       updateAllUI();
       queueDraftSave();
     }
+  }
+
+  function buildSecurityDisplayFromProfile(profile = {}) {
+    const symbol = String(profile.symbol || "").trim().toUpperCase();
+    const exchangeName = String(profile.exchangeName || "").trim();
+    return [symbol, exchangeName].filter(Boolean).join(" | ");
+  }
+
+  function formatMarketCapMillions(value) {
+    const numeric = Number(value);
+    if (!Number.isFinite(numeric) || numeric <= 0) return "";
+    return formatNumericForDisplay(numeric / 1000000, 1);
+  }
+
+  function resolveBenchmarkForProfile(profile = {}) {
+    const exchange = normalizeComparableText(profile.exchangeName);
+    const market = normalizeComparableText(profile.market);
+    const currency = String(profile.currency || "").toUpperCase();
+    const candidates = [
+      { match: () => market === "us_market" || currency === "USD" || exchange.includes("nasdaq") || exchange.includes("nyse"), name: "S&P 500 Index", ticker: "^GSPC" },
+      { match: () => exchange.includes("london") || currency === "GBP" || currency === "GBp", name: "FTSE 100 Index", ticker: "^FTSE" },
+      { match: () => exchange.includes("taiwan") || currency === "TWD", name: "TAIEX Index", ticker: "^TWII" },
+      { match: () => exchange.includes("tokyo") || currency === "JPY", name: "TOPIX Index", ticker: "^TOPX" },
+      { match: () => exchange.includes("hong kong") || currency === "HKD", name: "Hang Seng Index", ticker: "^HSI" },
+      { match: () => exchange.includes("toronto") || currency === "CAD", name: "S&P/TSX Composite", ticker: "^GSPTSE" },
+      { match: () => exchange.includes("australian") || currency === "AUD", name: "S&P/ASX 200", ticker: "^AXJO" },
+      { match: () => exchange.includes("xetra") || exchange.includes("frankfurt"), name: "DAX Index", ticker: "^GDAXI" },
+      { match: () => exchange.includes("paris"), name: "CAC 40 Index", ticker: "^FCHI" }
+    ];
+
+    return candidates.find((candidate) => candidate.match()) || null;
   }
 
   function resolvePriceCurrency(data) {
@@ -4165,9 +4664,14 @@ document.addEventListener("DOMContentLoaded", () => {
       coverageCountry: dom.coverageCountry.value.trim(),
       issuerId: dom.issuerId.value.trim(),
       macroFiHeading: dom.macroFiHeading.value.trim(),
+      sovereignRegion: dom.sovereignRegion?.value.trim() || "",
+      sovereignCurrency: dom.sovereignCurrency?.value.trim() || "",
+      sovereignClassification: dom.sovereignClassification?.value.trim() || "",
+      sovereignBenchmark: dom.sovereignBenchmark?.value.trim() || "",
       agencyRating: dom.agencyRating.value.trim(),
       shortTermRating: dom.shortTermRating.value.trim(),
       longTermRating: dom.longTermRating.value.trim(),
+      ratingsProfileNotes: dom.ratingsProfileNotes?.value.trim() || "",
       ratingsProfile: collectRatingsProfile(),
       authorLastName: dom.authorLastName.value.trim(),
       authorFirstName: dom.authorFirstName.value.trim(),
@@ -4188,6 +4692,7 @@ document.addEventListener("DOMContentLoaded", () => {
       valuationSummary: dom.valuationSummary.value.trim(),
       financialTableTitle: dom.financialTableTitle.value.trim(),
       financialSourceNote: dom.financialSourceNote.value.trim(),
+      financialTableNotes: dom.financialTableNotes?.value.trim() || "",
       financialTableInput: dom.financialTableInput.value.trim(),
       modelLink: dom.modelLink.value.trim(),
       bodySectionLayout: collectBodySectionLayout(),
@@ -4824,11 +5329,19 @@ document.addEventListener("DOMContentLoaded", () => {
       const objectUrl = URL.createObjectURL(file);
       state.previewObjectUrls.push(objectUrl);
       const detail = data.figureDetails?.[figureFileKey(file)] || getFigureDetailForFile(file, index);
-      const caption = `${detail.labelType || "Figure"} ${sanitizeFigureNumber(detail.labelNumber, index + 1)}. ${detail.caption || defaultFigureCaption(file)}`;
+      const caption = buildFigureCaptionText(detail, file, index + 1);
+      const source = String(detail.source || "").trim();
+      const notes = String(detail.notes || "").trim();
+      const displayMode = sanitizeFigureDisplayMode(detail.displayMode);
+      const size = sanitizeFigureSize(detail.size);
       return `
-        <figure class="preview-figure">
+        <figure class="preview-figure preview-figure-${displayMode} preview-figure-${size}${detail.keepWithNext ? " is-keep-with-next" : ""}">
           <img src="${objectUrl}" alt="${escapeAttribute(caption)}">
-          <figcaption>${escapeHtml(caption)}</figcaption>
+          <figcaption>
+            <span class="preview-figure-caption">${escapeHtml(caption)}</span>
+            ${source ? `<span class="preview-figure-source">${escapeHtml(source)}</span>` : ""}
+            ${notes ? `<span class="preview-figure-notes">${escapeHtml(notes).replace(/\n/g, "<br>")}</span>` : ""}
+          </figcaption>
         </figure>
       `;
     }).join("");
@@ -4837,15 +5350,15 @@ document.addEventListener("DOMContentLoaded", () => {
   function buildPreviewMacroFiProfileHtml(data) {
     const heading = data.macroFiHeading || (data.noteType === "Fixed Income Research" ? "Ratings Overview" : "Sovereign Ratings");
     const ratingsRows = (data.ratingsProfile || []).filter((row) => row.agency || row.shortTerm || row.longTerm);
-    const showMeta = data.noteType === "Macro Research" || data.coverageCountry || data.issuerId;
+    const metadataItems = buildMacroFiMetadataItems(data);
+    const showMeta = data.noteType === "Macro Research" || metadataItems.length;
 
     return `
       <section class="preview-export-section">
         <h3>${escapeHtml(heading)}</h3>
         ${showMeta ? `
           <div class="preview-macro-meta">
-            <div><strong>Coverage Country</strong><span>${escapeHtml(data.coverageCountry ? getCoverageCountryLabel(data.coverageCountry) : "N/A")}</span></div>
-            <div><strong>Issuer Number</strong><span>${escapeHtml(data.issuerId || "N/A")}</span></div>
+            ${metadataItems.map((item) => `<div><strong>${escapeHtml(item.label)}</strong><span>${escapeHtml(item.value)}</span></div>`).join("")}
           </div>
         ` : ""}
         <table class="preview-ratings-table">
@@ -4862,8 +5375,20 @@ document.addEventListener("DOMContentLoaded", () => {
             `).join("")}
           </tbody>
         </table>
+        ${data.ratingsProfileNotes ? `<div class="preview-ratings-notes">${serializeRichTextBlocksToPreviewHtml(parseRichTextBlocks(data.ratingsProfileNotes))}</div>` : ""}
       </section>
     `;
+  }
+
+  function buildMacroFiMetadataItems(data) {
+    return [
+      { label: "Coverage Country", value: data.coverageCountry ? getCoverageCountryLabel(data.coverageCountry) : "" },
+      { label: "Issuer Number", value: data.issuerId || "" },
+      { label: "Region", value: data.sovereignRegion || "" },
+      { label: "Currency", value: data.sovereignCurrency || "" },
+      { label: "Classification", value: data.sovereignClassification || "" },
+      { label: "Benchmark Reference", value: data.sovereignBenchmark || "" }
+    ].filter((item) => item.value);
   }
 
   function buildPreviewEquityTearSheetHtml(data, publicationDate) {
@@ -4934,12 +5459,13 @@ document.addEventListener("DOMContentLoaded", () => {
             ${matrix.rows.map((row) => `
               <tr>
                 <td>${escapeHtml(row.label || "-")}</td>
-                ${(row.values || []).map((value) => `<td>${escapeHtml(formatFinancialCellForExport(value, row.label))}</td>`).join("")}
+                ${(row.values || []).map((value) => `<td>${escapeHtml(formatFinancialCellForExport(value, row))}</td>`).join("")}
               </tr>
             `).join("")}
           </tbody>
         </table>
         <div class="preview-financial-source">${escapeHtml(sourceNote)}</div>
+        ${data.financialTableNotes ? `<div class="preview-financial-notes">${serializeRichTextBlocksToPreviewHtml(parseRichTextBlocks(data.financialTableNotes))}</div>` : ""}
       </section>
     `;
   }
@@ -5583,8 +6109,8 @@ document.addEventListener("DOMContentLoaded", () => {
         `<h1 class="preview-export-title">${escapeHtml(data.title || "Untitled Research Note")}</h1>`,
         `<p class="preview-export-deck">${escapeHtml(data.deck || "No deck supplied")}</p>`,
         `<p class="preview-export-topic">${escapeHtml(`${data.topic || "Topic pending"} | ${formatDocDate(publicationDate)}`)}</p>`,
-        `${data.noteType === "Macro Research" || (isMacroFiNoteType(data.noteType) && (data.coverageCountry || data.issuerId))
-          ? `<p class="preview-export-meta-line">${escapeHtml(`Coverage Country: ${data.coverageCountry ? getCoverageCountryLabel(data.coverageCountry) : "N/A"} | Issuer Number: ${data.issuerId || "N/A"}`)}</p>`
+        `${data.noteType === "Macro Research" || (isMacroFiNoteType(data.noteType) && buildMacroFiMetadataItems(data).length)
+          ? `<p class="preview-export-meta-line">${escapeHtml(buildMacroFiMetadataItems(data).slice(0, 4).map((item) => `${item.label}: ${item.value}`).join(" | "))}</p>`
           : ""}`,
         `</div>`,
         `<aside class="preview-generic-side">${buildPreviewAnalystPanelHtml(data.deskLine || strategyLabelForNoteType(data.noteType) || "Global Research Strategy", analystContacts)}</aside>`,
@@ -6433,7 +6959,7 @@ document.addEventListener("DOMContentLoaded", () => {
                   alignment: docxLib.AlignmentType.CENTER,
                   children: [
                     new docxLib.TextRun({
-                      text: formatFinancialCellForExport(value, row.label),
+                      text: formatFinancialCellForExport(value, row),
                       size: 11,
                       color: colors.black,
                       font: "Arial"
@@ -6472,9 +6998,29 @@ document.addEventListener("DOMContentLoaded", () => {
             font: "Arial"
           })
         ],
-        spacing: { before: 18, after: 65 }
-      })
+        spacing: { before: 18, after: data.financialTableNotes ? 16 : 65 }
+      }),
+      ...(data.financialTableNotes
+        ? buildFinancialTableNoteParagraphs(docxLib, colors, data.financialTableNotes)
+        : [])
     ];
+  }
+
+  function buildFinancialTableNoteParagraphs(docxLib, colors, text) {
+    const blocks = paragraphBlocks(text);
+    return blocks.map((block, index) =>
+      new docxLib.Paragraph({
+        children: [
+          new docxLib.TextRun({
+            text: block.replace(/\s*\n\s*/g, " "),
+            size: 11,
+            color: colors.muted,
+            font: "Arial"
+          })
+        ],
+        spacing: { after: index === blocks.length - 1 ? 65 : 18 }
+      })
+    );
   }
 
   function pruneEmptyFinancialRows(matrix) {
@@ -6525,6 +7071,7 @@ document.addEventListener("DOMContentLoaded", () => {
       .slice(hasExplicitHeader ? 1 : 0)
       .map((cells) => ({
         label: cells[0] || "",
+        format: "auto",
         values: normalizeFinancialValues(cells.slice(1), headers.length)
       }))
       .filter((row) => row.label || row.values.some((value) => String(value || "").trim()));
@@ -6540,6 +7087,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const rows = rawRows
       .map((row) => ({
         label: String(row?.label || ""),
+        format: normalizeFinancialRowFormat(row?.format),
         values: normalizeFinancialValues(Array.isArray(row?.values) ? row.values : [], normalizedHeaders.length)
       }));
 
@@ -6575,6 +7123,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
     return metrics.map((label) => ({
       label,
+      format: "auto",
       values: Array.from({ length: columnCount }, () => "")
     }));
   }
@@ -6642,8 +7191,8 @@ document.addEventListener("DOMContentLoaded", () => {
     );
   }
 
-  function formatFinancialCellForExport(value, rowLabel) {
-    const formatted = formatFinancialValueForDisplay(value, rowLabel);
+  function formatFinancialCellForExport(value, rowOrLabel) {
+    const formatted = formatFinancialValueForDisplay(value, rowOrLabel);
     return formatted || "-";
   }
 
@@ -6775,9 +7324,12 @@ document.addEventListener("DOMContentLoaded", () => {
 
   function buildMacroFiProfileTable(docxLib, colors, data) {
     const heading = data.macroFiHeading || (data.noteType === "Fixed Income Research" ? "Ratings Overview" : "Sovereign Ratings");
-    const countryLabel = getCoverageCountryLabel(data.coverageCountry);
-    const issuerNumber = data.issuerId || "N/A";
-    const showMetadataTable = data.noteType === "Macro Research" || Boolean(data.coverageCountry || data.issuerId);
+    const metadataItems = buildMacroFiMetadataItems(data);
+    const metadataRows = [];
+    for (let index = 0; index < metadataItems.length; index += 2) {
+      metadataRows.push(metadataItems.slice(index, index + 2));
+    }
+    const showMetadataTable = data.noteType === "Macro Research" || metadataItems.length;
     const ratings = (Array.isArray(data.ratingsProfile) && data.ratingsProfile.length
       ? data.ratingsProfile
       : [{
@@ -6797,13 +7349,12 @@ document.addEventListener("DOMContentLoaded", () => {
         insideHorizontal: { style: docxLib.BorderStyle.NONE },
         insideVertical: { style: docxLib.BorderStyle.NONE }
       },
-      rows: [
+      rows: (metadataRows.length ? metadataRows : [[
+        { label: "Coverage Country", value: "N/A" },
+        { label: "Issuer Number", value: "N/A" }
+      ]]).map((row) =>
         new docxLib.TableRow({
-          children: [
-            ...[
-              { label: "Coverage Country", value: countryLabel },
-              { label: "Issuer Number", value: issuerNumber }
-            ].map((cell) =>
+          children: (row.length === 1 ? [...row, { label: "", value: "" }] : row).map((cell) =>
               new docxLib.TableCell({
                 width: { size: 50, type: docxLib.WidthType.PERCENTAGE },
                 borders: {
@@ -6839,10 +7390,9 @@ document.addEventListener("DOMContentLoaded", () => {
                   })
                 ]
               })
-            )
-          ]
+          )
         })
-      ]
+      )
     });
 
     const ratingsTable = new docxLib.Table({
@@ -6944,8 +7494,26 @@ document.addEventListener("DOMContentLoaded", () => {
           new docxLib.Paragraph({ spacing: { after: 24 } })
         ]
         : []),
-      ratingsTable
+      ratingsTable,
+      ...(data.ratingsProfileNotes ? buildRatingsTableNoteParagraphs(docxLib, colors, data.ratingsProfileNotes) : [])
     ];
+  }
+
+  function buildRatingsTableNoteParagraphs(docxLib, colors, text) {
+    const blocks = paragraphBlocks(text);
+    return blocks.map((block, index) =>
+      new docxLib.Paragraph({
+        children: [
+          new docxLib.TextRun({
+            text: block.replace(/\s*\n\s*/g, " "),
+            size: 11,
+            color: colors.muted,
+            font: "Arial"
+          })
+        ],
+        spacing: { before: index === 0 ? 18 : 0, after: index === blocks.length - 1 ? 42 : 12 }
+      })
+    );
   }
 
   async function buildEquityOnlyImageParagraphs(docxLib, colors, files, figureDetails = {}) {
@@ -7270,9 +7838,10 @@ document.addEventListener("DOMContentLoaded", () => {
 
   function buildNomuraTitlePanel(docxLib, colors, data, analystContacts, publicationDate) {
     const analystDesk = data.deskLine || getDeskLine();
-    const showCoverageMeta = data.noteType === "Macro Research" || (isMacroFiNoteType(data.noteType) && (data.coverageCountry || data.issuerId));
+    const macroMetadataItems = buildMacroFiMetadataItems(data).slice(0, 4);
+    const showCoverageMeta = data.noteType === "Macro Research" || (isMacroFiNoteType(data.noteType) && macroMetadataItems.length);
     const coverageMeta = showCoverageMeta
-      ? `Coverage Country: ${getCoverageCountryLabel(data.coverageCountry)} | Issuer Number: ${data.issuerId || "N/A"}`
+      ? macroMetadataItems.map((item) => `${item.label}: ${item.value}`).join(" | ")
       : "";
 
     return new docxLib.Table({
@@ -7853,12 +8422,18 @@ document.addEventListener("DOMContentLoaded", () => {
     for (let index = 0; index < files.length; index += 1) {
       const file = files[index];
       const buffer = await file.arrayBuffer();
-      const size = await getImageFit(file, 560, 320);
       const figureKey = figureFileKey(file);
-      const detail = figureDetails[figureKey] || {};
+      const detail = {
+        ...getFigureDetailForFile(file, startIndex + index - 1),
+        ...(figureDetails[figureKey] || {})
+      };
+      const size = await getImageFit(file, ...getFigureExportBounds(detail));
       const labelType = detail.labelType || defaultFigureLabelType(file);
       const labelNumber = sanitizeFigureNumber(detail.labelNumber, startIndex + index);
       const caption = detail.caption || defaultFigureCaption(file);
+      const source = String(detail.source || "").trim();
+      const notes = String(detail.notes || "").trim();
+      const keepNext = Boolean(detail.keepWithNext);
 
       output.push(
         new docxLib.Paragraph({
@@ -7869,10 +8444,12 @@ document.addEventListener("DOMContentLoaded", () => {
             })
           ],
           alignment: docxLib.AlignmentType.CENTER,
-          spacing: { before: 45, after: 45 }
+          keepNext,
+          spacing: { before: 45, after: 32 }
         }),
         new docxLib.Paragraph({
           alignment: docxLib.AlignmentType.CENTER,
+          keepNext: keepNext && (source || notes),
           children: [
             new docxLib.TextRun({
               text: `${labelType} ${labelNumber}. ${caption}`,
@@ -7882,12 +8459,61 @@ document.addEventListener("DOMContentLoaded", () => {
               font: "Arial"
             })
           ],
-          spacing: { after: 85 }
-        })
+          spacing: { after: source || notes ? 18 : 85 }
+        }),
+        ...(source
+          ? [new docxLib.Paragraph({
+            alignment: docxLib.AlignmentType.CENTER,
+            keepNext: keepNext && Boolean(notes),
+            children: [
+              new docxLib.TextRun({
+                text: source,
+                italics: true,
+                color: colors.muted,
+                size: 12,
+                font: "Arial"
+              })
+            ],
+            spacing: { after: notes ? 12 : 85 }
+          })]
+          : []),
+        ...(notes
+          ? [new docxLib.Paragraph({
+            alignment: docxLib.AlignmentType.CENTER,
+            children: [
+              new docxLib.TextRun({
+                text: notes.replace(/\s*\n\s*/g, " "),
+                color: colors.muted,
+                size: 12,
+                font: "Arial"
+              })
+            ],
+            spacing: { after: 85 }
+          })]
+          : [])
       );
     }
 
     return output;
+  }
+
+  function getFigureExportBounds(detail = {}) {
+    const displayMode = sanitizeFigureDisplayMode(detail.displayMode);
+    const size = sanitizeFigureSize(detail.size);
+    const bounds = {
+      full: {
+        small: [455, 250],
+        medium: [520, 300],
+        large: [560, 330]
+      },
+      inline: {
+        small: [310, 200],
+        medium: [390, 240],
+        large: [455, 280]
+      }
+    };
+
+    return bounds[displayMode]?.[size] || bounds.full.medium;
   }
 
   function formatProductionTimestamp(date) {
