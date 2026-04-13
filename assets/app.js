@@ -174,6 +174,18 @@ document.addEventListener("DOMContentLoaded", () => {
     { value: "medium", label: "Medium" },
     { value: "large", label: "Large" }
   ];
+  const FIGURE_FRAME_OPTIONS = [
+    { value: "top", label: "Top rule" },
+    { value: "bottom", label: "Bottom rule" },
+    { value: "none", label: "No rule" }
+  ];
+  const FIGURE_CROP_MODES = [
+    { value: "fit", label: "Fit" },
+    { value: "fill", label: "Fill" },
+    { value: "contain", label: "Contain" },
+    { value: "fixed", label: "Fixed ratio" }
+  ];
+  const MIN_FIGURE_QUALITY = { width: 900, height: 520 };
 
   const FIELD_LABELS = {
     noteType: "Note type",
@@ -428,6 +440,7 @@ document.addEventListener("DOMContentLoaded", () => {
     figurePlacements: {},
     figureFiles: [],
     figureDetails: {},
+    figureQuality: {},
     figurePreviewUrls: {},
     previewObjectUrls: [],
     richEditors: new Map(),
@@ -654,6 +667,9 @@ document.addEventListener("DOMContentLoaded", () => {
     dom.equitySecurityDisplay?.addEventListener("input", () => {
       dom.equitySecurityDisplay.dataset.autofill = "false";
     });
+
+    dom.businessDescription?.addEventListener("input", syncFigurePlacementControls);
+    dom.valuationSummary?.addEventListener("input", syncFigurePlacementControls);
 
     dom.priceCurrency.addEventListener("input", () => {
       dom.priceCurrency.dataset.autofill = "false";
@@ -1588,12 +1604,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const target = event.target;
     if (!(target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement)) return;
 
-    if (
-      target.closest(".body-section-heading") ||
-      target.getAttribute("data-custom-field") === "heading"
-    ) {
-      syncFigurePlacementControls();
-    }
+    if (target.closest(".body-section-heading") || target.closest(".body-section-card")) syncFigurePlacementControls();
   }
 
   function getBodySectionContent(card) {
@@ -2659,6 +2670,23 @@ document.addEventListener("DOMContentLoaded", () => {
       );
     });
 
+    (data.imageFiles || []).forEach((file, index) => {
+      const figureKey = figureFileKey(file);
+      const quality = data.figureQuality?.[figureKey] || state.figureQuality?.[figureKey];
+      if (!quality?.lowResolution) return;
+
+      const detail = data.figureDetails?.[figureKey] || getFigureDetailForFile(file, index);
+      findings.push(
+        buildFinding(
+          "warning",
+          `${buildFigureLabel(detail, index + 1)} image resolution`,
+          `${file.name} is ${quality.width}x${quality.height}px. Use a sharper source image before publication if available.`,
+          "Exhibits",
+          { focusId: "figurePlacementPanel" }
+        )
+      );
+    });
+
     if (noteType === "Macro Research" || noteType === "Fixed Income Research") {
       const ratingsRows = Array.isArray(data.ratingsProfile) ? data.ratingsProfile : [];
       if (!ratingsRows.length) {
@@ -3299,6 +3327,7 @@ document.addEventListener("DOMContentLoaded", () => {
     state.figurePlacements = {};
     state.figureDetails = {};
     state.figureFiles = [];
+    state.figureQuality = {};
     syncPrimaryPhone();
     restoreRatingsProfile([]);
     dom.equityCompanyName.dataset.autofill = "true";
@@ -3416,6 +3445,58 @@ document.addEventListener("DOMContentLoaded", () => {
     state.figurePreviewUrls = {};
   }
 
+  function readFigureQuality(file) {
+    return new Promise((resolve) => {
+      const objectUrl = URL.createObjectURL(file);
+      const image = new Image();
+
+      image.onload = () => {
+        URL.revokeObjectURL(objectUrl);
+        const width = image.naturalWidth || 0;
+        const height = image.naturalHeight || 0;
+        resolve({
+          width,
+          height,
+          lowResolution: width > 0 && height > 0 && (width < MIN_FIGURE_QUALITY.width || height < MIN_FIGURE_QUALITY.height)
+        });
+      };
+
+      image.onerror = () => {
+        URL.revokeObjectURL(objectUrl);
+        resolve({ width: 0, height: 0, lowResolution: false, unreadable: true });
+      };
+
+      image.src = objectUrl;
+    });
+  }
+
+  async function refreshFigureQualityForFiles(files = state.figureFiles || []) {
+    const nextQuality = {};
+    await Promise.all(files.map(async (file) => {
+      nextQuality[figureFileKey(file)] = await readFigureQuality(file);
+    }));
+    state.figureQuality = nextQuality;
+    syncFigurePlacementQualityBadges();
+    updateAllUI();
+  }
+
+  function formatFigureQualityLabel(quality) {
+    if (!quality || quality.unreadable) return "Quality pending";
+    if (!quality.width || !quality.height) return "Quality pending";
+    const status = quality.lowResolution ? "Check resolution" : "Export quality";
+    return `${status} - ${quality.width}x${quality.height}px`;
+  }
+
+  function syncFigurePlacementQualityBadges() {
+    Object.entries(state.figureQuality || {}).forEach(([key, quality]) => {
+      const badge = Array.from(dom.figurePlacementList?.querySelectorAll("[data-figure-quality]") || [])
+        .find((element) => element.getAttribute("data-figure-quality") === key);
+      if (!badge) return;
+      badge.textContent = formatFigureQualityLabel(quality);
+      badge.classList.toggle("is-warning", Boolean(quality?.lowResolution));
+    });
+  }
+
   function figureFileKey(file) {
     return `${file.name}__${file.size}__${file.lastModified}`;
   }
@@ -3443,6 +3524,16 @@ document.addEventListener("DOMContentLoaded", () => {
     return FIGURE_SIZE_OPTIONS.some((option) => option.value === normalized) ? normalized : "medium";
   }
 
+  function sanitizeFigureFrameStyle(value) {
+    const normalized = String(value || "").trim();
+    return FIGURE_FRAME_OPTIONS.some((option) => option.value === normalized) ? normalized : "top";
+  }
+
+  function sanitizeFigureCropMode(value) {
+    const normalized = String(value || "").trim();
+    return FIGURE_CROP_MODES.some((option) => option.value === normalized) ? normalized : "fit";
+  }
+
   function buildFigureLabel(detail, fallbackNumber) {
     const labelType = detail.labelType || "Figure";
     const labelNumber = sanitizeFigureNumber(detail.labelNumber, fallbackNumber);
@@ -3451,6 +3542,87 @@ document.addEventListener("DOMContentLoaded", () => {
 
   function buildFigureCaptionText(detail, file, fallbackNumber) {
     return `${buildFigureLabel(detail, fallbackNumber)}: ${detail.caption || defaultFigureCaption(file)}`;
+  }
+
+  function buildFigureTitleText(detail, file) {
+    return String(detail.caption || "").trim() || defaultFigureCaption(file);
+  }
+
+  function figureReferenceId(figureKey) {
+    let hash = 0;
+    String(figureKey || "").split("").forEach((char) => {
+      hash = ((hash << 5) - hash) + char.charCodeAt(0);
+      hash |= 0;
+    });
+    return Math.abs(hash).toString(36);
+  }
+
+  function figureReferenceToken(figureKey) {
+    return `{{fig:${figureReferenceId(figureKey)}}}`;
+  }
+
+  function buildFigureNumberLookup(data, availablePlacements) {
+    const lookup = {};
+    let nextNumber = 1;
+    Array.from(availablePlacements || ["end"]).forEach((placement) => {
+      getFigureFilesForPlacement(data, placement, availablePlacements).forEach((file) => {
+        const key = figureFileKey(file);
+        if (!lookup[key]) {
+          lookup[key] = nextNumber;
+          nextNumber += 1;
+        }
+      });
+    });
+    (data.imageFiles || []).forEach((file) => {
+      const key = figureFileKey(file);
+      if (!lookup[key]) {
+        lookup[key] = nextNumber;
+        nextNumber += 1;
+      }
+    });
+    return lookup;
+  }
+
+  function resolveFigureDetailForOutput(file, autoNumber, figureDetails = {}) {
+    const figureKey = figureFileKey(file);
+    const detail = {
+      ...getFigureDetailForFile(file, autoNumber - 1),
+      ...(figureDetails[figureKey] || {})
+    };
+    detail.labelType = detail.labelType || defaultFigureLabelType(file);
+    detail.labelNumber = detail.labelNumberManual
+      ? sanitizeFigureNumber(detail.labelNumber, autoNumber)
+      : autoNumber;
+    detail.caption = buildFigureTitleText(detail, file);
+    detail.subtitle = String(detail.subtitle || "").trim();
+    detail.takeaway = String(detail.takeaway || "").trim();
+    detail.source = String(detail.source || "").trim();
+    detail.notes = String(detail.notes || "").trim();
+    detail.displayMode = sanitizeFigureDisplayMode(detail.displayMode);
+    detail.size = sanitizeFigureSize(detail.size);
+    detail.frameStyle = sanitizeFigureFrameStyle(detail.frameStyle);
+    detail.cropMode = sanitizeFigureCropMode(detail.cropMode);
+    detail.keepWithNext = Boolean(detail.keepWithNext);
+    detail.pairWithNext = Boolean(detail.pairWithNext);
+    return detail;
+  }
+
+  function buildFigureReferenceIndex(data, availablePlacements) {
+    const numberLookup = buildFigureNumberLookup(data, availablePlacements);
+    return Object.fromEntries((data.imageFiles || []).map((file, index) => {
+      const key = figureFileKey(file);
+      const autoNumber = numberLookup[key] || index + 1;
+      const detail = resolveFigureDetailForOutput(file, autoNumber, data.figureDetails || {});
+      return [figureReferenceToken(key), buildFigureLabel(detail, autoNumber)];
+    }));
+  }
+
+  function replaceFigureReferenceTokens(value, data, availablePlacements) {
+    let output = String(value || "");
+    Object.entries(buildFigureReferenceIndex(data || {}, availablePlacements || new Set(["end"]))).forEach(([token, label]) => {
+      output = output.split(token).join(label);
+    });
+    return output;
   }
 
   function formatFigureSourceLine(value) {
@@ -3488,16 +3660,24 @@ document.addEventListener("DOMContentLoaded", () => {
   function getFigureDetailForFile(file, index = 0) {
     const key = figureFileKey(file);
     const existing = state.figureDetails[key] || {};
+    const fallbackNumber = index + 1;
+    const hasManualNumber = Boolean(existing.labelNumberManual);
     return {
       placement: state.figurePlacements[key] || existing.placement || "end",
       labelType: existing.labelType || defaultFigureLabelType(file),
-      labelNumber: sanitizeFigureNumber(existing.labelNumber, index + 1),
+      labelNumber: hasManualNumber ? sanitizeFigureNumber(existing.labelNumber, fallbackNumber) : fallbackNumber,
+      labelNumberManual: hasManualNumber,
       caption: String(existing.caption || "").trim() || defaultFigureCaption(file),
+      subtitle: String(existing.subtitle || "").trim(),
+      takeaway: String(existing.takeaway || "").trim(),
       source: String(existing.source || "").trim(),
       notes: String(existing.notes || "").trim(),
       displayMode: sanitizeFigureDisplayMode(existing.displayMode),
       size: sanitizeFigureSize(existing.size),
-      keepWithNext: Boolean(existing.keepWithNext)
+      frameStyle: sanitizeFigureFrameStyle(existing.frameStyle),
+      cropMode: sanitizeFigureCropMode(existing.cropMode),
+      keepWithNext: Boolean(existing.keepWithNext),
+      pairWithNext: Boolean(existing.pairWithNext)
     };
   }
 
@@ -3516,6 +3696,7 @@ document.addEventListener("DOMContentLoaded", () => {
       Object.entries(nextDetails).map(([key, detail]) => [key, detail.placement || "end"])
     );
     updateFigureSummary();
+    refreshFigureQualityForFiles(state.figureFiles);
   }
 
   function handleFigureUploadChange() {
@@ -3543,6 +3724,16 @@ document.addEventListener("DOMContentLoaded", () => {
     queueDraftSave();
   }
 
+  function appendFigureParagraphAnchorOptions(options, sectionKey, label, content) {
+    const paragraphBlocks = parseRichTextBlocks(content).filter((block) => block.type !== "spacer");
+    paragraphBlocks.slice(0, 6).forEach((_, index) => {
+      options.push({
+        value: `after-${sectionKey}-p${index + 1}`,
+        label: `After ${label} ¶${index + 1}`
+      });
+    });
+  }
+
   function getFigurePlacementOptions(noteType = dom.noteType.value) {
     const options = [];
     const layout = collectBodySectionLayout().filter((entry) => !entry.hidden);
@@ -3551,14 +3742,18 @@ document.addEventListener("DOMContentLoaded", () => {
     const middle = layout.filter((entry) => entry.key !== "keyTakeaways" && entry.key !== "cordobaView");
 
     if (noteType === "Equity Research") {
+      appendFigureParagraphAnchorOptions(options, "businessDescription", "Business Description", dom.businessDescription?.value || "");
+      options.push({ value: "after-businessDescription", label: "After Business Description" });
+      appendFigureParagraphAnchorOptions(options, "valuationSummary", "Valuation Summary", dom.valuationSummary?.value || "");
       options.push(
-        { value: "after-businessDescription", label: "After Business Description" },
         { value: "after-valuationSummary", label: "After Valuation Summary" }
       );
 
       middle.forEach((entry) => {
+        appendFigureParagraphAnchorOptions(options, entry.key, entry.label, entry.content);
         options.push({ value: `after-${entry.key}`, label: `After ${entry.label}` });
       });
+      if (cordobaView) appendFigureParagraphAnchorOptions(options, "cordobaView", cordobaView.label, cordobaView.content);
       if (cordobaView) options.push({ value: "after-cordobaView", label: `After ${cordobaView.label}` });
 
       options.push({ value: "end", label: "End of Note" });
@@ -3572,8 +3767,10 @@ document.addEventListener("DOMContentLoaded", () => {
 
     if (keyTakeaways) options.push({ value: "after-keyTakeaways", label: `After ${keyTakeaways.label}` });
     middle.forEach((entry) => {
+      appendFigureParagraphAnchorOptions(options, entry.key, entry.label, entry.content);
       options.push({ value: `after-${entry.key}`, label: `After ${entry.label}` });
     });
+    if (cordobaView) appendFigureParagraphAnchorOptions(options, "cordobaView", cordobaView.label, cordobaView.content);
     if (cordobaView) options.push({ value: "after-cordobaView", label: `After ${cordobaView.label}` });
 
     options.push({ value: "end", label: "End of Note" });
@@ -3589,6 +3786,7 @@ document.addEventListener("DOMContentLoaded", () => {
       dom.figurePlacementList.innerHTML = "";
       state.figurePlacements = {};
       state.figureDetails = {};
+      state.figureQuality = {};
       return;
     }
 
@@ -3619,6 +3817,12 @@ document.addEventListener("DOMContentLoaded", () => {
       origin.className = "figure-placement-origin";
       origin.textContent = file.name;
       nameCopy.appendChild(origin);
+      const quality = document.createElement("div");
+      quality.className = "figure-placement-quality";
+      quality.setAttribute("data-figure-quality", key);
+      quality.textContent = formatFigureQualityLabel(state.figureQuality?.[key]);
+      quality.classList.toggle("is-warning", Boolean(state.figureQuality?.[key]?.lowResolution));
+      nameCopy.appendChild(quality);
       nameWrap.appendChild(nameCopy);
 
       const thumb = document.createElement("img");
@@ -3632,19 +3836,37 @@ document.addEventListener("DOMContentLoaded", () => {
       const meta = document.createElement("div");
       meta.className = "figure-placement-meta";
 
+      const buildSelect = (field, optionList, value, ariaLabel = "") => {
+        const control = document.createElement("select");
+        control.setAttribute("data-figure-key", key);
+        control.setAttribute("data-figure-field", field);
+        if (ariaLabel) control.setAttribute("aria-label", ariaLabel);
+        optionList.forEach((option) => {
+          const optionEl = document.createElement("option");
+          const optionValue = typeof option === "string" ? option : option.value;
+          optionEl.value = optionValue;
+          optionEl.textContent = typeof option === "string" ? option : option.label;
+          if (optionValue === value) optionEl.selected = true;
+          control.appendChild(optionEl);
+        });
+        return control;
+      };
+
+      const buildTextInput = (field, value, placeholder, className = "") => {
+        const control = document.createElement("input");
+        control.type = "text";
+        control.value = value || "";
+        control.placeholder = placeholder;
+        control.setAttribute("data-figure-key", key);
+        control.setAttribute("data-figure-field", field);
+        if (className) control.className = className;
+        return control;
+      };
+
       const metaGrid = document.createElement("div");
       metaGrid.className = "figure-placement-meta-grid";
 
-      const kindSelect = document.createElement("select");
-      kindSelect.setAttribute("data-figure-key", key);
-      kindSelect.setAttribute("data-figure-field", "labelType");
-      FIGURE_LABEL_TYPES.forEach((labelType) => {
-        const optionEl = document.createElement("option");
-        optionEl.value = labelType;
-        optionEl.textContent = labelType;
-        if (labelType === detail.labelType) optionEl.selected = true;
-        kindSelect.appendChild(optionEl);
-      });
+      const kindSelect = buildSelect("labelType", FIGURE_LABEL_TYPES, detail.labelType, "Figure label type");
       metaGrid.appendChild(kindSelect);
 
       const numberInput = document.createElement("input");
@@ -3656,33 +3878,61 @@ document.addEventListener("DOMContentLoaded", () => {
       numberInput.setAttribute("aria-label", "Figure number");
       metaGrid.appendChild(numberInput);
 
-      const select = document.createElement("select");
-      select.setAttribute("data-figure-key", key);
-      select.setAttribute("data-figure-field", "placement");
-      options.forEach((option) => {
-        const optionEl = document.createElement("option");
-        optionEl.value = option.value;
-        optionEl.textContent = option.label;
-        if (option.value === currentValue) optionEl.selected = true;
-        select.appendChild(optionEl);
-      });
+      const select = buildSelect("placement", options, currentValue, "Figure placement");
       metaGrid.appendChild(select);
       meta.appendChild(metaGrid);
 
       const layoutGrid = document.createElement("div");
       layoutGrid.className = "figure-placement-layout-grid";
 
-      const displaySelect = document.createElement("select");
-      displaySelect.setAttribute("data-figure-key", key);
-      displaySelect.setAttribute("data-figure-field", "displayMode");
-      displaySelect.innerHTML = figureSelectOptionsHtml(FIGURE_DISPLAY_MODES, detail.displayMode);
+      const displaySelect = buildSelect("displayMode", FIGURE_DISPLAY_MODES, detail.displayMode, "Figure display mode");
       layoutGrid.appendChild(displaySelect);
 
-      const sizeSelect = document.createElement("select");
-      sizeSelect.setAttribute("data-figure-key", key);
-      sizeSelect.setAttribute("data-figure-field", "size");
-      sizeSelect.innerHTML = figureSelectOptionsHtml(FIGURE_SIZE_OPTIONS, detail.size);
+      const sizeSelect = buildSelect("size", FIGURE_SIZE_OPTIONS, detail.size, "Figure size");
       layoutGrid.appendChild(sizeSelect);
+
+      const cropSelect = buildSelect("cropMode", FIGURE_CROP_MODES, detail.cropMode, "Image crop mode");
+      layoutGrid.appendChild(cropSelect);
+
+      const frameSelect = buildSelect("frameStyle", FIGURE_FRAME_OPTIONS, detail.frameStyle, "Figure rule style");
+      layoutGrid.appendChild(frameSelect);
+      meta.appendChild(layoutGrid);
+
+      const headerGrid = document.createElement("div");
+      headerGrid.className = "figure-placement-header-grid";
+
+      const captionInput = buildTextInput("caption", detail.caption, "Title");
+      headerGrid.appendChild(captionInput);
+
+      const subtitleInput = buildTextInput("subtitle", detail.subtitle, "Subtitle");
+      headerGrid.appendChild(subtitleInput);
+      meta.appendChild(headerGrid);
+
+      const takeawayInput = buildTextInput("takeaway", detail.takeaway, "Optional one-line takeaway");
+      meta.appendChild(takeawayInput);
+
+      const sourceInput = buildTextInput("source", detail.source, "Source: Bloomberg, Cordoba Research Group calculations");
+      meta.appendChild(sourceInput);
+
+      const notesInput = document.createElement("textarea");
+      notesInput.rows = 2;
+      notesInput.value = detail.notes;
+      notesInput.placeholder = "Note or calculation caveat";
+      notesInput.setAttribute("data-figure-key", key);
+      notesInput.setAttribute("data-figure-field", "notes");
+      meta.appendChild(notesInput);
+
+      const utilityRow = document.createElement("div");
+      utilityRow.className = "figure-placement-utility-row";
+
+      const refToken = document.createElement("input");
+      refToken.type = "text";
+      refToken.readOnly = true;
+      refToken.className = "figure-reference-token";
+      refToken.value = figureReferenceToken(key);
+      refToken.setAttribute("aria-label", "Figure reference token");
+      refToken.setAttribute("title", "Use this token in the note text to keep the figure reference synced.");
+      utilityRow.appendChild(refToken);
 
       const keepLabel = document.createElement("label");
       keepLabel.className = "figure-keep-toggle";
@@ -3692,33 +3942,19 @@ document.addEventListener("DOMContentLoaded", () => {
       keepInput.setAttribute("data-figure-key", key);
       keepInput.setAttribute("data-figure-field", "keepWithNext");
       keepLabel.appendChild(keepInput);
-      keepLabel.appendChild(document.createTextNode("Keep with next"));
-      layoutGrid.appendChild(keepLabel);
-      meta.appendChild(layoutGrid);
+      keepLabel.appendChild(document.createTextNode("Keep"));
+      utilityRow.appendChild(keepLabel);
 
-      const captionInput = document.createElement("input");
-      captionInput.type = "text";
-      captionInput.value = detail.caption;
-      captionInput.placeholder = "Figure caption";
-      captionInput.setAttribute("data-figure-key", key);
-      captionInput.setAttribute("data-figure-field", "caption");
-      meta.appendChild(captionInput);
-
-      const sourceInput = document.createElement("input");
-      sourceInput.type = "text";
-      sourceInput.value = detail.source;
-      sourceInput.placeholder = "Source: Bloomberg, Cordoba Research Group calculations";
-      sourceInput.setAttribute("data-figure-key", key);
-      sourceInput.setAttribute("data-figure-field", "source");
-      meta.appendChild(sourceInput);
-
-      const notesInput = document.createElement("textarea");
-      notesInput.rows = 2;
-      notesInput.value = detail.notes;
-      notesInput.placeholder = "Figure note or calculation caveat";
-      notesInput.setAttribute("data-figure-key", key);
-      notesInput.setAttribute("data-figure-field", "notes");
-      meta.appendChild(notesInput);
+      const pairLabel = document.createElement("label");
+      pairLabel.className = "figure-keep-toggle";
+      const pairInput = document.createElement("input");
+      pairInput.type = "checkbox";
+      pairInput.checked = Boolean(detail.pairWithNext);
+      pairInput.setAttribute("data-figure-key", key);
+      pairInput.setAttribute("data-figure-field", "pairWithNext");
+      pairLabel.appendChild(pairInput);
+      pairLabel.appendChild(document.createTextNode("Pair next"));
+      utilityRow.appendChild(pairLabel);
 
       const actionRow = document.createElement("div");
       actionRow.className = "figure-placement-actions";
@@ -3731,7 +3967,8 @@ document.addEventListener("DOMContentLoaded", () => {
       removeBtn.setAttribute("title", "Remove figure");
       removeBtn.innerHTML = "&times;";
       actionRow.appendChild(removeBtn);
-      meta.appendChild(actionRow);
+      utilityRow.appendChild(actionRow);
+      meta.appendChild(utilityRow);
 
       row.appendChild(meta);
       dom.figurePlacementList.appendChild(row);
@@ -3757,6 +3994,7 @@ document.addEventListener("DOMContentLoaded", () => {
     };
     if (field === "labelNumber") {
       current.labelNumber = sanitizeFigureNumber(target.value, current.labelNumber || 1);
+      current.labelNumberManual = true;
       target.value = String(current.labelNumber);
     } else if (field === "displayMode") {
       current.displayMode = sanitizeFigureDisplayMode(target.value);
@@ -3764,8 +4002,16 @@ document.addEventListener("DOMContentLoaded", () => {
     } else if (field === "size") {
       current.size = sanitizeFigureSize(target.value);
       target.value = current.size;
+    } else if (field === "frameStyle") {
+      current.frameStyle = sanitizeFigureFrameStyle(target.value);
+      target.value = current.frameStyle;
+    } else if (field === "cropMode") {
+      current.cropMode = sanitizeFigureCropMode(target.value);
+      target.value = current.cropMode;
     } else if (field === "keepWithNext") {
       current.keepWithNext = target instanceof HTMLInputElement ? target.checked : Boolean(target.value);
+    } else if (field === "pairWithNext") {
+      current.pairWithNext = target instanceof HTMLInputElement ? target.checked : Boolean(target.value);
     } else {
       current[field] = target.value;
     }
@@ -3782,14 +4028,25 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   function handleFigurePlacementActions(event) {
+    const tokenInput = event.target.closest(".figure-reference-token");
+    if (tokenInput) {
+      tokenInput.select();
+      try {
+        navigator.clipboard?.writeText(tokenInput.value);
+      } catch (_) {
+        // Selecting the token is enough for keyboard copy if clipboard access is unavailable.
+      }
+      return;
+    }
+
     const actionButton = event.target.closest("[data-figure-action='remove']");
     if (!actionButton) return;
     removeFigureByKey(actionButton.getAttribute("data-figure-key"));
   }
 
   function buildCurrentFigurePlacements(files) {
-    return files.reduce((acc, file) => {
-      acc[figureFileKey(file)] = getFigureDetailForFile(file).placement || state.figurePlacements[figureFileKey(file)] || "end";
+    return files.reduce((acc, file, index) => {
+      acc[figureFileKey(file)] = getFigureDetailForFile(file, index).placement || state.figurePlacements[figureFileKey(file)] || "end";
       return acc;
     }, {});
   }
@@ -3803,7 +4060,8 @@ document.addEventListener("DOMContentLoaded", () => {
 
   function resolveFigurePlacementForFile(file, data, availablePlacements) {
     const requested = data.figurePlacements?.[figureFileKey(file)] || "end";
-    return availablePlacements.has(requested) ? requested : "end";
+    const allowedPlacements = availablePlacements || new Set(["end"]);
+    return allowedPlacements.has(requested) ? requested : "end";
   }
 
   function getFigureFilesForPlacement(data, placement, availablePlacements) {
@@ -3821,6 +4079,35 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     children.push(...imageParagraphs);
+  }
+
+  async function appendNarrativeSectionWithFigures(children, docxLib, colors, section, data, availablePlacements, figureCounterRef) {
+    const label = String(section?.label || defaultHeadingForSection(section?.key)).trim();
+    const sectionKey = String(section?.key || "").trim();
+    const content = replaceFigureReferenceTokens(section?.content || "", data, availablePlacements);
+    if (!label || !content) return;
+
+    children.push(buildNomuraSubhead(docxLib, colors, label));
+    const blocks = parseRichTextBlocks(content);
+    if (!blocks.length) {
+      children.push(...buildNomuraBodyParagraphs(docxLib, ""));
+      return;
+    }
+
+    let paragraphIndex = 0;
+    for (const block of blocks) {
+      children.push(...buildNomuraBodyParagraphs(docxLib, [block]));
+      if (!sectionKey || block.type === "spacer") continue;
+      paragraphIndex += 1;
+      await appendPlacedFigures(
+        children,
+        docxLib,
+        colors,
+        getFigureFilesForPlacement(data, `after-${sectionKey}-p${paragraphIndex}`, availablePlacements),
+        figureCounterRef,
+        { figureDetails: data.figureDetails }
+      );
+    }
   }
 
   function setMetric(element, value) {
@@ -4825,6 +5112,7 @@ document.addEventListener("DOMContentLoaded", () => {
           await loadEquityMarketSnapshot();
         }
       }
+      if ((state.figureFiles || []).length) await refreshFigureQualityForFiles(state.figureFiles);
       const data = collectFormData();
       data.noteId = buildNoteId(data);
       const review = buildPrePublishReview(data, validateForm(false));
@@ -4920,6 +5208,7 @@ document.addEventListener("DOMContentLoaded", () => {
       imageFiles,
       figurePlacements: buildCurrentFigurePlacements(imageFiles),
       figureDetails: buildCurrentFigureDetails(imageFiles),
+      figureQuality: { ...state.figureQuality },
       modelFiles: Array.from(dom.modelFiles.files || []),
       priceChartImageBytes: state.priceChartImageBytes,
       equityStats: { ...state.equityStats },
@@ -5492,9 +5781,19 @@ document.addEventListener("DOMContentLoaded", () => {
     `;
   }
 
-  function buildPreviewNarrativeHtml(label, content) {
+  function buildPreviewNarrativeHtml(label, content, options = {}) {
     if (!content) return "";
-    const richHtml = serializeRichTextBlocksToPreviewHtml(parseRichTextBlocks(content));
+    const resolvedContent = options.data
+      ? replaceFigureReferenceTokens(content, options.data, options.availablePlacements)
+      : content;
+    const blocks = parseRichTextBlocks(resolvedContent);
+    let paragraphIndex = 0;
+    const richHtml = blocks.map((block) => {
+      const blockHtml = serializeRichTextBlocksToPreviewHtml([block]);
+      if (!options.data || !options.availablePlacements || !options.sectionKey || block.type === "spacer") return blockHtml;
+      paragraphIndex += 1;
+      return `${blockHtml}${buildPreviewFigureMarkup(options.data.imageFiles, options.data, options.availablePlacements, `after-${options.sectionKey}-p${paragraphIndex}`)}`;
+    }).join("");
     return `
       <section class="preview-export-section">
         <h3>${escapeHtml(label)}</h3>
@@ -5538,26 +5837,63 @@ document.addEventListener("DOMContentLoaded", () => {
     return "";
   }
 
+  function buildPreviewFigureItemHtml(file, data, availablePlacements, autoNumber, options = {}) {
+    const objectUrl = URL.createObjectURL(file);
+    state.previewObjectUrls.push(objectUrl);
+    const detail = resolveFigureDetailForOutput(file, autoNumber, data.figureDetails || {});
+    const label = buildFigureLabel(detail, autoNumber);
+    const title = buildFigureTitleText(detail, file);
+    const footerHtml = buildPreviewFigureFooterHtml(detail.source, detail.notes);
+    const displayMode = options.paired ? "inline" : sanitizeFigureDisplayMode(detail.displayMode);
+    const size = sanitizeFigureSize(options.paired ? "small" : detail.size);
+    const frameStyle = sanitizeFigureFrameStyle(detail.frameStyle);
+    const cropMode = sanitizeFigureCropMode(detail.cropMode);
+
+    return `
+      <figure class="preview-figure preview-figure-${displayMode} preview-figure-${size} preview-figure-frame-${frameStyle} preview-figure-crop-${cropMode}${detail.keepWithNext ? " is-keep-with-next" : ""}${options.paired ? " is-paired" : ""}">
+        <div class="preview-figure-header">
+          <div class="preview-figure-label">${escapeHtml(label)}</div>
+          <div class="preview-figure-title">${escapeHtml(title)}</div>
+          ${detail.subtitle ? `<div class="preview-figure-subtitle">${escapeHtml(detail.subtitle)}</div>` : ""}
+          ${detail.takeaway ? `<div class="preview-figure-takeaway">${escapeHtml(detail.takeaway)}</div>` : ""}
+        </div>
+        <div class="preview-figure-image-frame">
+          <img src="${escapeAttribute(objectUrl)}" alt="${escapeAttribute(`${label}: ${title}`)}">
+        </div>
+        ${footerHtml ? `<figcaption class="preview-figure-footer">${footerHtml}</figcaption>` : ""}
+      </figure>
+    `;
+  }
+
   function buildPreviewFigureMarkup(files, data, availablePlacements, placement) {
     const placedFiles = getFigureFilesForPlacement(data, placement, availablePlacements);
-    return placedFiles.map((file, index) => {
-      const objectUrl = URL.createObjectURL(file);
-      state.previewObjectUrls.push(objectUrl);
-      const detail = data.figureDetails?.[figureFileKey(file)] || getFigureDetailForFile(file, index);
-      const caption = buildFigureCaptionText(detail, file, index + 1);
-      const source = String(detail.source || "").trim();
-      const notes = String(detail.notes || "").trim();
-      const displayMode = sanitizeFigureDisplayMode(detail.displayMode);
-      const size = sanitizeFigureSize(detail.size);
-      const footerHtml = buildPreviewFigureFooterHtml(source, notes);
-      return `
-        <figure class="preview-figure preview-figure-${displayMode} preview-figure-${size}${detail.keepWithNext ? " is-keep-with-next" : ""}">
-          <div class="preview-figure-heading">${escapeHtml(caption)}</div>
-          <img src="${escapeAttribute(objectUrl)}" alt="${escapeAttribute(caption)}">
-          ${footerHtml ? `<figcaption class="preview-figure-footer">${footerHtml}</figcaption>` : ""}
-        </figure>
-      `;
-    }).join("");
+    const numberLookup = buildFigureNumberLookup(data, availablePlacements);
+    const output = [];
+
+    for (let index = 0; index < placedFiles.length; index += 1) {
+      const file = placedFiles[index];
+      const key = figureFileKey(file);
+      const autoNumber = numberLookup[key] || index + 1;
+      const detail = resolveFigureDetailForOutput(file, autoNumber, data.figureDetails || {});
+      const nextFile = placedFiles[index + 1];
+
+      if (detail.pairWithNext && nextFile) {
+        const nextKey = figureFileKey(nextFile);
+        const nextNumber = numberLookup[nextKey] || autoNumber + 1;
+        output.push(`
+          <div class="preview-figure-pair">
+            ${buildPreviewFigureItemHtml(file, data, availablePlacements, autoNumber, { paired: true })}
+            ${buildPreviewFigureItemHtml(nextFile, data, availablePlacements, nextNumber, { paired: true })}
+          </div>
+        `);
+        index += 1;
+        continue;
+      }
+
+      output.push(buildPreviewFigureItemHtml(file, data, availablePlacements, autoNumber));
+    }
+
+    return output.join("");
   }
 
   function buildPreviewMacroFiProfileHtml(data) {
@@ -6285,7 +6621,7 @@ document.addEventListener("DOMContentLoaded", () => {
         `<h1 class="preview-export-title">${escapeHtml(data.title || "Untitled Equity Research Note")}</h1>`,
         `<p class="preview-export-deck">${escapeHtml(data.deck || "No deck supplied")}</p>`,
         `<p class="preview-export-topic">${escapeHtml(`${data.topic || data.deskLine || "Equity Research"} | ${formatDocDate(publicationDate)}`)}</p>`,
-        buildPreviewKeyTakeawaysBoxHtml(keyTakeaways?.label || "Key Takeaways", keyTakeaways?.content || data.keyTakeaways),
+        buildPreviewKeyTakeawaysBoxHtml(keyTakeaways?.label || "Key Takeaways", replaceFigureReferenceTokens(keyTakeaways?.content || data.keyTakeaways, data, availablePlacements)),
         `</div>`,
         `<aside class="preview-equity-sidebar">`,
         buildPreviewEquityTearSheetHtml(data, publicationDate),
@@ -6296,24 +6632,40 @@ document.addEventListener("DOMContentLoaded", () => {
       );
 
       if (data.businessDescription) {
-        previewParts.push(buildPreviewNarrativeHtml("Business Description", data.businessDescription));
+        previewParts.push(buildPreviewNarrativeHtml("Business Description", data.businessDescription, {
+          data,
+          availablePlacements,
+          sectionKey: "businessDescription"
+        }));
         previewParts.push(buildPreviewFigureMarkup(data.imageFiles, data, availablePlacements, "after-businessDescription"));
       }
       if (data.valuationSummary) {
-        previewParts.push(buildPreviewNarrativeHtml("Valuation Summary", data.valuationSummary));
+        previewParts.push(buildPreviewNarrativeHtml("Valuation Summary", data.valuationSummary, {
+          data,
+          availablePlacements,
+          sectionKey: "valuationSummary"
+        }));
         previewParts.push(buildPreviewFigureMarkup(data.imageFiles, data, availablePlacements, "after-valuationSummary"));
       }
       middleSections.forEach((section) => {
-        previewParts.push(buildPreviewNarrativeHtml(section.label, section.content));
+        previewParts.push(buildPreviewNarrativeHtml(section.label, section.content, {
+          data,
+          availablePlacements,
+          sectionKey: section.key
+        }));
         previewParts.push(buildPreviewFigureMarkup(data.imageFiles, data, availablePlacements, `after-${section.key}`));
       });
-      const endFigures = buildPreviewFigureMarkup(data.imageFiles, data, availablePlacements, "end");
-      if (endFigures) previewParts.push(endFigures);
       previewParts.push(buildPreviewSupportHtml(data));
       if (cordobaView?.content) {
-        previewParts.push(buildPreviewNarrativeHtml(cordobaView.label, cordobaView.content));
+        previewParts.push(buildPreviewNarrativeHtml(cordobaView.label, cordobaView.content, {
+          data,
+          availablePlacements,
+          sectionKey: "cordobaView"
+        }));
         previewParts.push(buildPreviewFigureMarkup(data.imageFiles, data, availablePlacements, "after-cordobaView"));
       }
+      const endFigures = buildPreviewFigureMarkup(data.imageFiles, data, availablePlacements, "end");
+      if (endFigures) previewParts.push(endFigures);
     } else {
       previewParts.push(
         buildPreviewDisplayLineHtml(data),
@@ -6335,16 +6687,24 @@ document.addEventListener("DOMContentLoaded", () => {
         previewParts.push(buildPreviewFigureMarkup(data.imageFiles, data, availablePlacements, "after-macroFiProfile"));
       }
 
-      previewParts.push(buildPreviewKeyTakeawaysBoxHtml(keyTakeaways?.label || "Key Takeaways", keyTakeaways?.content || data.keyTakeaways));
+      previewParts.push(buildPreviewKeyTakeawaysBoxHtml(keyTakeaways?.label || "Key Takeaways", replaceFigureReferenceTokens(keyTakeaways?.content || data.keyTakeaways, data, availablePlacements)));
       previewParts.push(buildPreviewFigureMarkup(data.imageFiles, data, availablePlacements, "after-keyTakeaways"));
 
       middleSections.forEach((section) => {
-        previewParts.push(buildPreviewNarrativeHtml(section.label, section.content));
+        previewParts.push(buildPreviewNarrativeHtml(section.label, section.content, {
+          data,
+          availablePlacements,
+          sectionKey: section.key
+        }));
         previewParts.push(buildPreviewFigureMarkup(data.imageFiles, data, availablePlacements, `after-${section.key}`));
       });
 
       if (cordobaView?.content) {
-        previewParts.push(buildPreviewNarrativeHtml(cordobaView.label, cordobaView.content));
+        previewParts.push(buildPreviewNarrativeHtml(cordobaView.label, cordobaView.content, {
+          data,
+          availablePlacements,
+          sectionKey: "cordobaView"
+        }));
         previewParts.push(buildPreviewFigureMarkup(data.imageFiles, data, availablePlacements, "after-cordobaView"));
       }
 
@@ -6453,10 +6813,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const analystContacts = collectAnalystContacts(data);
     const { keyTakeaways, middle, cordobaView } = getNarrativeSectionPartitions(data);
     const figureCounterRef = { value: 1 };
-    const availablePlacements = new Set(["end", "after-keyTakeaways"]);
-    if (isMacroFiNoteType(data.noteType)) availablePlacements.add("after-macroFiProfile");
-    middle.forEach((section) => availablePlacements.add(`after-${section.key}`));
-    if (cordobaView?.content) availablePlacements.add("after-cordobaView");
+    const availablePlacements = new Set(getFigurePlacementOptions(data.noteType).map((option) => option.value));
 
     if (data.noteType === "Equity Research") {
       return createEquityResearchDocument(docxLib, colors, data, publicationDate, bannerBytes, analystContacts, {
@@ -6498,7 +6855,7 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     documentChildren.push(
-      buildKeyTakeawaysBox(docxLib, colors, lineItems(keyTakeaways.content), keyTakeaways.label)
+      buildKeyTakeawaysBox(docxLib, colors, lineItems(replaceFigureReferenceTokens(keyTakeaways.content, data, availablePlacements)), keyTakeaways.label)
     );
     await appendPlacedFigures(
       documentChildren,
@@ -6510,7 +6867,7 @@ document.addEventListener("DOMContentLoaded", () => {
     );
 
     for (const section of middle) {
-      documentChildren.push(...buildNarrativeSectionBlocks(docxLib, colors, [section]));
+      await appendNarrativeSectionWithFigures(documentChildren, docxLib, colors, section, data, availablePlacements, figureCounterRef);
       await appendPlacedFigures(
         documentChildren,
         docxLib,
@@ -6522,7 +6879,7 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     if (cordobaView?.content) {
-      documentChildren.push(...buildNarrativeSectionBlocks(docxLib, colors, [cordobaView]));
+      await appendNarrativeSectionWithFigures(documentChildren, docxLib, colors, cordobaView, data, availablePlacements, figureCounterRef);
       await appendPlacedFigures(
         documentChildren,
         docxLib,
@@ -6608,11 +6965,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
   async function createEquityResearchDocument(docxLib, colors, data, publicationDate, bannerBytes, analystContacts, narrativeSections, figureCounterRef) {
     const { keyTakeaways, middle, cordobaView } = narrativeSections;
-    const availablePlacements = new Set(["end"]);
-    if (data.businessDescription) availablePlacements.add("after-businessDescription");
-    if (data.valuationSummary) availablePlacements.add("after-valuationSummary");
-    middle.forEach((section) => availablePlacements.add(`after-${section.key}`));
-    if (cordobaView?.content) availablePlacements.add("after-cordobaView");
+    const availablePlacements = new Set(getFigurePlacementOptions(data.noteType).map((option) => option.value));
     const children = [
       new docxLib.Paragraph({
         children: [
@@ -6630,10 +6983,11 @@ document.addEventListener("DOMContentLoaded", () => {
     ];
 
     if (data.businessDescription) {
-      children.push(
-        buildNomuraSubhead(docxLib, colors, "Business Description"),
-        ...buildNomuraBodyParagraphs(docxLib, data.businessDescription)
-      );
+      await appendNarrativeSectionWithFigures(children, docxLib, colors, {
+        key: "businessDescription",
+        label: "Business Description",
+        content: data.businessDescription
+      }, data, availablePlacements, figureCounterRef);
       await appendPlacedFigures(
         children,
         docxLib,
@@ -6645,10 +6999,11 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     if (data.valuationSummary) {
-      children.push(
-        buildNomuraSubhead(docxLib, colors, "Valuation Summary"),
-        ...buildNomuraBodyParagraphs(docxLib, data.valuationSummary)
-      );
+      await appendNarrativeSectionWithFigures(children, docxLib, colors, {
+        key: "valuationSummary",
+        label: "Valuation Summary",
+        content: data.valuationSummary
+      }, data, availablePlacements, figureCounterRef);
       await appendPlacedFigures(
         children,
         docxLib,
@@ -6660,7 +7015,7 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     for (const section of middle) {
-      children.push(...buildNarrativeSectionBlocks(docxLib, colors, [section]));
+      await appendNarrativeSectionWithFigures(children, docxLib, colors, section, data, availablePlacements, figureCounterRef);
       await appendPlacedFigures(
         children,
         docxLib,
@@ -6671,20 +7026,13 @@ document.addEventListener("DOMContentLoaded", () => {
       );
     }
 
-    const endFigures = getFigureFilesForPlacement(data, "end", availablePlacements);
-    if (endFigures.length) {
-      await appendPlacedFigures(children, docxLib, colors, endFigures, figureCounterRef, {
-        figureDetails: data.figureDetails
-      });
-    }
-
     const supportParagraphs = buildSupportingMaterialParagraphs(docxLib, colors, data);
     if (supportParagraphs.length) {
       children.push(buildNomuraSubhead(docxLib, colors, "Model Files"), ...supportParagraphs);
     }
 
     if (cordobaView?.content) {
-      children.push(...buildNarrativeSectionBlocks(docxLib, colors, [cordobaView]));
+      await appendNarrativeSectionWithFigures(children, docxLib, colors, cordobaView, data, availablePlacements, figureCounterRef);
       await appendPlacedFigures(
         children,
         docxLib,
@@ -6693,6 +7041,13 @@ document.addEventListener("DOMContentLoaded", () => {
         figureCounterRef,
         { figureDetails: data.figureDetails }
       );
+    }
+
+    const endFigures = getFigureFilesForPlacement(data, "end", availablePlacements);
+    if (endFigures.length) {
+      await appendPlacedFigures(children, docxLib, colors, endFigures, figureCounterRef, {
+        figureDetails: data.figureDetails
+      });
     }
 
     return buildResearchDocumentShell(
@@ -6779,6 +7134,7 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   function buildEquityFrontPageTable(docxLib, colors, data, publicationDate, analystContacts, keyTakeawaysSection) {
+    const availablePlacements = new Set(getFigurePlacementOptions(data.noteType).map((option) => option.value));
     const leftColumnChildren = [
       new docxLib.Paragraph({
         children: [
@@ -6818,7 +7174,7 @@ document.addEventListener("DOMContentLoaded", () => {
       buildKeyTakeawaysBox(
         docxLib,
         colors,
-        lineItems(keyTakeawaysSection?.content || data.keyTakeaways),
+        lineItems(replaceFigureReferenceTokens(keyTakeawaysSection?.content || data.keyTakeaways, data, availablePlacements)),
         keyTakeawaysSection?.label || "Key Takeaways"
       )
     ];
@@ -8257,7 +8613,7 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   function buildNomuraBodyParagraphs(docxLib, text) {
-    const blocks = parseRichTextBlocks(text);
+    const blocks = Array.isArray(text) ? text : parseRichTextBlocks(text);
     if (!blocks.length) {
       return [new docxLib.Paragraph({ text: "No content supplied.", spacing: { after: 44 } })];
     }
@@ -8630,83 +8986,245 @@ document.addEventListener("DOMContentLoaded", () => {
 
     for (let index = 0; index < files.length; index += 1) {
       const file = files[index];
-      const buffer = await file.arrayBuffer();
-      const figureKey = figureFileKey(file);
-      const detail = {
-        ...getFigureDetailForFile(file, startIndex + index - 1),
-        ...(figureDetails[figureKey] || {})
-      };
-      const size = await getImageFit(file, ...getFigureExportBounds(detail));
-      const labelType = detail.labelType || defaultFigureLabelType(file);
-      const labelNumber = sanitizeFigureNumber(detail.labelNumber, startIndex + index);
-      const caption = detail.caption || defaultFigureCaption(file);
-      const source = String(detail.source || "").trim();
-      const notes = String(detail.notes || "").trim();
-      const titleText = `${labelType} ${labelNumber}: ${caption}`;
-      const footerText = buildFigureFooterText(source, notes);
-      const keepNext = Boolean(detail.keepWithNext);
+      const autoNumber = startIndex + index;
+      const detail = resolveFigureDetailForOutput(file, autoNumber, figureDetails);
+      const nextFile = files[index + 1];
 
-      output.push(
-        new docxLib.Paragraph({
-          border: {
-            top: {
-              color: "A7ADB5",
-              style: docxLib.BorderStyle.SINGLE,
-              size: 4
-            }
-          },
-          children: [
-            new docxLib.TextRun({
-              text: titleText,
-              bold: true,
-              color: colors.black,
-              size: 18,
-              font: "Arial"
-            })
-          ],
-          keepNext: true,
-          spacing: { before: 58, after: 18 }
-        }),
-        new docxLib.Paragraph({
-          children: [
-            new docxLib.ImageRun({
-              data: buffer,
-              transformation: size
-            })
-          ],
-          alignment: docxLib.AlignmentType.CENTER,
-          keepNext: keepNext || Boolean(footerText),
-          spacing: { before: 0, after: footerText ? 20 : 85 }
-        }),
-        ...(footerText
-          ? [new docxLib.Paragraph({
-            border: {
-              top: {
-                color: "A7ADB5",
-                style: docxLib.BorderStyle.SINGLE,
-                size: 4
-              }
-            },
-            children: [
-              new docxLib.TextRun({
-                text: footerText,
-                color: colors.muted,
-                size: 12,
-                font: "Arial"
-              })
-            ],
-            spacing: { before: 12, after: 85 }
-          })]
-          : [])
-      );
+      if (detail.pairWithNext && nextFile) {
+        const nextNumber = autoNumber + 1;
+        const nextDetail = resolveFigureDetailForOutput(nextFile, nextNumber, figureDetails);
+        output.push(await buildFigurePairTable(docxLib, colors, file, detail, autoNumber, nextFile, nextDetail, nextNumber));
+        output.push(new docxLib.Paragraph({ spacing: { after: 72 } }));
+        index += 1;
+        continue;
+      }
+
+      output.push(...await buildFigureDocxBlocks(docxLib, colors, file, detail, autoNumber));
     }
 
     return output;
   }
 
-  function getFigureExportBounds(detail = {}) {
-    const displayMode = sanitizeFigureDisplayMode(detail.displayMode);
-    const size = sanitizeFigureSize(detail.size);
+  async function buildFigureDocxBlocks(docxLib, colors, file, detail, autoNumber, options = {}) {
+    const paired = Boolean(options.paired);
+    const label = buildFigureLabel(detail, autoNumber);
+    const title = buildFigureTitleText(detail, file);
+    const subtitle = String(detail.subtitle || "").trim();
+    const takeaway = String(detail.takeaway || "").trim();
+    const footerText = buildFigureFooterText(detail.source, detail.notes);
+    const frameStyle = sanitizeFigureFrameStyle(detail.frameStyle);
+    const imageAsset = await getFigureImageAsset(file, detail, { paired });
+    const center = docxLib.AlignmentType.CENTER;
+    const topRule = frameStyle === "top" ? buildFigureDocxBorder(docxLib) : undefined;
+    const bottomRule = frameStyle === "bottom" ? buildFigureDocxBorder(docxLib) : undefined;
+    const titleSize = paired ? 15 : 18;
+    const subtitleSize = paired ? 12 : 14;
+
+    return [
+      new docxLib.Paragraph({
+        border: topRule,
+        alignment: center,
+        children: [
+          new docxLib.TextRun({
+            text: label,
+            bold: true,
+            color: colors.muted,
+            size: paired ? 11 : 12,
+            font: "Arial"
+          })
+        ],
+        keepNext: true,
+        spacing: { before: paired ? 16 : 58, after: 4 }
+      }),
+      new docxLib.Paragraph({
+        alignment: center,
+        children: [
+          new docxLib.TextRun({
+            text: title,
+            bold: true,
+            color: colors.black,
+            size: titleSize,
+            font: "Arial"
+          })
+        ],
+        keepNext: true,
+        spacing: { after: subtitle || takeaway ? 4 : 16 }
+      }),
+      ...(subtitle ? [new docxLib.Paragraph({
+        alignment: center,
+        children: [
+          new docxLib.TextRun({
+            text: subtitle,
+            color: colors.muted,
+            size: subtitleSize,
+            font: "Arial"
+          })
+        ],
+        keepNext: true,
+        spacing: { after: takeaway ? 3 : 14 }
+      })] : []),
+      ...(takeaway ? [new docxLib.Paragraph({
+        alignment: center,
+        children: [
+          new docxLib.TextRun({
+            text: takeaway,
+            bold: true,
+            color: colors.redDark,
+            size: paired ? 11 : 13,
+            font: "Arial"
+          })
+        ],
+        keepNext: true,
+        spacing: { after: 14 }
+      })] : []),
+      new docxLib.Paragraph({
+        children: [
+          new docxLib.ImageRun({
+            data: imageAsset.data,
+            transformation: imageAsset.transformation
+          })
+        ],
+        alignment: center,
+        keepNext: Boolean(detail.keepWithNext) || Boolean(footerText),
+        spacing: { before: 0, after: footerText ? 14 : (paired ? 26 : 82) }
+      }),
+      ...(footerText
+        ? [new docxLib.Paragraph({
+          border: bottomRule,
+          alignment: center,
+          children: [
+            new docxLib.TextRun({
+              text: footerText,
+              color: colors.muted,
+              size: paired ? 10 : 12,
+              font: "Arial"
+            })
+          ],
+          spacing: { before: 8, after: paired ? 18 : 82 }
+        })]
+        : [])
+    ];
+  }
+
+  async function buildFigurePairTable(docxLib, colors, leftFile, leftDetail, leftNumber, rightFile, rightDetail, rightNumber) {
+    const borders = buildNoBorderTableBorders(docxLib);
+    return new docxLib.Table({
+      width: { size: 100, type: docxLib.WidthType.PERCENTAGE },
+      borders,
+      rows: [
+        new docxLib.TableRow({
+          children: [
+            new docxLib.TableCell({
+              width: { size: 50, type: docxLib.WidthType.PERCENTAGE },
+              margins: { top: 0, bottom: 0, left: 0, right: 70 },
+              borders,
+              children: await buildFigureDocxBlocks(docxLib, colors, leftFile, leftDetail, leftNumber, { paired: true })
+            }),
+            new docxLib.TableCell({
+              width: { size: 50, type: docxLib.WidthType.PERCENTAGE },
+              margins: { top: 0, bottom: 0, left: 70, right: 0 },
+              borders,
+              children: await buildFigureDocxBlocks(docxLib, colors, rightFile, rightDetail, rightNumber, { paired: true })
+            })
+          ]
+        })
+      ]
+    });
+  }
+
+  function buildNoBorderTableBorders(docxLib) {
+    return {
+      top: { style: docxLib.BorderStyle.NONE },
+      bottom: { style: docxLib.BorderStyle.NONE },
+      left: { style: docxLib.BorderStyle.NONE },
+      right: { style: docxLib.BorderStyle.NONE },
+      insideHorizontal: { style: docxLib.BorderStyle.NONE },
+      insideVertical: { style: docxLib.BorderStyle.NONE }
+    };
+  }
+
+  function buildFigureDocxBorder(docxLib) {
+    return {
+      top: {
+        color: "A7ADB5",
+        style: docxLib.BorderStyle.SINGLE,
+        size: 4
+      }
+    };
+  }
+
+  async function getFigureImageAsset(file, detail = {}, options = {}) {
+    const cropMode = sanitizeFigureCropMode(detail.cropMode);
+    const [maxWidth, maxHeight] = getFigureExportBounds(detail, options);
+
+    if (cropMode === "fill" || cropMode === "fixed") {
+      const data = await buildFigureCanvasBuffer(file, maxWidth, maxHeight, cropMode === "fill" ? "cover" : "contain");
+      if (data) return { data, transformation: { width: maxWidth, height: maxHeight } };
+    }
+
+    return {
+      data: await file.arrayBuffer(),
+      transformation: await getImageFit(file, maxWidth, maxHeight)
+    };
+  }
+
+  function buildFigureCanvasBuffer(file, width, height, mode) {
+    return new Promise((resolve) => {
+      const image = new Image();
+      const objectUrl = URL.createObjectURL(file);
+
+      image.onload = () => {
+        try {
+          const canvas = document.createElement("canvas");
+          canvas.width = width;
+          canvas.height = height;
+          const context = canvas.getContext("2d");
+          if (!context) throw new Error("Canvas context unavailable");
+
+          context.fillStyle = "#ffffff";
+          context.fillRect(0, 0, width, height);
+
+          const imageRatio = image.naturalWidth / image.naturalHeight;
+          const canvasRatio = width / height;
+          let drawWidth = width;
+          let drawHeight = height;
+          let drawX = 0;
+          let drawY = 0;
+
+          if (mode === "cover" ? imageRatio > canvasRatio : imageRatio < canvasRatio) {
+            drawHeight = height;
+            drawWidth = height * imageRatio;
+            drawX = (width - drawWidth) / 2;
+          } else {
+            drawWidth = width;
+            drawHeight = width / imageRatio;
+            drawY = (height - drawHeight) / 2;
+          }
+
+          context.drawImage(image, drawX, drawY, drawWidth, drawHeight);
+          canvas.toBlob(async (blob) => {
+            URL.revokeObjectURL(objectUrl);
+            resolve(blob ? await blob.arrayBuffer() : null);
+          }, "image/png", 0.92);
+        } catch (error) {
+          URL.revokeObjectURL(objectUrl);
+          console.warn("Unable to render cropped figure image:", error);
+          resolve(null);
+        }
+      };
+
+      image.onerror = () => {
+        URL.revokeObjectURL(objectUrl);
+        resolve(null);
+      };
+
+      image.src = objectUrl;
+    });
+  }
+
+  function getFigureExportBounds(detail = {}, options = {}) {
+    const displayMode = options.paired ? "inline" : sanitizeFigureDisplayMode(detail.displayMode);
+    const size = options.paired ? "small" : sanitizeFigureSize(detail.size);
     const bounds = {
       full: {
         small: [455, 250],
@@ -8714,13 +9232,18 @@ document.addEventListener("DOMContentLoaded", () => {
         large: [560, 330]
       },
       inline: {
-        small: [310, 200],
-        medium: [390, 240],
-        large: [455, 280]
+        small: [260, 168],
+        medium: [360, 220],
+        large: [430, 260]
       }
     };
+    const selected = bounds[displayMode]?.[size] || bounds.full.medium;
 
-    return bounds[displayMode]?.[size] || bounds.full.medium;
+    if (sanitizeFigureCropMode(detail.cropMode) === "fixed") {
+      return [selected[0], Math.round(selected[0] * 0.5625)];
+    }
+
+    return selected;
   }
 
   function formatProductionTimestamp(date) {
