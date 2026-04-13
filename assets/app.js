@@ -174,11 +174,6 @@ document.addEventListener("DOMContentLoaded", () => {
     { value: "medium", label: "Medium" },
     { value: "large", label: "Large" }
   ];
-  const FIGURE_FRAME_OPTIONS = [
-    { value: "top", label: "Top rule" },
-    { value: "bottom", label: "Bottom rule" },
-    { value: "none", label: "No rule" }
-  ];
   const FIGURE_CROP_MODES = [
     { value: "fit", label: "Fit" },
     { value: "fill", label: "Fill" },
@@ -3524,11 +3519,6 @@ document.addEventListener("DOMContentLoaded", () => {
     return FIGURE_SIZE_OPTIONS.some((option) => option.value === normalized) ? normalized : "medium";
   }
 
-  function sanitizeFigureFrameStyle(value) {
-    const normalized = String(value || "").trim();
-    return FIGURE_FRAME_OPTIONS.some((option) => option.value === normalized) ? normalized : "top";
-  }
-
   function sanitizeFigureCropMode(value) {
     const normalized = String(value || "").trim();
     return FIGURE_CROP_MODES.some((option) => option.value === normalized) ? normalized : "fit";
@@ -3600,10 +3590,10 @@ document.addEventListener("DOMContentLoaded", () => {
     detail.notes = String(detail.notes || "").trim();
     detail.displayMode = sanitizeFigureDisplayMode(detail.displayMode);
     detail.size = sanitizeFigureSize(detail.size);
-    detail.frameStyle = sanitizeFigureFrameStyle(detail.frameStyle);
     detail.cropMode = sanitizeFigureCropMode(detail.cropMode);
     detail.keepWithNext = Boolean(detail.keepWithNext);
     detail.pairWithNext = Boolean(detail.pairWithNext);
+    detail.pairWithKey = String(detail.pairWithKey || "").trim();
     return detail;
   }
 
@@ -3641,6 +3631,39 @@ document.addEventListener("DOMContentLoaded", () => {
     return [formatFigureSourceLine(source), formatFigureNotesLine(notes)].filter(Boolean).join("  ");
   }
 
+  function buildInfoHelpElement(label, tooltipText) {
+    const wrapper = document.createElement("span");
+    wrapper.className = "info-help figure-info-help";
+
+    const dot = document.createElement("span");
+    dot.className = "info-dot";
+    dot.tabIndex = 0;
+    dot.setAttribute("aria-label", label);
+    dot.textContent = "i";
+    wrapper.appendChild(dot);
+
+    const tooltip = document.createElement("span");
+    tooltip.className = "info-tooltip";
+    tooltip.textContent = tooltipText;
+    wrapper.appendChild(tooltip);
+
+    return wrapper;
+  }
+
+  function buildFigurePairOptions(figureKey) {
+    return (state.figureFiles || [])
+      .map((file, index) => {
+        const key = figureFileKey(file);
+        if (key === figureKey) return null;
+        const detail = getFigureDetailForFile(file, index);
+        return {
+          value: key,
+          label: `${buildFigureLabel(detail, index + 1)}: ${detail.caption || defaultFigureCaption(file)}`
+        };
+      })
+      .filter(Boolean);
+  }
+
   function buildPreviewFigureFooterHtml(source, notes) {
     const sourceLine = formatFigureSourceLine(source);
     const notesLine = formatFigureNotesLine(notes);
@@ -3674,10 +3697,10 @@ document.addEventListener("DOMContentLoaded", () => {
       notes: String(existing.notes || "").trim(),
       displayMode: sanitizeFigureDisplayMode(existing.displayMode),
       size: sanitizeFigureSize(existing.size),
-      frameStyle: sanitizeFigureFrameStyle(existing.frameStyle),
       cropMode: sanitizeFigureCropMode(existing.cropMode),
       keepWithNext: Boolean(existing.keepWithNext),
-      pairWithNext: Boolean(existing.pairWithNext)
+      pairWithNext: Boolean(existing.pairWithNext),
+      pairWithKey: String(existing.pairWithKey || "").trim()
     };
   }
 
@@ -3893,9 +3916,6 @@ document.addEventListener("DOMContentLoaded", () => {
 
       const cropSelect = buildSelect("cropMode", FIGURE_CROP_MODES, detail.cropMode, "Image crop mode");
       layoutGrid.appendChild(cropSelect);
-
-      const frameSelect = buildSelect("frameStyle", FIGURE_FRAME_OPTIONS, detail.frameStyle, "Figure rule style");
-      layoutGrid.appendChild(frameSelect);
       meta.appendChild(layoutGrid);
 
       const headerGrid = document.createElement("div");
@@ -3925,6 +3945,8 @@ document.addEventListener("DOMContentLoaded", () => {
       const utilityRow = document.createElement("div");
       utilityRow.className = "figure-placement-utility-row";
 
+      const tokenWrap = document.createElement("div");
+      tokenWrap.className = "figure-token-control";
       const refToken = document.createElement("input");
       refToken.type = "text";
       refToken.readOnly = true;
@@ -3932,7 +3954,12 @@ document.addEventListener("DOMContentLoaded", () => {
       refToken.value = figureReferenceToken(key);
       refToken.setAttribute("aria-label", "Figure reference token");
       refToken.setAttribute("title", "Use this token in the note text to keep the figure reference synced.");
-      utilityRow.appendChild(refToken);
+      tokenWrap.appendChild(refToken);
+      tokenWrap.appendChild(buildInfoHelpElement(
+        "Figure reference token guidance",
+        "Insert this token into the note text where you want the figure reference to update automatically."
+      ));
+      utilityRow.appendChild(tokenWrap);
 
       const keepLabel = document.createElement("label");
       keepLabel.className = "figure-keep-toggle";
@@ -3945,16 +3972,32 @@ document.addEventListener("DOMContentLoaded", () => {
       keepLabel.appendChild(document.createTextNode("Keep"));
       utilityRow.appendChild(keepLabel);
 
+      const pairWrap = document.createElement("div");
+      pairWrap.className = "figure-pair-control";
       const pairLabel = document.createElement("label");
       pairLabel.className = "figure-keep-toggle";
       const pairInput = document.createElement("input");
       pairInput.type = "checkbox";
+      const pairableOptions = buildFigurePairOptions(key);
       pairInput.checked = Boolean(detail.pairWithNext);
+      pairInput.disabled = !pairableOptions.length;
       pairInput.setAttribute("data-figure-key", key);
       pairInput.setAttribute("data-figure-field", "pairWithNext");
       pairLabel.appendChild(pairInput);
-      pairLabel.appendChild(document.createTextNode("Pair next"));
-      utilityRow.appendChild(pairLabel);
+      pairLabel.appendChild(document.createTextNode("Pair"));
+      pairWrap.appendChild(pairLabel);
+      pairWrap.appendChild(buildInfoHelpElement(
+        "Pairing guidance",
+        "Use this to place two figures side by side. After enabling it, choose which figure this should sit next to."
+      ));
+      utilityRow.appendChild(pairWrap);
+
+      if (detail.pairWithNext) {
+        const pairOptions = [{ value: "", label: "Choose paired figure" }, ...pairableOptions];
+        const pairSelect = buildSelect("pairWithKey", pairOptions, detail.pairWithKey, "Choose paired figure");
+        pairSelect.className = "figure-pair-select";
+        utilityRow.appendChild(pairSelect);
+      }
 
       const actionRow = document.createElement("div");
       actionRow.className = "figure-placement-actions";
@@ -4002,9 +4045,6 @@ document.addEventListener("DOMContentLoaded", () => {
     } else if (field === "size") {
       current.size = sanitizeFigureSize(target.value);
       target.value = current.size;
-    } else if (field === "frameStyle") {
-      current.frameStyle = sanitizeFigureFrameStyle(target.value);
-      target.value = current.frameStyle;
     } else if (field === "cropMode") {
       current.cropMode = sanitizeFigureCropMode(target.value);
       target.value = current.cropMode;
@@ -4012,10 +4052,24 @@ document.addEventListener("DOMContentLoaded", () => {
       current.keepWithNext = target instanceof HTMLInputElement ? target.checked : Boolean(target.value);
     } else if (field === "pairWithNext") {
       current.pairWithNext = target instanceof HTMLInputElement ? target.checked : Boolean(target.value);
+      if (current.pairWithNext && !current.pairWithKey) {
+        current.pairWithKey = buildFigurePairOptions(figureKey)[0]?.value || "";
+      }
+      if (!current.pairWithNext) current.pairWithKey = "";
+    } else if (field === "pairWithKey") {
+      current.pairWithKey = String(target.value || "").trim();
+      current.pairWithNext = Boolean(current.pairWithKey);
     } else {
       current[field] = target.value;
     }
     if (field === "placement") state.figurePlacements[figureKey] = current.placement || "end";
+    if ((field === "placement" || field === "pairWithKey" || field === "pairWithNext") && current.pairWithKey) {
+      state.figurePlacements[current.pairWithKey] = current.placement || "end";
+      state.figureDetails[current.pairWithKey] = {
+        ...(state.figureDetails[current.pairWithKey] || {}),
+        placement: current.placement || "end"
+      };
+    }
     state.figureDetails[figureKey] = current;
     const nameEl = target.closest(".figure-placement-row")?.querySelector(".figure-placement-name");
     if (nameEl) {
@@ -4025,6 +4079,7 @@ document.addEventListener("DOMContentLoaded", () => {
     updateFigureSummary();
     updateAllUI();
     queueDraftSave();
+    if (field === "pairWithNext" || field === "pairWithKey" || field === "placement") syncFigurePlacementControls();
   }
 
   function handleFigurePlacementActions(event) {
@@ -4045,10 +4100,19 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   function buildCurrentFigurePlacements(files) {
-    return files.reduce((acc, file, index) => {
-      acc[figureFileKey(file)] = getFigureDetailForFile(file, index).placement || state.figurePlacements[figureFileKey(file)] || "end";
+    const placements = files.reduce((acc, file, index) => {
+      const key = figureFileKey(file);
+      const detail = getFigureDetailForFile(file, index);
+      acc[key] = detail.placement || state.figurePlacements[key] || "end";
       return acc;
     }, {});
+    files.forEach((file, index) => {
+      const detail = getFigureDetailForFile(file, index);
+      if (detail.pairWithNext && detail.pairWithKey && placements[detail.pairWithKey]) {
+        placements[detail.pairWithKey] = detail.placement || placements[figureFileKey(file)] || "end";
+      }
+    });
+    return placements;
   }
 
   function buildCurrentFigureDetails(files) {
@@ -4066,6 +4130,24 @@ document.addEventListener("DOMContentLoaded", () => {
 
   function getFigureFilesForPlacement(data, placement, availablePlacements) {
     return (data.imageFiles || []).filter((file) => resolveFigurePlacementForFile(file, data, availablePlacements) === placement);
+  }
+
+  function findFigurePairForFile(file, files, figureDetails, numberLookup, consumedKeys) {
+    const key = figureFileKey(file);
+    const detail = resolveFigureDetailForOutput(file, numberLookup[key] || 1, figureDetails || {});
+    if (detail.pairWithNext && detail.pairWithKey && !consumedKeys.has(detail.pairWithKey)) {
+      const pairedFile = files.find((candidate) => figureFileKey(candidate) === detail.pairWithKey);
+      if (pairedFile) return { first: file, second: pairedFile };
+    }
+
+    const incomingFile = files.find((candidate) => {
+      const candidateKey = figureFileKey(candidate);
+      if (candidateKey === key || consumedKeys.has(candidateKey)) return false;
+      const candidateDetail = resolveFigureDetailForOutput(candidate, numberLookup[candidateKey] || 1, figureDetails || {});
+      return candidateDetail.pairWithNext && candidateDetail.pairWithKey === key;
+    });
+
+    return incomingFile ? { first: incomingFile, second: file } : null;
   }
 
   async function appendPlacedFigures(children, docxLib, colors, files, figureCounterRef, options = {}) {
@@ -5843,22 +5925,21 @@ document.addEventListener("DOMContentLoaded", () => {
     const detail = resolveFigureDetailForOutput(file, autoNumber, data.figureDetails || {});
     const label = buildFigureLabel(detail, autoNumber);
     const title = buildFigureTitleText(detail, file);
+    const displayTitle = `${label}: ${title}`;
     const footerHtml = buildPreviewFigureFooterHtml(detail.source, detail.notes);
     const displayMode = options.paired ? "inline" : sanitizeFigureDisplayMode(detail.displayMode);
     const size = sanitizeFigureSize(options.paired ? "small" : detail.size);
-    const frameStyle = sanitizeFigureFrameStyle(detail.frameStyle);
     const cropMode = sanitizeFigureCropMode(detail.cropMode);
 
     return `
-      <figure class="preview-figure preview-figure-${displayMode} preview-figure-${size} preview-figure-frame-${frameStyle} preview-figure-crop-${cropMode}${detail.keepWithNext ? " is-keep-with-next" : ""}${options.paired ? " is-paired" : ""}">
+      <figure class="preview-figure preview-figure-${displayMode} preview-figure-${size} preview-figure-crop-${cropMode}${detail.keepWithNext ? " is-keep-with-next" : ""}${options.paired ? " is-paired" : ""}">
         <div class="preview-figure-header">
-          <div class="preview-figure-label">${escapeHtml(label)}</div>
-          <div class="preview-figure-title">${escapeHtml(title)}</div>
+          <div class="preview-figure-title">${escapeHtml(displayTitle)}</div>
           ${detail.subtitle ? `<div class="preview-figure-subtitle">${escapeHtml(detail.subtitle)}</div>` : ""}
           ${detail.takeaway ? `<div class="preview-figure-takeaway">${escapeHtml(detail.takeaway)}</div>` : ""}
         </div>
         <div class="preview-figure-image-frame">
-          <img src="${escapeAttribute(objectUrl)}" alt="${escapeAttribute(`${label}: ${title}`)}">
+          <img src="${escapeAttribute(objectUrl)}" alt="${escapeAttribute(displayTitle)}">
         </div>
         ${footerHtml ? `<figcaption class="preview-figure-footer">${footerHtml}</figcaption>` : ""}
       </figure>
@@ -5869,28 +5950,30 @@ document.addEventListener("DOMContentLoaded", () => {
     const placedFiles = getFigureFilesForPlacement(data, placement, availablePlacements);
     const numberLookup = buildFigureNumberLookup(data, availablePlacements);
     const output = [];
+    const consumed = new Set();
 
-    for (let index = 0; index < placedFiles.length; index += 1) {
-      const file = placedFiles[index];
+    for (const file of placedFiles) {
       const key = figureFileKey(file);
-      const autoNumber = numberLookup[key] || index + 1;
-      const detail = resolveFigureDetailForOutput(file, autoNumber, data.figureDetails || {});
-      const nextFile = placedFiles[index + 1];
+      if (consumed.has(key)) continue;
+      const autoNumber = numberLookup[key] || placedFiles.indexOf(file) + 1;
+      const pair = findFigurePairForFile(file, placedFiles, data.figureDetails || {}, numberLookup, consumed);
 
-      if (detail.pairWithNext && nextFile) {
-        const nextKey = figureFileKey(nextFile);
-        const nextNumber = numberLookup[nextKey] || autoNumber + 1;
+      if (pair) {
+        const firstKey = figureFileKey(pair.first);
+        const secondKey = figureFileKey(pair.second);
         output.push(`
           <div class="preview-figure-pair">
-            ${buildPreviewFigureItemHtml(file, data, availablePlacements, autoNumber, { paired: true })}
-            ${buildPreviewFigureItemHtml(nextFile, data, availablePlacements, nextNumber, { paired: true })}
+            ${buildPreviewFigureItemHtml(pair.first, data, availablePlacements, numberLookup[firstKey] || autoNumber, { paired: true })}
+            ${buildPreviewFigureItemHtml(pair.second, data, availablePlacements, numberLookup[secondKey] || autoNumber + 1, { paired: true })}
           </div>
         `);
-        index += 1;
+        consumed.add(firstKey);
+        consumed.add(secondKey);
         continue;
       }
 
       output.push(buildPreviewFigureItemHtml(file, data, availablePlacements, autoNumber));
+      consumed.add(key);
     }
 
     return output.join("");
@@ -8983,23 +9066,32 @@ document.addEventListener("DOMContentLoaded", () => {
 
   async function buildImageParagraphs(docxLib, files, colors, startIndex = 1, figureDetails = {}) {
     const output = [];
+    const numberLookup = Object.fromEntries(files.map((file, index) => [figureFileKey(file), startIndex + index]));
+    const consumed = new Set();
 
-    for (let index = 0; index < files.length; index += 1) {
-      const file = files[index];
-      const autoNumber = startIndex + index;
+    for (const file of files) {
+      const key = figureFileKey(file);
+      if (consumed.has(key)) continue;
+      const autoNumber = numberLookup[key] || startIndex;
       const detail = resolveFigureDetailForOutput(file, autoNumber, figureDetails);
-      const nextFile = files[index + 1];
+      const pair = findFigurePairForFile(file, files, figureDetails, numberLookup, consumed);
 
-      if (detail.pairWithNext && nextFile) {
-        const nextNumber = autoNumber + 1;
-        const nextDetail = resolveFigureDetailForOutput(nextFile, nextNumber, figureDetails);
-        output.push(await buildFigurePairTable(docxLib, colors, file, detail, autoNumber, nextFile, nextDetail, nextNumber));
+      if (pair) {
+        const firstKey = figureFileKey(pair.first);
+        const secondKey = figureFileKey(pair.second);
+        const firstNumber = numberLookup[firstKey] || autoNumber;
+        const secondNumber = numberLookup[secondKey] || autoNumber + 1;
+        const firstDetail = resolveFigureDetailForOutput(pair.first, firstNumber, figureDetails);
+        const secondDetail = resolveFigureDetailForOutput(pair.second, secondNumber, figureDetails);
+        output.push(await buildFigurePairTable(docxLib, colors, pair.first, firstDetail, firstNumber, pair.second, secondDetail, secondNumber));
         output.push(new docxLib.Paragraph({ spacing: { after: 72 } }));
-        index += 1;
+        consumed.add(firstKey);
+        consumed.add(secondKey);
         continue;
       }
 
       output.push(...await buildFigureDocxBlocks(docxLib, colors, file, detail, autoNumber));
+      consumed.add(key);
     }
 
     return output;
@@ -9009,38 +9101,21 @@ document.addEventListener("DOMContentLoaded", () => {
     const paired = Boolean(options.paired);
     const label = buildFigureLabel(detail, autoNumber);
     const title = buildFigureTitleText(detail, file);
+    const displayTitle = `${label}: ${title}`;
     const subtitle = String(detail.subtitle || "").trim();
     const takeaway = String(detail.takeaway || "").trim();
     const footerText = buildFigureFooterText(detail.source, detail.notes);
-    const frameStyle = sanitizeFigureFrameStyle(detail.frameStyle);
     const imageAsset = await getFigureImageAsset(file, detail, { paired });
     const center = docxLib.AlignmentType.CENTER;
-    const topRule = frameStyle === "top" ? buildFigureDocxBorder(docxLib) : undefined;
-    const bottomRule = frameStyle === "bottom" ? buildFigureDocxBorder(docxLib) : undefined;
     const titleSize = paired ? 15 : 18;
     const subtitleSize = paired ? 12 : 14;
 
     return [
       new docxLib.Paragraph({
-        border: topRule,
         alignment: center,
         children: [
           new docxLib.TextRun({
-            text: label,
-            bold: true,
-            color: colors.muted,
-            size: paired ? 11 : 12,
-            font: "Arial"
-          })
-        ],
-        keepNext: true,
-        spacing: { before: paired ? 16 : 58, after: 4 }
-      }),
-      new docxLib.Paragraph({
-        alignment: center,
-        children: [
-          new docxLib.TextRun({
-            text: title,
+            text: displayTitle,
             bold: true,
             color: colors.black,
             size: titleSize,
@@ -9048,7 +9123,7 @@ document.addEventListener("DOMContentLoaded", () => {
           })
         ],
         keepNext: true,
-        spacing: { after: subtitle || takeaway ? 4 : 16 }
+        spacing: { before: paired ? 16 : 58, after: subtitle || takeaway ? 4 : 16 }
       }),
       ...(subtitle ? [new docxLib.Paragraph({
         alignment: center,
@@ -9090,7 +9165,6 @@ document.addEventListener("DOMContentLoaded", () => {
       }),
       ...(footerText
         ? [new docxLib.Paragraph({
-          border: bottomRule,
           alignment: center,
           children: [
             new docxLib.TextRun({
@@ -9140,16 +9214,6 @@ document.addEventListener("DOMContentLoaded", () => {
       right: { style: docxLib.BorderStyle.NONE },
       insideHorizontal: { style: docxLib.BorderStyle.NONE },
       insideVertical: { style: docxLib.BorderStyle.NONE }
-    };
-  }
-
-  function buildFigureDocxBorder(docxLib) {
-    return {
-      top: {
-        color: "A7ADB5",
-        style: docxLib.BorderStyle.SINGLE,
-        size: 4
-      }
     };
   }
 
