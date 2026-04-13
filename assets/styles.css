@@ -1517,7 +1517,7 @@ input[type="file"]::file-selector-button {
 
 .figure-placement-layout-grid {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 5px;
   align-items: center;
 }
@@ -1571,16 +1571,39 @@ input[type="file"]::file-selector-button {
 }
 
 .figure-placement-utility-row {
-  display: grid;
-  grid-template-columns: minmax(132px, 1fr) auto auto auto;
+  display: flex;
+  flex-wrap: wrap;
   gap: 6px;
   align-items: center;
 }
 
+.figure-token-control,
+.figure-pair-control {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.figure-token-control {
+  flex: 1 1 170px;
+  min-width: 0;
+}
+
 .figure-reference-token {
+  flex: 1 1 auto;
+  min-width: 0;
   font-family: "SFMono-Regular", "Cascadia Code", "Consolas", monospace;
   color: var(--ink-muted);
   background: var(--panel-soft);
+}
+
+.figure-pair-select {
+  flex: 1 1 190px;
+}
+
+.figure-info-help .info-tooltip {
+  width: 250px;
+  line-height: 1.45;
 }
 
 .figure-placement-row .btn {
@@ -2580,9 +2603,10 @@ input[type="file"]::file-selector-button {
 
 .preview-figure {
   margin: 18px 0 20px;
-  padding: 0;
+  padding: 14px 10px 10px;
   border-top: 0;
-  background: transparent;
+  background: linear-gradient(180deg, rgba(248, 249, 251, 0.64), rgba(255, 255, 255, 0) 72%);
+  border-radius: 3px;
   break-inside: avoid;
   page-break-inside: avoid;
   text-align: center;
@@ -2615,35 +2639,11 @@ input[type="file"]::file-selector-button {
   page-break-after: avoid;
 }
 
-.preview-figure-frame-top {
-  padding-top: 9px;
-  border-top: 1px solid #a7adb5;
-}
-
-.preview-figure-frame-bottom .preview-figure-footer {
-  padding-top: 7px;
-  border-top: 1px solid #a7adb5;
-}
-
-.preview-figure-frame-none .preview-figure-footer {
-  padding-top: 0;
-  border-top: 0;
-}
-
 .preview-figure-header {
   display: grid;
   gap: 3px;
   justify-items: center;
   text-align: center;
-}
-
-.preview-figure-label {
-  color: var(--ink-muted);
-  font-size: 11px;
-  line-height: 1.2;
-  font-weight: 800;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
 }
 
 .preview-figure-title,
@@ -2751,6 +2751,7 @@ input[type="file"]::file-selector-button {
 
 .preview-figure-footer {
   margin-top: 8px;
+  padding-top: 3px;
   color: var(--ink);
   font-size: 11px;
   line-height: 1.35;
