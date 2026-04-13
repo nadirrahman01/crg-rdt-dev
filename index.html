@@ -225,6 +225,38 @@
                   </div>
                   <input type="text" id="macroFiHeading" name="macroFiHeading" placeholder="Sovereign Ratings">
                 </div>
+
+                <div class="field">
+                  <div class="label-row">
+                    <label for="sovereignRegion">Region</label>
+                    <span class="field-tag">Auto</span>
+                  </div>
+                  <input type="text" id="sovereignRegion" name="sovereignRegion" placeholder="Auto-filled where available">
+                </div>
+
+                <div class="field">
+                  <div class="label-row">
+                    <label for="sovereignCurrency">Sovereign Currency</label>
+                    <span class="field-tag">Auto</span>
+                  </div>
+                  <input type="text" id="sovereignCurrency" name="sovereignCurrency" placeholder="USD, GBP, EUR">
+                </div>
+
+                <div class="field">
+                  <div class="label-row">
+                    <label for="sovereignClassification">Classification</label>
+                    <span class="field-tag">Auto</span>
+                  </div>
+                  <input type="text" id="sovereignClassification" name="sovereignClassification" placeholder="Developed / emerging market sovereign">
+                </div>
+
+                <div class="field field-span-2">
+                  <div class="label-row">
+                    <label for="sovereignBenchmark">Benchmark Reference</label>
+                    <span class="field-tag">Auto</span>
+                  </div>
+                  <input type="text" id="sovereignBenchmark" name="sovereignBenchmark" placeholder="10Y sovereign benchmark reference">
+                </div>
               </div>
 
               <div class="ratings-table-card">
@@ -253,6 +285,14 @@
                 <div class="ratings-profile-extra">
                   <div class="ratings-profile-list" id="ratingsProfileRows"></div>
                 </div>
+              </div>
+
+              <div class="field field-spaced">
+                <div class="label-row">
+                  <label for="ratingsProfileNotes">Ratings Table Notes</label>
+                  <span class="field-tag">Optional</span>
+                </div>
+                <textarea id="ratingsProfileNotes" name="ratingsProfileNotes" rows="3" placeholder="Add ratings assumptions, outlook caveats, source notes, or benchmark context."></textarea>
               </div>
             </div>
           </section>
@@ -555,6 +595,7 @@
                       <div class="financial-editor-actions">
                         <button type="button" class="btn btn-secondary btn-xs" id="financialDownloadTemplateBtn">Download Excel Template</button>
                         <button type="button" class="btn btn-secondary btn-xs" id="financialUploadTriggerBtn">Upload Completed Template</button>
+                        <button type="button" class="btn btn-secondary btn-xs" id="financialToggleHeaderLockBtn" aria-pressed="false">Lock Header</button>
                         <button type="button" class="btn btn-ghost btn-xs" id="financialAddColumnBtn">Add Period</button>
                         <button type="button" class="btn btn-ghost btn-xs" id="financialAddRowBtn">Add Line Item</button>
                         <button type="button" class="btn btn-ghost btn-xs" id="financialResetBtn">Reset Grid</button>
@@ -571,6 +612,14 @@
 
                   <textarea id="financialTableInput" name="financialTableInput" hidden></textarea>
                   <input type="file" id="financialTemplateUpload" accept=".xlsx,.xlsm,.xls,.csv" hidden>
+                </div>
+
+                <div class="field field-span-2">
+                  <div class="label-row">
+                    <label for="financialTableNotes">Financial Table Notes</label>
+                    <span class="field-tag">Optional</span>
+                  </div>
+                  <textarea id="financialTableNotes" name="financialTableNotes" rows="4" placeholder="Add assumptions, definitions, caveats, or calculation notes beneath the table."></textarea>
                 </div>
               </div>
             </div>
@@ -798,6 +847,7 @@
       <input type="text" data-rating-field="agency" placeholder="Agency">
       <input type="text" data-rating-field="short" placeholder="Short-term rating">
       <input type="text" data-rating-field="long" placeholder="Long-term rating">
+      <button type="button" class="btn btn-ghost btn-xs" data-rating-action="duplicate">Duplicate</button>
       <button type="button" class="btn btn-ghost btn-xs" data-rating-action="remove">Remove</button>
     </div>
   </template>
