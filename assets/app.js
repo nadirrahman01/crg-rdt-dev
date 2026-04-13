@@ -119,22 +119,39 @@ document.addEventListener("DOMContentLoaded", () => {
   };
 
   const SOVEREIGN_METADATA_MAP = {
-    US: { region: "North America", currency: "USD", classification: "Developed market sovereign", benchmark: "US 10Y Treasury" },
-    GB: { region: "Europe", currency: "GBP", classification: "Developed market sovereign", benchmark: "UK 10Y Gilt" },
-    DE: { region: "Europe", currency: "EUR", classification: "Developed market sovereign", benchmark: "German 10Y Bund" },
-    FR: { region: "Europe", currency: "EUR", classification: "Developed market sovereign", benchmark: "French 10Y OAT" },
-    IT: { region: "Europe", currency: "EUR", classification: "Developed market sovereign", benchmark: "Italian 10Y BTP" },
-    ES: { region: "Europe", currency: "EUR", classification: "Developed market sovereign", benchmark: "Spanish 10Y Bonos" },
-    JP: { region: "Asia Pacific", currency: "JPY", classification: "Developed market sovereign", benchmark: "Japan 10Y JGB" },
-    CN: { region: "Asia Pacific", currency: "CNY", classification: "Emerging market sovereign", benchmark: "China 10Y government bond" },
-    IN: { region: "Asia Pacific", currency: "INR", classification: "Emerging market sovereign", benchmark: "India 10Y government bond" },
-    SA: { region: "Middle East", currency: "SAR", classification: "Emerging market sovereign", benchmark: "Saudi Arabia 10Y government bond" },
-    AE: { region: "Middle East", currency: "AED", classification: "Emerging market sovereign", benchmark: "UAE 10Y sovereign / federal benchmark" },
-    BR: { region: "Latin America", currency: "BRL", classification: "Emerging market sovereign", benchmark: "Brazil 10Y government bond" },
-    ZA: { region: "Africa", currency: "ZAR", classification: "Emerging market sovereign", benchmark: "South Africa 10Y government bond" },
-    TR: { region: "EMEA", currency: "TRY", classification: "Emerging market sovereign", benchmark: "Turkey 10Y government bond" },
-    MX: { region: "Latin America", currency: "MXN", classification: "Emerging market sovereign", benchmark: "Mexico 10Y government bond" },
-    ID: { region: "Asia Pacific", currency: "IDR", classification: "Emerging market sovereign", benchmark: "Indonesia 10Y government bond" }
+    US: { region: "North America", currency: "USD", classification: "Developed Market", benchmark: "US 10Y Treasury" },
+    GB: { region: "Europe", currency: "GBP", classification: "Developed Market", benchmark: "UK 10Y Gilt" },
+    DE: { region: "Europe", currency: "EUR", classification: "Developed Market", benchmark: "German 10Y Bund" },
+    FR: { region: "Europe", currency: "EUR", classification: "Developed Market", benchmark: "French 10Y OAT" },
+    IT: { region: "Europe", currency: "EUR", classification: "Developed Market", benchmark: "Italian 10Y BTP" },
+    ES: { region: "Europe", currency: "EUR", classification: "Developed Market", benchmark: "Spanish 10Y Bonos" },
+    JP: { region: "Asia Pacific", currency: "JPY", classification: "Developed Market", benchmark: "Japan 10Y JGB" },
+    CN: { region: "Asia Pacific", currency: "CNY", classification: "Emerging Market", benchmark: "China 10Y government bond" },
+    IN: { region: "Asia Pacific", currency: "INR", classification: "Emerging Market", benchmark: "India 10Y government bond" },
+    SA: { region: "Middle East", currency: "SAR", classification: "Emerging Market", benchmark: "Saudi Arabia 10Y government bond" },
+    AE: { region: "Middle East", currency: "AED", classification: "Emerging Market", benchmark: "UAE 10Y sovereign / federal benchmark" },
+    BR: { region: "Latin America", currency: "BRL", classification: "Emerging Market", benchmark: "Brazil 10Y government bond" },
+    ZA: { region: "Africa", currency: "ZAR", classification: "Emerging Market", benchmark: "South Africa 10Y government bond" },
+    TR: { region: "EMEA", currency: "TRY", classification: "Emerging Market", benchmark: "Turkey 10Y government bond" },
+    MX: { region: "Latin America", currency: "MXN", classification: "Emerging Market", benchmark: "Mexico 10Y government bond" },
+    ID: { region: "Asia Pacific", currency: "IDR", classification: "Emerging Market", benchmark: "Indonesia 10Y government bond" }
+  };
+
+  const DEVELOPED_MARKET_COUNTRY_CODES = new Set([
+    "AD","AU","AT","BE","CA","CY","CZ","DK","EE","FI","FR","DE","GR","HK","IS","IE","IT","JP","KR","LV","LI","LT","LU","MT","MC","NL","NZ","NO","PT","SG","SK","SI","ES","SE","CH","GB","US","SM"
+  ]);
+
+  const FRONTIER_MARKET_COUNTRY_CODES = new Set([
+    "BD","BA","BW","BG","BH","CI","HR","JO","KZ","KE","KW","LB","MU","MA","NG","OM","PK","PS","RO","RS","SI","LK","TN","UA","VN"
+  ]);
+
+  const REGION_COUNTRY_GROUPS = {
+    "North America": new Set(["BM","CA","GL","PM","US"]),
+    "Latin America": new Set(["AG","AI","AR","AW","BB","BO","BQ","BR","BS","BZ","CL","CO","CR","CU","CW","DM","DO","EC","FK","GD","GF","GP","GT","GY","HN","HT","JM","KN","KY","LC","MF","MQ","MS","MX","NI","PA","PE","PR","PY","SR","SV","SX","TC","TT","UY","VC","VE","VG","VI"]),
+    "Europe": new Set(["AD","AL","AT","AX","BA","BE","BG","BY","CH","CY","CZ","DE","DK","EE","ES","FI","FO","FR","GB","GG","GI","GR","HR","HU","IE","IM","IS","IT","JE","LI","LT","LU","LV","MC","MD","ME","MK","MT","NL","NO","PL","PT","RO","RS","RU","SE","SI","SJ","SK","SM","UA","VA"]),
+    "Middle East": new Set(["AE","BH","IL","IQ","IR","JO","KW","LB","OM","PS","QA","SA","SY","TR","YE"]),
+    "Africa": new Set(["AO","BF","BI","BJ","BW","CD","CF","CG","CI","CM","CV","DJ","DZ","EG","EH","ER","ET","GA","GH","GM","GN","GQ","GW","KE","KM","LR","LS","LY","MA","MG","ML","MR","MU","MW","MZ","NA","NE","NG","RE","RW","SC","SD","SH","SL","SN","SO","SS","ST","SZ","TD","TG","TN","TZ","UG","YT","ZA","ZM","ZW"]),
+    "Asia Pacific": new Set(["AF","AS","AU","BD","BN","BT","CC","CN","CX","FJ","FM","GU","HK","ID","IN","IO","JP","KH","KI","KP","KR","LA","LK","MH","MM","MN","MO","MP","MV","MY","NC","NF","NP","NR","NU","NZ","PF","PG","PH","PK","PN","PW","SB","SG","TH","TJ","TK","TL","TM","TO","TV","TW","UZ","VU","WF","WS","VN"])
   };
 
   const FINANCIAL_ROW_FORMATS = [
@@ -650,6 +667,12 @@ document.addEventListener("DOMContentLoaded", () => {
 
     dom.benchmarkTicker?.addEventListener("input", () => {
       dom.benchmarkTicker.dataset.autofill = "false";
+    });
+
+    dom.ticker?.addEventListener("input", () => {
+      const nextSymbol = marketDataSymbolFromTicker(dom.ticker.value);
+      const previousSymbol = state.equityStats?.symbol || "";
+      clearEquityAutoFilledMetadata({ clearBenchmark: true, force: Boolean(previousSymbol && nextSymbol !== previousSymbol) });
     });
 
     [
@@ -1222,9 +1245,11 @@ document.addEventListener("DOMContentLoaded", () => {
 
   function selectCoverageCountry(countryCode) {
     const normalized = String(countryCode || "").trim().toUpperCase();
+    const previousCountry = String(dom.coverageCountry.value || "").trim().toUpperCase();
     dom.coverageCountry.value = normalized;
     updateCoverageCountryDisplayFromCode();
     syncIssuerId();
+    clearSovereignAutoFilledMetadata({ force: Boolean(previousCountry && previousCountry !== normalized) });
     applySovereignMetadataFromCountry(normalized);
     renderCoverageCountryOptions(dom.coverageCountrySearch?.value || "");
     closeCoverageCountryPanel();
@@ -1359,7 +1384,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
   function applySovereignMetadataFromCountry(countryCode) {
     const normalized = String(countryCode || "").trim().toUpperCase();
-    const metadata = SOVEREIGN_METADATA_MAP[normalized];
+    const metadata = buildSovereignMetadataForCountry(normalized);
     if (!metadata) return false;
 
     let changed = false;
@@ -1372,6 +1397,44 @@ document.addEventListener("DOMContentLoaded", () => {
       changed = true;
     }
     return changed;
+  }
+
+  function clearSovereignAutoFilledMetadata(options = {}) {
+    const force = Boolean(options.force);
+    return [
+      dom.sovereignRegion,
+      dom.sovereignCurrency,
+      dom.sovereignClassification,
+      dom.sovereignBenchmark
+    ].reduce((changed, input) => clearAutoFilledField(input, force) || changed, false);
+  }
+
+  function buildSovereignMetadataForCountry(countryCode) {
+    const normalized = String(countryCode || "").trim().toUpperCase();
+    if (!normalized) return null;
+
+    const specific = SOVEREIGN_METADATA_MAP[normalized] || {};
+    const countryLabel = getCoverageCountryLabel(normalized);
+    return {
+      region: specific.region || inferCountryRegion(normalized),
+      currency: specific.currency || "",
+      classification: specific.classification || classifyCountryMarket(normalized),
+      benchmark: specific.benchmark || `${countryLabel} 10Y sovereign benchmark`,
+      ratings: specific.ratings || []
+    };
+  }
+
+  function classifyCountryMarket(countryCode) {
+    const normalized = String(countryCode || "").trim().toUpperCase();
+    if (DEVELOPED_MARKET_COUNTRY_CODES.has(normalized)) return "Developed Market";
+    if (FRONTIER_MARKET_COUNTRY_CODES.has(normalized)) return "Frontier Market";
+    return "Emerging Market";
+  }
+
+  function inferCountryRegion(countryCode) {
+    const normalized = String(countryCode || "").trim().toUpperCase();
+    const match = Object.entries(REGION_COUNTRY_GROUPS).find(([, countrySet]) => countrySet.has(normalized));
+    return match?.[0] || "Global";
   }
 
   function buildIssuerIdFromCountry(countryCode) {
@@ -1843,7 +1906,6 @@ document.addEventListener("DOMContentLoaded", () => {
       <tr>
         <td class="financial-grid-metric-col">
           <div class="financial-row-cell">
-            <span class="financial-grid-label">Metric ${rowIndex + 1}</span>
             <input
               type="text"
               class="financial-row-label"
@@ -3265,7 +3327,7 @@ document.addEventListener("DOMContentLoaded", () => {
       const thumbnail = document.createElement("img");
       thumbnail.className = "figure-summary-thumb";
       thumbnail.src = getFigurePreviewUrl(file);
-      thumbnail.alt = "";
+      thumbnail.alt = `${file.name} preview`;
       thumbnail.loading = "lazy";
       item.appendChild(thumbnail);
 
@@ -3472,13 +3534,6 @@ document.addEventListener("DOMContentLoaded", () => {
 
       const nameWrap = document.createElement("div");
       nameWrap.className = "figure-placement-summary";
-      const thumb = document.createElement("img");
-      thumb.className = "figure-placement-thumb";
-      thumb.src = getFigurePreviewUrl(file);
-      thumb.alt = "";
-      thumb.loading = "lazy";
-      nameWrap.appendChild(thumb);
-
       const nameCopy = document.createElement("div");
       const name = document.createElement("div");
       name.className = "figure-placement-name";
@@ -3490,6 +3545,13 @@ document.addEventListener("DOMContentLoaded", () => {
       origin.textContent = file.name;
       nameCopy.appendChild(origin);
       nameWrap.appendChild(nameCopy);
+
+      const thumb = document.createElement("img");
+      thumb.className = "figure-placement-thumb";
+      thumb.src = getFigurePreviewUrl(file);
+      thumb.alt = `${detail.caption || file.name} preview`;
+      thumb.loading = "lazy";
+      nameWrap.appendChild(thumb);
       row.appendChild(nameWrap);
 
       const meta = document.createElement("div");
@@ -3771,6 +3833,8 @@ document.addEventListener("DOMContentLoaded", () => {
 
     const range = dom.chartRange.value || "6mo";
     const symbol = marketDataSymbolFromTicker(ticker);
+    const shouldForceMetadataRefresh = Boolean(state.equityStats?.symbol && state.equityStats.symbol !== symbol);
+    clearEquityAutoFilledMetadata({ clearBenchmark: true, force: shouldForceMetadataRefresh });
     const benchmarkInput = dom.benchmarkTicker.value.trim();
     const benchmarkSymbol = benchmarkInput ? marketDataSymbolFromTicker(benchmarkInput) : "";
     const benchmarkLabel = dom.benchmarkName.value.trim() || benchmarkSymbol || benchmarkInput.toUpperCase();
@@ -4195,6 +4259,33 @@ document.addEventListener("DOMContentLoaded", () => {
     return changed;
   }
 
+  function clearAutoFilledField(input, force = false) {
+    if (!input || (!force && input.dataset.autofill === "false")) return false;
+    const changed = String(input.value || "").trim().length > 0;
+    input.value = "";
+    input.dataset.autofill = "true";
+    return changed;
+  }
+
+  function clearEquityAutoFilledMetadata(options = {}) {
+    const force = Boolean(options.force);
+    const fields = [
+      dom.equityCompanyName,
+      dom.equitySecurityDisplay,
+      dom.priceCurrency,
+      dom.equitySectorLine,
+      dom.marketCapUsd
+    ];
+
+    if (options.clearBenchmark) {
+      fields.push(dom.benchmarkName, dom.benchmarkTicker);
+    }
+
+    const changed = fields.reduce((didChange, input) => clearAutoFilledField(input, force && input !== dom.benchmarkName && input !== dom.benchmarkTicker) || didChange, false);
+    if (changed) renderIndustryOptions("");
+    return changed;
+  }
+
   function applyResolvedSecurityProfile(profile = {}) {
     let changed = false;
 
@@ -4221,12 +4312,6 @@ document.addEventListener("DOMContentLoaded", () => {
       changed = setAutoFilledField(dom.marketCapUsd, formatMarketCapMillions(profile.marketCap)) || changed;
     }
 
-    const benchmark = resolveBenchmarkForProfile(profile);
-    if (benchmark) {
-      changed = setAutoFilledField(dom.benchmarkName, benchmark.name) || changed;
-      changed = setAutoFilledField(dom.benchmarkTicker, benchmark.ticker) || changed;
-    }
-
     if (changed) {
       updateAllUI();
       queueDraftSave();
@@ -4243,25 +4328,6 @@ document.addEventListener("DOMContentLoaded", () => {
     const numeric = Number(value);
     if (!Number.isFinite(numeric) || numeric <= 0) return "";
     return formatNumericForDisplay(numeric / 1000000, 1);
-  }
-
-  function resolveBenchmarkForProfile(profile = {}) {
-    const exchange = normalizeComparableText(profile.exchangeName);
-    const market = normalizeComparableText(profile.market);
-    const currency = String(profile.currency || "").toUpperCase();
-    const candidates = [
-      { match: () => market === "us_market" || currency === "USD" || exchange.includes("nasdaq") || exchange.includes("nyse"), name: "S&P 500 Index", ticker: "^GSPC" },
-      { match: () => exchange.includes("london") || currency === "GBP" || currency === "GBp", name: "FTSE 100 Index", ticker: "^FTSE" },
-      { match: () => exchange.includes("taiwan") || currency === "TWD", name: "TAIEX Index", ticker: "^TWII" },
-      { match: () => exchange.includes("tokyo") || currency === "JPY", name: "TOPIX Index", ticker: "^TOPX" },
-      { match: () => exchange.includes("hong kong") || currency === "HKD", name: "Hang Seng Index", ticker: "^HSI" },
-      { match: () => exchange.includes("toronto") || currency === "CAD", name: "S&P/TSX Composite", ticker: "^GSPTSE" },
-      { match: () => exchange.includes("australian") || currency === "AUD", name: "S&P/ASX 200", ticker: "^AXJO" },
-      { match: () => exchange.includes("xetra") || exchange.includes("frankfurt"), name: "DAX Index", ticker: "^GDAXI" },
-      { match: () => exchange.includes("paris"), name: "CAC 40 Index", ticker: "^FCHI" }
-    ];
-
-    return candidates.find((candidate) => candidate.match()) || null;
   }
 
   function resolvePriceCurrency(data) {
@@ -8622,6 +8688,7 @@ document.addEventListener("DOMContentLoaded", () => {
       };
 
       image.src = objectUrl;
+
     });
   }
 });
