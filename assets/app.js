@@ -416,6 +416,8 @@ document.addEventListener("DOMContentLoaded", () => {
       benchmarkSymbol: "",
       range: ""
     },
+    lastResolvedEquitySymbol: "",
+    equityLookupRequestId: 0,
     financialTable: null,
     financialHeaderLocked: false,
     railCollapsed: false,
@@ -671,7 +673,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
     dom.ticker?.addEventListener("input", () => {
       const nextSymbol = marketDataSymbolFromTicker(dom.ticker.value);
-      const previousSymbol = state.equityStats?.symbol || "";
+      const previousSymbol = getLastResolvedEquitySymbol();
       clearEquityAutoFilledMetadata({ clearBenchmark: true, force: Boolean(previousSymbol && nextSymbol !== previousSymbol) });
     });
 
@@ -3162,6 +3164,45 @@ document.addEventListener("DOMContentLoaded", () => {
     state.saveTimer = window.setTimeout(saveDraft, 320);
   }
 
+  function collectAutofillState() {
+    const ids = [
+      "equityCompanyName",
+      "equitySecurityDisplay",
+      "priceCurrency",
+      "equitySectorLine",
+      "marketCapUsd",
+      "benchmarkName",
+      "benchmarkTicker",
+      "sovereignRegion",
+      "sovereignCurrency",
+      "sovereignClassification",
+      "sovereignBenchmark"
+    ];
+
+    return Object.fromEntries(ids.map((id) => {
+      const input = document.getElementById(id);
+      return [id, input?.dataset.autofill || ""];
+    }));
+  }
+
+  function restoreAutofillState(autofillState = {}) {
+    Object.entries(autofillState || {}).forEach(([id, value]) => {
+      const input = document.getElementById(id);
+      if (!input) return;
+      input.dataset.autofill = value === "false" ? "false" : "true";
+    });
+  }
+
+  function hasEquityAutofillValues() {
+    return [
+      dom.equityCompanyName,
+      dom.equitySecurityDisplay,
+      dom.priceCurrency,
+      dom.equitySectorLine,
+      dom.marketCapUsd
+    ].some((input) => String(input?.value || "").trim());
+  }
+
   function serializeDraft() {
     const values = {};
     draftFieldIds.forEach((id) => {
@@ -3175,6 +3216,8 @@ document.addEventListener("DOMContentLoaded", () => {
       bodySectionLayout: collectBodySectionLayout(),
       ratingsProfile: collectRatingsProfile(),
       financialHeaderLocked: state.financialHeaderLocked,
+      equityAutofillSymbol: getLastResolvedEquitySymbol(),
+      autofillState: collectAutofillState(),
       savedAt: new Date().toISOString()
     };
   }
@@ -3208,6 +3251,7 @@ document.addEventListener("DOMContentLoaded", () => {
       restoreRatingsProfile(payload.ratingsProfile || []);
       state.lastSavedAt = payload.savedAt || null;
       state.financialHeaderLocked = Boolean(payload.financialHeaderLocked);
+      state.lastResolvedEquitySymbol = String(payload.equityAutofillSymbol || "").trim();
       dom.deskLine.dataset.autofill = "true";
       dom.equityCompanyName.dataset.autofill = dom.equityCompanyName.value.trim() ? "false" : "true";
       dom.equitySecurityDisplay.dataset.autofill = dom.equitySecurityDisplay.value.trim() ? "false" : "true";
@@ -3223,6 +3267,10 @@ document.addEventListener("DOMContentLoaded", () => {
       ].forEach((input) => {
         if (input) input.dataset.autofill = input.value.trim() ? "false" : "true";
       });
+      restoreAutofillState(payload.autofillState || {});
+      if (!state.lastResolvedEquitySymbol && hasEquityAutofillValues()) {
+        state.lastResolvedEquitySymbol = marketDataSymbolFromTicker(dom.ticker.value);
+      }
       syncIssuerId();
       applySovereignMetadataFromCountry(dom.coverageCountry?.value || "");
       updateCoverageCountryDisplayFromCode();
@@ -3245,6 +3293,8 @@ document.addEventListener("DOMContentLoaded", () => {
     state.lastSavedAt = null;
     state.customSectionCount = 0;
     state.financialHeaderLocked = false;
+    state.lastResolvedEquitySymbol = "";
+    state.equityLookupRequestId += 1;
     clearFigurePreviewUrls();
     state.figurePlacements = {};
     state.figureDetails = {};
@@ -3400,7 +3450,32 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   function buildFigureCaptionText(detail, file, fallbackNumber) {
-    return `${buildFigureLabel(detail, fallbackNumber)}. ${detail.caption || defaultFigureCaption(file)}`;
+    return `${buildFigureLabel(detail, fallbackNumber)}: ${detail.caption || defaultFigureCaption(file)}`;
+  }
+
+  function formatFigureSourceLine(value) {
+    const source = String(value || "").replace(/\s*\n\s*/g, " ").trim();
+    if (!source) return "";
+    return /^source\s*:/i.test(source) ? source : `Source: ${source}`;
+  }
+
+  function formatFigureNotesLine(value) {
+    const notes = String(value || "").replace(/\s*\n\s*/g, " ").trim();
+    if (!notes) return "";
+    return /^note\s*:/i.test(notes) ? notes : `Note: ${notes}`;
+  }
+
+  function buildFigureFooterText(source, notes) {
+    return [formatFigureSourceLine(source), formatFigureNotesLine(notes)].filter(Boolean).join("  ");
+  }
+
+  function buildPreviewFigureFooterHtml(source, notes) {
+    const sourceLine = formatFigureSourceLine(source);
+    const notesLine = formatFigureNotesLine(notes);
+    return [
+      sourceLine ? `<span class="preview-figure-source">${escapeHtml(sourceLine)}</span>` : "",
+      notesLine ? `<span class="preview-figure-notes">${escapeHtml(notesLine)}</span>` : ""
+    ].filter(Boolean).join(" ");
   }
 
   function figureSelectOptionsHtml(options, selectedValue) {
@@ -3742,7 +3817,7 @@ document.addEventListener("DOMContentLoaded", () => {
     figureCounterRef.value += files.length;
 
     if (options.withHeading) {
-      children.push(buildNomuraSubhead(docxLib, colors, options.heading || "Figures / Screenshots"));
+      children.push(buildNomuraSubhead(docxLib, colors, options.heading || "Figures"));
     }
 
     children.push(...imageParagraphs);
@@ -3808,6 +3883,7 @@ document.addEventListener("DOMContentLoaded", () => {
     try {
       await loadEquityMarketSnapshot();
     } catch (error) {
+      if (error?.code === "STALE_EQUITY_LOOKUP") return;
       resetChartState({ keepStatusText: true });
       dom.chartStatus.textContent = error.message;
       setMessage("error", `Unable to build the tear sheet: ${error.message}`);
@@ -3822,6 +3898,8 @@ document.addEventListener("DOMContentLoaded", () => {
       throw new Error("Chart.js is unavailable, so the equity tear sheet cannot be rendered in this session.");
     }
 
+    const requestId = state.equityLookupRequestId + 1;
+    state.equityLookupRequestId = requestId;
     const ticker = dom.ticker.value.trim();
     if (!ticker) {
       dom.ticker.classList.add("is-invalid");
@@ -3833,7 +3911,8 @@ document.addEventListener("DOMContentLoaded", () => {
 
     const range = dom.chartRange.value || "6mo";
     const symbol = marketDataSymbolFromTicker(ticker);
-    const shouldForceMetadataRefresh = Boolean(state.equityStats?.symbol && state.equityStats.symbol !== symbol);
+    const previousSymbol = getLastResolvedEquitySymbol();
+    const shouldForceMetadataRefresh = Boolean(previousSymbol && previousSymbol !== symbol);
     clearEquityAutoFilledMetadata({ clearBenchmark: true, force: shouldForceMetadataRefresh });
     const benchmarkInput = dom.benchmarkTicker.value.trim();
     const benchmarkSymbol = benchmarkInput ? marketDataSymbolFromTicker(benchmarkInput) : "";
@@ -3844,13 +3923,16 @@ document.addEventListener("DOMContentLoaded", () => {
       : "Fetching security history for the tear sheet...";
 
     const securityResult = await fetchMarketHistory(symbol, range);
+    assertCurrentEquityLookup(requestId, symbol);
     const filteredSecurity = securityResult.rows;
     if (filteredSecurity.length < 10) {
       throw new Error("Not enough price history returned for the selected range.");
     }
 
     const resolvedProfile = await resolveMarketSecurityProfile(symbol, securityResult.meta);
-    applyResolvedSecurityProfile(resolvedProfile);
+    assertCurrentEquityLookup(requestId, symbol);
+    applyResolvedSecurityProfile(resolvedProfile, { force: shouldForceMetadataRefresh, sourceSymbol: symbol });
+    state.lastResolvedEquitySymbol = symbol;
 
     let filteredBenchmark = null;
     let benchmarkNotice = "";
@@ -3858,6 +3940,7 @@ document.addEventListener("DOMContentLoaded", () => {
     if (benchmarkSymbol) {
       try {
         const benchmarkResult = await fetchMarketHistory(benchmarkSymbol, range);
+        assertCurrentEquityLookup(requestId, symbol);
         const candidateSeries = benchmarkResult.rows;
         if (candidateSeries.length >= 10) {
           filteredBenchmark = candidateSeries;
@@ -3869,6 +3952,7 @@ document.addEventListener("DOMContentLoaded", () => {
       }
     }
 
+    assertCurrentEquityLookup(requestId, symbol);
     const chartConfig = buildEquityChartConfig({
       securitySeries: filteredSecurity,
       benchmarkSeries: filteredBenchmark,
@@ -4242,6 +4326,18 @@ document.addEventListener("DOMContentLoaded", () => {
     return currencyMap[normalized] || normalized;
   }
 
+  function getLastResolvedEquitySymbol() {
+    return String(state.lastResolvedEquitySymbol || state.equityStats?.symbol || "").trim();
+  }
+
+  function assertCurrentEquityLookup(requestId, symbol) {
+    const activeSymbol = marketDataSymbolFromTicker(dom.ticker.value);
+    if (state.equityLookupRequestId === requestId && activeSymbol === symbol) return;
+    const error = new Error("Stale equity metadata response ignored.");
+    error.code = "STALE_EQUITY_LOOKUP";
+    throw error;
+  }
+
   function canAutoFillField(input) {
     if (!input) return false;
     const currentValue = input.value.trim();
@@ -4249,9 +4345,9 @@ document.addEventListener("DOMContentLoaded", () => {
     return input.dataset.autofill === "true";
   }
 
-  function setAutoFilledField(input, value) {
+  function setAutoFilledField(input, value, options = {}) {
     const resolvedValue = String(value || "").trim();
-    if (!input || !resolvedValue || !canAutoFillField(input)) return false;
+    if (!input || !resolvedValue || (!options.force && !canAutoFillField(input))) return false;
 
     const changed = input.value !== resolvedValue;
     input.value = resolvedValue;
@@ -4286,31 +4382,34 @@ document.addEventListener("DOMContentLoaded", () => {
     return changed;
   }
 
-  function applyResolvedSecurityProfile(profile = {}) {
+  function applyResolvedSecurityProfile(profile = {}, options = {}) {
     let changed = false;
+    const autofillOptions = { force: Boolean(options.force) };
 
     if (profile.companyName) {
-      changed = setAutoFilledField(dom.equityCompanyName, profile.companyName) || changed;
+      changed = setAutoFilledField(dom.equityCompanyName, profile.companyName, autofillOptions) || changed;
     }
 
     const securityDisplay = buildSecurityDisplayFromProfile(profile);
     if (securityDisplay) {
-      changed = setAutoFilledField(dom.equitySecurityDisplay, securityDisplay) || changed;
+      changed = setAutoFilledField(dom.equitySecurityDisplay, securityDisplay, autofillOptions) || changed;
     }
 
     if (profile.currency) {
-      changed = setAutoFilledField(dom.priceCurrency, profile.currency) || changed;
+      changed = setAutoFilledField(dom.priceCurrency, profile.currency, autofillOptions) || changed;
     }
 
     const sectorLine = [profile.sector, profile.industry].filter(Boolean).join(" - ");
     if (sectorLine) {
-      changed = setAutoFilledField(dom.equitySectorLine, sectorLine) || changed;
+      changed = setAutoFilledField(dom.equitySectorLine, sectorLine, autofillOptions) || changed;
       renderIndustryOptions("");
     }
 
     if (profile.marketCap && profile.currency === "USD") {
-      changed = setAutoFilledField(dom.marketCapUsd, formatMarketCapMillions(profile.marketCap)) || changed;
+      changed = setAutoFilledField(dom.marketCapUsd, formatMarketCapMillions(profile.marketCap), autofillOptions) || changed;
     }
+
+    if (options.sourceSymbol) state.lastResolvedEquitySymbol = options.sourceSymbol;
 
     if (changed) {
       updateAllUI();
@@ -5450,14 +5549,12 @@ document.addEventListener("DOMContentLoaded", () => {
       const notes = String(detail.notes || "").trim();
       const displayMode = sanitizeFigureDisplayMode(detail.displayMode);
       const size = sanitizeFigureSize(detail.size);
+      const footerHtml = buildPreviewFigureFooterHtml(source, notes);
       return `
         <figure class="preview-figure preview-figure-${displayMode} preview-figure-${size}${detail.keepWithNext ? " is-keep-with-next" : ""}">
+          <div class="preview-figure-heading">${escapeHtml(caption)}</div>
           <img src="${escapeAttribute(objectUrl)}" alt="${escapeAttribute(caption)}">
-          <figcaption>
-            <span class="preview-figure-caption">${escapeHtml(caption)}</span>
-            ${source ? `<span class="preview-figure-source">${escapeHtml(source)}</span>` : ""}
-            ${notes ? `<span class="preview-figure-notes">${escapeHtml(notes).replace(/\n/g, "<br>")}</span>` : ""}
-          </figcaption>
+          ${footerHtml ? `<figcaption class="preview-figure-footer">${footerHtml}</figcaption>` : ""}
         </figure>
       `;
     }).join("");
@@ -6211,7 +6308,7 @@ document.addEventListener("DOMContentLoaded", () => {
         previewParts.push(buildPreviewFigureMarkup(data.imageFiles, data, availablePlacements, `after-${section.key}`));
       });
       const endFigures = buildPreviewFigureMarkup(data.imageFiles, data, availablePlacements, "end");
-      if (endFigures) previewParts.push(`<section class="preview-export-section"><h3>Figures / Screenshots</h3>${endFigures}</section>`);
+      if (endFigures) previewParts.push(endFigures);
       previewParts.push(buildPreviewSupportHtml(data));
       if (cordobaView?.content) {
         previewParts.push(buildPreviewNarrativeHtml(cordobaView.label, cordobaView.content));
@@ -6252,7 +6349,7 @@ document.addEventListener("DOMContentLoaded", () => {
       }
 
       const endFigures = buildPreviewFigureMarkup(data.imageFiles, data, availablePlacements, "end");
-      if (endFigures) previewParts.push(`<section class="preview-export-section"><h3>Figures / Screenshots</h3>${endFigures}</section>`);
+      if (endFigures) previewParts.push(endFigures);
       previewParts.push(buildPreviewSupportHtml(data));
     }
 
@@ -6439,8 +6536,6 @@ document.addEventListener("DOMContentLoaded", () => {
     const endFigures = getFigureFilesForPlacement(data, "end", availablePlacements);
     if (endFigures.length) {
       await appendPlacedFigures(documentChildren, docxLib, colors, endFigures, figureCounterRef, {
-        withHeading: true,
-        heading: "Figures / Screenshots",
         figureDetails: data.figureDetails
       });
     }
@@ -6579,8 +6674,6 @@ document.addEventListener("DOMContentLoaded", () => {
     const endFigures = getFigureFilesForPlacement(data, "end", availablePlacements);
     if (endFigures.length) {
       await appendPlacedFigures(children, docxLib, colors, endFigures, figureCounterRef, {
-        withHeading: true,
-        heading: "Figures / Screenshots",
         figureDetails: data.figureDetails
       });
     }
@@ -8367,7 +8460,7 @@ document.addEventListener("DOMContentLoaded", () => {
           alignment: docxLib.AlignmentType.CENTER,
           children: [
             new docxLib.TextRun({
-              text: `Figure 1. ${(data.ticker || "Security").toUpperCase()} price performance`,
+              text: `Figure 1: ${(data.ticker || "Security").toUpperCase()} price performance`,
               italics: true,
               color: colors.muted,
               size: 15,
@@ -8549,9 +8642,31 @@ document.addEventListener("DOMContentLoaded", () => {
       const caption = detail.caption || defaultFigureCaption(file);
       const source = String(detail.source || "").trim();
       const notes = String(detail.notes || "").trim();
+      const titleText = `${labelType} ${labelNumber}: ${caption}`;
+      const footerText = buildFigureFooterText(source, notes);
       const keepNext = Boolean(detail.keepWithNext);
 
       output.push(
+        new docxLib.Paragraph({
+          border: {
+            top: {
+              color: "A7ADB5",
+              style: docxLib.BorderStyle.SINGLE,
+              size: 4
+            }
+          },
+          children: [
+            new docxLib.TextRun({
+              text: titleText,
+              bold: true,
+              color: colors.black,
+              size: 18,
+              font: "Arial"
+            })
+          ],
+          keepNext: true,
+          spacing: { before: 58, after: 18 }
+        }),
         new docxLib.Paragraph({
           children: [
             new docxLib.ImageRun({
@@ -8560,51 +8675,27 @@ document.addEventListener("DOMContentLoaded", () => {
             })
           ],
           alignment: docxLib.AlignmentType.CENTER,
-          keepNext,
-          spacing: { before: 45, after: 32 }
+          keepNext: keepNext || Boolean(footerText),
+          spacing: { before: 0, after: footerText ? 20 : 85 }
         }),
-        new docxLib.Paragraph({
-          alignment: docxLib.AlignmentType.CENTER,
-          keepNext: keepNext && (source || notes),
-          children: [
-            new docxLib.TextRun({
-              text: `${labelType} ${labelNumber}. ${caption}`,
-              italics: true,
-              color: colors.muted,
-              size: 15,
-              font: "Arial"
-            })
-          ],
-          spacing: { after: source || notes ? 18 : 85 }
-        }),
-        ...(source
+        ...(footerText
           ? [new docxLib.Paragraph({
-            alignment: docxLib.AlignmentType.CENTER,
-            keepNext: keepNext && Boolean(notes),
+            border: {
+              top: {
+                color: "A7ADB5",
+                style: docxLib.BorderStyle.SINGLE,
+                size: 4
+              }
+            },
             children: [
               new docxLib.TextRun({
-                text: source,
-                italics: true,
+                text: footerText,
                 color: colors.muted,
                 size: 12,
                 font: "Arial"
               })
             ],
-            spacing: { after: notes ? 12 : 85 }
-          })]
-          : []),
-        ...(notes
-          ? [new docxLib.Paragraph({
-            alignment: docxLib.AlignmentType.CENTER,
-            children: [
-              new docxLib.TextRun({
-                text: notes.replace(/\s*\n\s*/g, " "),
-                color: colors.muted,
-                size: 12,
-                font: "Arial"
-              })
-            ],
-            spacing: { after: 85 }
+            spacing: { before: 12, after: 85 }
           })]
           : [])
       );
