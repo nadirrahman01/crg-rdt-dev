@@ -120,21 +120,46 @@ document.addEventListener("DOMContentLoaded", () => {
 
   const SOVEREIGN_METADATA_MAP = {
     US: { region: "North America", currency: "USD", classification: "Developed Market", benchmark: "US 10Y Treasury" },
-    GB: { region: "Europe", currency: "GBP", classification: "Developed Market", benchmark: "UK 10Y Gilt" },
-    DE: { region: "Europe", currency: "EUR", classification: "Developed Market", benchmark: "German 10Y Bund" },
-    FR: { region: "Europe", currency: "EUR", classification: "Developed Market", benchmark: "French 10Y OAT" },
-    IT: { region: "Europe", currency: "EUR", classification: "Developed Market", benchmark: "Italian 10Y BTP" },
-    ES: { region: "Europe", currency: "EUR", classification: "Developed Market", benchmark: "Spanish 10Y Bonos" },
-    JP: { region: "Asia Pacific", currency: "JPY", classification: "Developed Market", benchmark: "Japan 10Y JGB" },
-    CN: { region: "Asia Pacific", currency: "CNY", classification: "Emerging Market", benchmark: "China 10Y government bond" },
-    IN: { region: "Asia Pacific", currency: "INR", classification: "Emerging Market", benchmark: "India 10Y government bond" },
+    CA: { region: "North America", currency: "CAD", classification: "Developed Market", benchmark: "Canada 10Y government bond" },
+    GB: { region: "Western Europe", currency: "GBP", classification: "Developed Market", benchmark: "UK 10Y Gilt" },
+    DE: { region: "Western Europe", currency: "EUR", classification: "Developed Market", benchmark: "German 10Y Bund" },
+    FR: { region: "Western Europe", currency: "EUR", classification: "Developed Market", benchmark: "French 10Y OAT" },
+    IT: { region: "Southern Europe", currency: "EUR", classification: "Developed Market", benchmark: "Italian 10Y BTP" },
+    ES: { region: "Southern Europe", currency: "EUR", classification: "Developed Market", benchmark: "Spanish 10Y Bonos" },
+    JP: { region: "East Asia", currency: "JPY", classification: "Developed Market", benchmark: "Japan 10Y JGB" },
+    CN: { region: "East Asia", currency: "CNY", classification: "Emerging Market", benchmark: "China 10Y government bond" },
+    HK: { region: "East Asia", currency: "HKD", classification: "Developed Market", benchmark: "Hong Kong 10Y government bond" },
+    IN: { region: "South Asia", currency: "INR", classification: "Emerging Market", benchmark: "India 10Y government bond" },
+    PK: { region: "South Asia", currency: "PKR", classification: "Frontier Market", benchmark: "Pakistan 10Y government bond" },
+    BD: { region: "South Asia", currency: "BDT", classification: "Frontier Market", benchmark: "Bangladesh 10Y government bond" },
+    LK: { region: "South Asia", currency: "LKR", classification: "Frontier Market", benchmark: "Sri Lanka 10Y government bond" },
+    KZ: { region: "Central Asia", currency: "KZT", classification: "Frontier Market", benchmark: "Kazakhstan 10Y government bond" },
+    KG: { region: "Central Asia", currency: "KGS", classification: "Frontier Market", benchmark: "Kyrgyz Republic government bond benchmark" },
+    TJ: { region: "Central Asia", currency: "TJS", classification: "Frontier Market", benchmark: "Tajikistan sovereign benchmark" },
+    TM: { region: "Central Asia", currency: "TMT", classification: "Frontier Market", benchmark: "Turkmenistan sovereign benchmark" },
+    UZ: { region: "Central Asia", currency: "UZS", classification: "Frontier Market", benchmark: "Uzbekistan 10Y government bond" },
+    AM: { region: "Caucasus", currency: "AMD", classification: "Frontier Market", benchmark: "Armenia 10Y government bond" },
+    AZ: { region: "Caucasus", currency: "AZN", classification: "Frontier Market", benchmark: "Azerbaijan sovereign benchmark" },
+    GE: { region: "Caucasus", currency: "GEL", classification: "Frontier Market", benchmark: "Georgia 10Y government bond" },
     SA: { region: "Middle East", currency: "SAR", classification: "Emerging Market", benchmark: "Saudi Arabia 10Y government bond" },
     AE: { region: "Middle East", currency: "AED", classification: "Emerging Market", benchmark: "UAE 10Y sovereign / federal benchmark" },
+    QA: { region: "Middle East", currency: "QAR", classification: "Emerging Market", benchmark: "Qatar 10Y government bond" },
+    TR: { region: "Middle East", currency: "TRY", classification: "Emerging Market", benchmark: "Turkey 10Y government bond" },
+    EG: { region: "North Africa", currency: "EGP", classification: "Emerging Market", benchmark: "Egypt 10Y government bond" },
+    MA: { region: "North Africa", currency: "MAD", classification: "Frontier Market", benchmark: "Morocco 10Y government bond" },
+    ZA: { region: "Sub-Saharan Africa", currency: "ZAR", classification: "Emerging Market", benchmark: "South Africa 10Y government bond" },
+    NG: { region: "Sub-Saharan Africa", currency: "NGN", classification: "Frontier Market", benchmark: "Nigeria 10Y government bond" },
+    KE: { region: "Sub-Saharan Africa", currency: "KES", classification: "Frontier Market", benchmark: "Kenya 10Y government bond" },
     BR: { region: "Latin America", currency: "BRL", classification: "Emerging Market", benchmark: "Brazil 10Y government bond" },
-    ZA: { region: "Africa", currency: "ZAR", classification: "Emerging Market", benchmark: "South Africa 10Y government bond" },
-    TR: { region: "EMEA", currency: "TRY", classification: "Emerging Market", benchmark: "Turkey 10Y government bond" },
-    MX: { region: "Latin America", currency: "MXN", classification: "Emerging Market", benchmark: "Mexico 10Y government bond" },
-    ID: { region: "Asia Pacific", currency: "IDR", classification: "Emerging Market", benchmark: "Indonesia 10Y government bond" }
+    MX: { region: "Central America", currency: "MXN", classification: "Emerging Market", benchmark: "Mexico 10Y government bond" },
+    CL: { region: "Latin America", currency: "CLP", classification: "Emerging Market", benchmark: "Chile 10Y government bond" },
+    CO: { region: "Latin America", currency: "COP", classification: "Emerging Market", benchmark: "Colombia 10Y government bond" },
+    PE: { region: "Latin America", currency: "PEN", classification: "Emerging Market", benchmark: "Peru 10Y government bond" },
+    ID: { region: "Southeast Asia", currency: "IDR", classification: "Emerging Market", benchmark: "Indonesia 10Y government bond" },
+    MY: { region: "Southeast Asia", currency: "MYR", classification: "Emerging Market", benchmark: "Malaysia 10Y government bond" },
+    PH: { region: "Southeast Asia", currency: "PHP", classification: "Emerging Market", benchmark: "Philippines 10Y government bond" },
+    TH: { region: "Southeast Asia", currency: "THB", classification: "Emerging Market", benchmark: "Thailand 10Y government bond" },
+    VN: { region: "Southeast Asia", currency: "VND", classification: "Frontier Market", benchmark: "Vietnam 10Y government bond" }
   };
 
   const DEVELOPED_MARKET_COUNTRY_CODES = new Set([
@@ -142,17 +167,82 @@ document.addEventListener("DOMContentLoaded", () => {
   ]);
 
   const FRONTIER_MARKET_COUNTRY_CODES = new Set([
-    "BD","BA","BW","BG","BH","CI","HR","JO","KZ","KE","KW","LB","MU","MA","NG","OM","PK","PS","RO","RS","SI","LK","TN","UA","VN"
+    "AM","AZ","BA","BD","BH","BW","CI","GE","GH","HR","JM","JO","KE","KG","KZ","LB","LK","MA","MU","NG","OM","PK","PS","RO","RS","SI","TJ","TM","TN","UA","UZ","VN"
   ]);
 
   const REGION_COUNTRY_GROUPS = {
-    "North America": new Set(["BM","CA","GL","PM","US"]),
-    "Latin America": new Set(["AG","AI","AR","AW","BB","BO","BQ","BR","BS","BZ","CL","CO","CR","CU","CW","DM","DO","EC","FK","GD","GF","GP","GT","GY","HN","HT","JM","KN","KY","LC","MF","MQ","MS","MX","NI","PA","PE","PR","PY","SR","SV","SX","TC","TT","UY","VC","VE","VG","VI"]),
-    "Europe": new Set(["AD","AL","AT","AX","BA","BE","BG","BY","CH","CY","CZ","DE","DK","EE","ES","FI","FO","FR","GB","GG","GI","GR","HR","HU","IE","IM","IS","IT","JE","LI","LT","LU","LV","MC","MD","ME","MK","MT","NL","NO","PL","PT","RO","RS","RU","SE","SI","SJ","SK","SM","UA","VA"]),
-    "Middle East": new Set(["AE","BH","IL","IQ","IR","JO","KW","LB","OM","PS","QA","SA","SY","TR","YE"]),
-    "Africa": new Set(["AO","BF","BI","BJ","BW","CD","CF","CG","CI","CM","CV","DJ","DZ","EG","EH","ER","ET","GA","GH","GM","GN","GQ","GW","KE","KM","LR","LS","LY","MA","MG","ML","MR","MU","MW","MZ","NA","NE","NG","RE","RW","SC","SD","SH","SL","SN","SO","SS","ST","SZ","TD","TG","TN","TZ","UG","YT","ZA","ZM","ZW"]),
-    "Asia Pacific": new Set(["AF","AS","AU","BD","BN","BT","CC","CN","CX","FJ","FM","GU","HK","ID","IN","IO","JP","KH","KI","KP","KR","LA","LK","MH","MM","MN","MO","MP","MV","MY","NC","NF","NP","NR","NU","NZ","PF","PG","PH","PK","PN","PW","SB","SG","TH","TJ","TK","TL","TM","TO","TV","TW","UZ","VU","WF","WS","VN"])
+    "North America": new Set(["BM","CA","PM","US"]),
+    "Central America": new Set(["BZ","CR","GT","HN","MX","NI","PA","SV"]),
+    "Caribbean": new Set(["AG","AI","AW","BB","BL","BQ","BS","CU","CW","DM","DO","GD","GP","HT","JM","KN","KY","LC","MF","MQ","MS","PR","SX","TC","TT","VC","VG","VI"]),
+    "Latin America": new Set(["AR","BO","BR","CL","CO","EC","FK","GF","GY","PE","PY","SR","UY","VE"]),
+    "Western Europe": new Set(["AD","AT","BE","CH","DE","FR","GB","GG","GI","IE","IM","JE","LI","LU","MC","NL"]),
+    "Southern Europe": new Set(["CY","ES","GR","IT","MT","PT","SM","VA"]),
+    "Nordics": new Set(["AX","DK","FI","FO","GL","IS","NO","SE","SJ"]),
+    "Eastern Europe": new Set(["BY","CZ","EE","HU","LT","LV","MD","PL","RU","SK","UA"]),
+    "Balkans": new Set(["AL","BA","BG","HR","ME","MK","RO","RS","SI"]),
+    "Caucasus": new Set(["AM","AZ","GE"]),
+    "Middle East": new Set(["AE","BH","IQ","IR","JO","KW","LB","OM","PS","QA","SA","SY","TR","YE"]),
+    "North Africa": new Set(["DZ","EG","EH","LY","MA","MR","SD","TN"]),
+    "Sub-Saharan Africa": new Set(["AO","BF","BI","BJ","BW","CD","CF","CG","CI","CM","CV","DJ","ER","ET","GA","GH","GM","GN","GQ","GW","KE","KM","LR","LS","MG","ML","MU","MW","MZ","NA","NE","NG","RE","RW","SC","SH","SL","SN","SO","SS","ST","SZ","TD","TG","TZ","UG","YT","ZA","ZM","ZW"]),
+    "Central Asia": new Set(["KZ","KG","TJ","TM","UZ"]),
+    "South Asia": new Set(["AF","BD","BT","IN","IO","LK","MV","NP","PK"]),
+    "Southeast Asia": new Set(["BN","CC","CX","ID","KH","LA","MM","MY","PH","SG","TH","TL","VN"]),
+    "East Asia": new Set(["CN","HK","JP","KP","KR","MO","MN","TW"]),
+    "Oceania": new Set(["AS","AU","CK","FJ","FM","GU","KI","MH","MP","NC","NF","NR","NU","NZ","PF","PG","PN","PW","SB","TK","TO","TV","UM","VU","WF","WS"]),
+    "Antarctica / Southern Ocean": new Set(["AQ","BV","GS","HM","TF"])
   };
+
+  const COUNTRY_CURRENCY_MAP = {
+    AF: "AFN", AL: "ALL", DZ: "DZD", AO: "AOA", AR: "ARS", AM: "AMD", AU: "AUD", AT: "EUR", AZ: "AZN", BH: "BHD", BD: "BDT", BY: "BYN", BE: "EUR", BJ: "XOF", BO: "BOB", BA: "BAM", BW: "BWP", BR: "BRL", BG: "BGN", BF: "XOF", BI: "BIF", KH: "KHR", CM: "XAF", CA: "CAD", CL: "CLP", CN: "CNY", CO: "COP", CR: "CRC", HR: "EUR", CY: "EUR", CZ: "CZK", DK: "DKK", EC: "USD", EG: "EGP", EE: "EUR", ET: "ETB", FI: "EUR", FR: "EUR", GE: "GEL", DE: "EUR", GH: "GHS", GR: "EUR", HK: "HKD", HU: "HUF", IS: "ISK", IN: "INR", ID: "IDR", IQ: "IQD", IE: "EUR", IT: "EUR", JP: "JPY", JO: "JOD", KZ: "KZT", KE: "KES", KR: "KRW", KW: "KWD", KG: "KGS", LV: "EUR", LB: "LBP", LT: "EUR", LU: "EUR", MY: "MYR", MX: "MXN", MA: "MAD", NL: "EUR", NZ: "NZD", NG: "NGN", NO: "NOK", OM: "OMR", PK: "PKR", PE: "PEN", PH: "PHP", PL: "PLN", PT: "EUR", QA: "QAR", RO: "RON", RU: "RUB", SA: "SAR", RS: "RSD", SG: "SGD", SK: "EUR", SI: "EUR", ZA: "ZAR", ES: "EUR", LK: "LKR", SE: "SEK", CH: "CHF", TJ: "TJS", TH: "THB", TN: "TND", TR: "TRY", TM: "TMT", AE: "AED", GB: "GBP", US: "USD", UZ: "UZS", VN: "VND"
+  };
+
+  const EQUITY_EXCHANGE_PROFILES = {
+    US: { yahooSuffix: "", stooqSuffix: "us", exchangeName: "United States", currency: "USD", countryCode: "US", aliases: ["NYSE", "NASDAQ", "NAS", "NYS", "AMEX"] },
+    UK: { yahooSuffix: ".L", stooqSuffix: "uk", exchangeName: "London Stock Exchange", currency: "GBp", countryCode: "GB", aliases: ["LN", "L", "LSE"] },
+    JP: { yahooSuffix: ".T", stooqSuffix: "jp", exchangeName: "Tokyo Stock Exchange", currency: "JPY", countryCode: "JP", aliases: ["T", "TYO", "TSEJP"] },
+    HK: { yahooSuffix: ".HK", stooqSuffix: "hk", exchangeName: "Hong Kong Stock Exchange", currency: "HKD", countryCode: "HK", aliases: ["HKG"] },
+    TW: { yahooSuffix: ".TW", stooqSuffix: "tw", exchangeName: "Taiwan Stock Exchange", currency: "TWD", countryCode: "TW", aliases: ["TT", "TPE"] },
+    KR: { yahooSuffix: ".KS", stooqSuffix: "kr", exchangeName: "Korea Exchange", currency: "KRW", countryCode: "KR", aliases: ["KS", "KRX"], alternateYahooSuffixes: [".KQ"] },
+    CN: { yahooSuffix: ".SS", exchangeName: "Shanghai Stock Exchange", currency: "CNY", countryCode: "CN", aliases: ["SS", "SSE"], alternateYahooSuffixes: [".SZ"] },
+    SZ: { yahooSuffix: ".SZ", exchangeName: "Shenzhen Stock Exchange", currency: "CNY", countryCode: "CN", aliases: ["SZSE"] },
+    IN: { yahooSuffix: ".NS", stooqSuffix: "in", exchangeName: "National Stock Exchange of India", currency: "INR", countryCode: "IN", aliases: ["NS", "NSE"], alternateYahooSuffixes: [".BO"] },
+    BO: { yahooSuffix: ".BO", exchangeName: "BSE India", currency: "INR", countryCode: "IN", aliases: ["BSE"] },
+    KZ: { yahooSuffix: ".KZ", stooqSuffix: "kz", exchangeName: "Kazakhstan Stock Exchange", currency: "KZT", countryCode: "KZ", aliases: ["KASE", "KASEKZ", "KZSE"], searchAliases: ["Kazakhstan Stock Exchange", "KASE"] },
+    AIX: { yahooSuffix: ".KZ", stooqSuffix: "kz", exchangeName: "Astana International Exchange", currency: "USD", countryCode: "KZ", aliases: ["AIXKZ", "ASTANA"], searchAliases: ["Astana International Exchange", "AIX"] },
+    UZ: { yahooSuffix: ".UZ", stooqSuffix: "uz", exchangeName: "Tashkent Stock Exchange", currency: "UZS", countryCode: "UZ", aliases: ["UZSE", "TASHKENT", "TSEUZ"], searchAliases: ["Tashkent Stock Exchange", "Uzbekistan Stock Exchange"] },
+    KG: { yahooSuffix: ".KG", stooqSuffix: "kg", exchangeName: "Kyrgyz Stock Exchange", currency: "KGS", countryCode: "KG", aliases: ["KSEKG", "KYRGYZ"], searchAliases: ["Kyrgyz Stock Exchange"] },
+    TJ: { yahooSuffix: ".TJ", stooqSuffix: "tj", exchangeName: "Central Asian Stock Exchange", currency: "TJS", countryCode: "TJ", aliases: ["CASE", "DUSHANBE"], searchAliases: ["Tajikistan stock exchange"] },
+    TM: { yahooSuffix: ".TM", stooqSuffix: "tm", exchangeName: "Ashgabat Stock Exchange", currency: "TMT", countryCode: "TM", aliases: ["ASHGABAT"], searchAliases: ["Turkmenistan stock exchange"] },
+    GE: { yahooSuffix: ".GE", stooqSuffix: "ge", exchangeName: "Georgian Stock Exchange", currency: "GEL", countryCode: "GE", aliases: ["GSEGE"] },
+    AM: { yahooSuffix: ".AM", stooqSuffix: "am", exchangeName: "Armenia Securities Exchange", currency: "AMD", countryCode: "AM", aliases: ["AMX", "ARMENIA"] },
+    AZ: { yahooSuffix: ".AZ", stooqSuffix: "az", exchangeName: "Baku Stock Exchange", currency: "AZN", countryCode: "AZ", aliases: ["BSEAZ", "BAKU"] },
+    AU: { yahooSuffix: ".AX", stooqSuffix: "au", exchangeName: "Australian Securities Exchange", currency: "AUD", countryCode: "AU", aliases: ["AX", "ASX"] },
+    CA: { yahooSuffix: ".TO", stooqSuffix: "ca", exchangeName: "Toronto Stock Exchange", currency: "CAD", countryCode: "CA", aliases: ["TO", "TSX"], alternateYahooSuffixes: [".V"] },
+    FR: { yahooSuffix: ".PA", stooqSuffix: "fr", exchangeName: "Euronext Paris", currency: "EUR", countryCode: "FR", aliases: ["PA", "PAR"] },
+    DE: { yahooSuffix: ".DE", stooqSuffix: "de", exchangeName: "Xetra / Frankfurt", currency: "EUR", countryCode: "DE", aliases: ["GR", "FRA", "XETRA"] },
+    CH: { yahooSuffix: ".SW", stooqSuffix: "ch", exchangeName: "SIX Swiss Exchange", currency: "CHF", countryCode: "CH", aliases: ["SW", "SIX"] },
+    NL: { yahooSuffix: ".AS", stooqSuffix: "nl", exchangeName: "Euronext Amsterdam", currency: "EUR", countryCode: "NL", aliases: ["AS", "AMS"] },
+    ES: { yahooSuffix: ".MC", stooqSuffix: "es", exchangeName: "Bolsa de Madrid", currency: "EUR", countryCode: "ES", aliases: ["MC", "MAD"] },
+    IT: { yahooSuffix: ".MI", stooqSuffix: "it", exchangeName: "Borsa Italiana", currency: "EUR", countryCode: "IT", aliases: ["MI", "MIL"] },
+    SE: { yahooSuffix: ".ST", stooqSuffix: "se", exchangeName: "Nasdaq Stockholm", currency: "SEK", countryCode: "SE", aliases: ["ST", "STO"] },
+    DK: { yahooSuffix: ".CO", stooqSuffix: "dk", exchangeName: "Nasdaq Copenhagen", currency: "DKK", countryCode: "DK", aliases: ["CO", "CPH"] },
+    FI: { yahooSuffix: ".HE", stooqSuffix: "fi", exchangeName: "Nasdaq Helsinki", currency: "EUR", countryCode: "FI", aliases: ["HE", "HEL"] },
+    PL: { yahooSuffix: ".WA", stooqSuffix: "pl", exchangeName: "Warsaw Stock Exchange", currency: "PLN", countryCode: "PL", aliases: ["WA", "WSE"] },
+    BR: { yahooSuffix: ".SA", stooqSuffix: "br", exchangeName: "B3 Brazil", currency: "BRL", countryCode: "BR", aliases: ["SA", "B3"] },
+    MX: { yahooSuffix: ".MX", stooqSuffix: "mx", exchangeName: "Bolsa Mexicana de Valores", currency: "MXN", countryCode: "MX", aliases: ["BMV"] },
+    SG: { yahooSuffix: ".SI", stooqSuffix: "sg", exchangeName: "Singapore Exchange", currency: "SGD", countryCode: "SG", aliases: ["SI", "SGX"] },
+    MY: { yahooSuffix: ".KL", stooqSuffix: "my", exchangeName: "Bursa Malaysia", currency: "MYR", countryCode: "MY", aliases: ["KL", "BURSA"] },
+    TH: { yahooSuffix: ".BK", stooqSuffix: "th", exchangeName: "Stock Exchange of Thailand", currency: "THB", countryCode: "TH", aliases: ["BK", "SET"] },
+    ID: { yahooSuffix: ".JK", stooqSuffix: "id", exchangeName: "Indonesia Stock Exchange", currency: "IDR", countryCode: "ID", aliases: ["JK", "IDX"] },
+    PH: { yahooSuffix: ".PS", stooqSuffix: "ph", exchangeName: "Philippine Stock Exchange", currency: "PHP", countryCode: "PH", aliases: ["PSE", "PS"] },
+    VN: { yahooSuffix: ".VN", stooqSuffix: "vn", exchangeName: "Vietnam Exchange", currency: "VND", countryCode: "VN", aliases: ["HOSE", "HNX"] },
+    ZA: { yahooSuffix: ".JO", stooqSuffix: "za", exchangeName: "Johannesburg Stock Exchange", currency: "ZAc", countryCode: "ZA", aliases: ["JSE", "JO"] },
+    SA: { yahooSuffix: ".SR", stooqSuffix: "sa", exchangeName: "Saudi Exchange", currency: "SAR", countryCode: "SA", aliases: ["TADAWUL", "SR"] },
+    AE: { yahooSuffix: ".DU", stooqSuffix: "ae", exchangeName: "Dubai Financial Market", currency: "AED", countryCode: "AE", aliases: ["DFM", "DU"], alternateYahooSuffixes: [".AD"] },
+    QA: { yahooSuffix: ".QA", stooqSuffix: "qa", exchangeName: "Qatar Stock Exchange", currency: "QAR", countryCode: "QA", aliases: ["QSE"] }
+  };
+
+  const EQUITY_EXCHANGE_ALIAS_MAP = buildEquityExchangeAliasMap();
 
   const FINANCIAL_ROW_FORMATS = [
     { value: "auto", label: "Auto" },
@@ -396,6 +486,7 @@ document.addEventListener("DOMContentLoaded", () => {
     publishSummaryBtn: document.getElementById("publishSummaryBtn"),
     generateDocBtn: document.getElementById("generateDocBtn"),
     emailToCrgBtn: document.getElementById("emailToCrgBtn"),
+    exportBlankTemplateBtn: document.getElementById("exportBlankTemplateBtn"),
     resetDraftTopBtn: document.getElementById("resetDraftTopBtn"),
     resetFormBtn: document.getElementById("resetFormBtn"),
     message: document.getElementById("message"),
@@ -417,8 +508,10 @@ document.addEventListener("DOMContentLoaded", () => {
       rangeReturn: null,
       priceDate: null,
       providerCurrency: "",
+      providerName: "",
       benchmarkLabel: "",
       chartMode: "price",
+      lookupKey: "",
       symbol: "",
       benchmarkSymbol: "",
       range: ""
@@ -790,6 +883,7 @@ document.addEventListener("DOMContentLoaded", () => {
       if (event.key === "Escape" && !dom.summaryModal?.hidden) closeSummaryModal();
     });
     dom.emailToCrgBtn.addEventListener("click", draftEmailToResearch);
+    dom.exportBlankTemplateBtn?.addEventListener("click", exportBlankTemplate);
     dom.resetDraftTopBtn?.addEventListener("click", resetDraft);
     dom.resetFormBtn.addEventListener("click", resetDraft);
 
@@ -1487,7 +1581,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const countryLabel = getCoverageCountryLabel(normalized);
     return {
       region: specific.region || inferCountryRegion(normalized),
-      currency: specific.currency || "",
+      currency: specific.currency || COUNTRY_CURRENCY_MAP[normalized] || "",
       classification: specific.classification || classifyCountryMarket(normalized),
       benchmark: specific.benchmark || `${countryLabel} 10Y sovereign benchmark`,
       ratings: specific.ratings || []
@@ -1753,10 +1847,9 @@ document.addEventListener("DOMContentLoaded", () => {
       content: data.keyTakeaways
     };
 
-    const cordobaView = layout.find((entry) => entry.key === "cordobaView" && entry.content);
-    const middle = layout.filter((entry) => entry.key !== "keyTakeaways" && entry.key !== "cordobaView");
+    const middle = layout.filter((entry) => entry.key !== "keyTakeaways");
 
-    return { keyTakeaways, middle, cordobaView };
+    return { keyTakeaways, middle };
   }
 
   function buildNarrativeSectionBlocks(docxLib, colors, sections) {
@@ -3845,8 +3938,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const options = [];
     const layout = collectBodySectionLayout().filter((entry) => !entry.hidden);
     const keyTakeaways = layout.find((entry) => entry.key === "keyTakeaways");
-    const cordobaView = layout.find((entry) => entry.key === "cordobaView");
-    const middle = layout.filter((entry) => entry.key !== "keyTakeaways" && entry.key !== "cordobaView");
+    const middle = layout.filter((entry) => entry.key !== "keyTakeaways");
 
     if (noteType === "Equity Research") {
       appendFigureParagraphAnchorOptions(options, "businessDescription", "Business Description", dom.businessDescription?.value || "");
@@ -3860,8 +3952,6 @@ document.addEventListener("DOMContentLoaded", () => {
         appendFigureParagraphAnchorOptions(options, entry.key, entry.label, entry.content);
         options.push({ value: `after-${entry.key}`, label: `After ${entry.label}` });
       });
-      if (cordobaView) appendFigureParagraphAnchorOptions(options, "cordobaView", cordobaView.label, cordobaView.content);
-      if (cordobaView) options.push({ value: "after-cordobaView", label: `After ${cordobaView.label}` });
 
       options.push({ value: "end", label: "End of Note" });
       return options;
@@ -3877,8 +3967,6 @@ document.addEventListener("DOMContentLoaded", () => {
       appendFigureParagraphAnchorOptions(options, entry.key, entry.label, entry.content);
       options.push({ value: `after-${entry.key}`, label: `After ${entry.label}` });
     });
-    if (cordobaView) appendFigureParagraphAnchorOptions(options, "cordobaView", cordobaView.label, cordobaView.content);
-    if (cordobaView) options.push({ value: "after-cordobaView", label: `After ${cordobaView.label}` });
 
     options.push({ value: "end", label: "End of Note" });
     return options;
@@ -4282,8 +4370,10 @@ document.addEventListener("DOMContentLoaded", () => {
       rangeReturn: null,
       priceDate: null,
       providerCurrency: "",
+      providerName: "",
       benchmarkLabel: "",
       chartMode: "price",
+      lookupKey: "",
       symbol: "",
       benchmarkSymbol: "",
       range: ""
@@ -4348,27 +4438,29 @@ document.addEventListener("DOMContentLoaded", () => {
     dom.ticker.classList.remove("is-invalid");
 
     const range = dom.chartRange.value || "6mo";
-    const symbol = marketDataSymbolFromTicker(ticker);
+    const lookupKey = buildEquityLookupKey(ticker);
+    const initialSymbol = marketDataSymbolFromTicker(ticker);
     const previousSymbol = getLastResolvedEquitySymbol();
-    const shouldForceMetadataRefresh = Boolean(previousSymbol && previousSymbol !== symbol);
+    const shouldForceMetadataRefresh = Boolean(previousSymbol && previousSymbol !== initialSymbol);
     clearEquityAutoFilledMetadata({ clearBenchmark: true, force: shouldForceMetadataRefresh });
     const benchmarkInput = dom.benchmarkTicker.value.trim();
     const benchmarkSymbol = benchmarkInput ? marketDataSymbolFromTicker(benchmarkInput) : "";
     const benchmarkLabel = dom.benchmarkName.value.trim() || benchmarkSymbol || benchmarkInput.toUpperCase();
 
     dom.chartStatus.textContent = benchmarkSymbol
-      ? "Fetching security and benchmark history for the tear sheet..."
-      : "Fetching security history for the tear sheet...";
+      ? "Resolving security metadata and benchmark history for the tear sheet..."
+      : "Resolving security metadata and price history for the tear sheet...";
 
-    const securityResult = await fetchMarketHistory(symbol, range);
-    assertCurrentEquityLookup(requestId, symbol);
+    const securityResult = await fetchMarketHistoryWithFallback(ticker, range);
+    const symbol = securityResult.symbol || initialSymbol;
+    assertCurrentEquityLookup(requestId, lookupKey);
     const filteredSecurity = securityResult.rows;
     if (filteredSecurity.length < 10) {
       throw new Error("Not enough price history returned for the selected range.");
     }
 
-    const resolvedProfile = await resolveMarketSecurityProfile(symbol, securityResult.meta);
-    assertCurrentEquityLookup(requestId, symbol);
+    const resolvedProfile = await resolveMarketSecurityProfile(symbol, securityResult.meta, securityResult.candidate);
+    assertCurrentEquityLookup(requestId, lookupKey);
     applyResolvedSecurityProfile(resolvedProfile, { force: shouldForceMetadataRefresh, sourceSymbol: symbol });
     state.lastResolvedEquitySymbol = symbol;
 
@@ -4378,7 +4470,7 @@ document.addEventListener("DOMContentLoaded", () => {
     if (benchmarkSymbol) {
       try {
         const benchmarkResult = await fetchMarketHistory(benchmarkSymbol, range);
-        assertCurrentEquityLookup(requestId, symbol);
+        assertCurrentEquityLookup(requestId, lookupKey);
         const candidateSeries = benchmarkResult.rows;
         if (candidateSeries.length >= 10) {
           filteredBenchmark = candidateSeries;
@@ -4390,7 +4482,7 @@ document.addEventListener("DOMContentLoaded", () => {
       }
     }
 
-    assertCurrentEquityLookup(requestId, symbol);
+    assertCurrentEquityLookup(requestId, lookupKey);
     const chartConfig = buildEquityChartConfig({
       securitySeries: filteredSecurity,
       benchmarkSeries: filteredBenchmark,
@@ -4417,8 +4509,10 @@ document.addEventListener("DOMContentLoaded", () => {
       realisedVolAnn,
       priceDate,
       providerCurrency: normalizeMarketCurrency(resolvedProfile.currency || securityResult.meta.currency),
+      providerName: securityResult.provider || "Market data",
       benchmarkLabel: chartConfig.mode === "relative" ? benchmarkLabel : "",
       chartMode: chartConfig.mode,
+      lookupKey,
       symbol,
       benchmarkSymbol,
       range
@@ -4445,61 +4539,178 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   function marketDataSymbolFromTicker(rawTicker) {
-    const cleaned = String(rawTicker || "")
-      .trim()
-      .split(/\s+/)[0]
-      .replace(/^[A-Z]+:/i, "")
-      .replace(/,+$/, "");
+    return buildEquityLookupCandidates(rawTicker)[0]?.symbol || "";
+  }
 
-    if (!cleaned) return "";
-    if (cleaned.startsWith("^")) return cleaned.toUpperCase();
+  function buildEquityExchangeAliasMap() {
+    const map = new Map();
+    Object.entries(EQUITY_EXCHANGE_PROFILES).forEach(([code, profile]) => {
+      [code, ...(profile.aliases || [])].forEach((alias) => {
+        const normalized = normalizeExchangeCode(alias);
+        if (normalized) map.set(normalized, code);
+      });
+    });
+    return map;
+  }
 
-    const dotIndex = cleaned.lastIndexOf(".");
-    if (dotIndex === -1) return cleaned.toUpperCase();
+  function normalizeExchangeCode(value) {
+    return String(value || "").trim().toUpperCase().replace(/[^A-Z0-9]/g, "");
+  }
 
-    const base = cleaned.slice(0, dotIndex).toUpperCase();
-    const suffix = cleaned.slice(dotIndex + 1).toUpperCase();
-    const suffixMap = {
-      US: "",
-      UK: ".L",
-      LN: ".L",
-      L: ".L",
-      TW: ".TW",
-      TT: ".TW",
-      JP: ".T",
-      T: ".T",
-      HK: ".HK",
-      AU: ".AX",
-      AX: ".AX",
-      CA: ".TO",
-      TO: ".TO",
-      FR: ".PA",
-      PA: ".PA",
-      DE: ".DE",
-      GR: ".DE",
-      SW: ".SW",
-      CH: ".SW",
-      NL: ".AS",
-      AS: ".AS",
-      ES: ".MC",
-      MC: ".MC",
-      IT: ".MI",
-      MI: ".MI",
-      SE: ".ST",
-      ST: ".ST",
-      DK: ".CO",
-      CO: ".CO",
-      FI: ".HE",
-      HE: ".HE",
-      BR: ".BR",
-      BE: ".BR",
-      IR: ".IR",
-      IE: ".IR",
-      WA: ".WA",
-      PL: ".WA"
+  function getEquityExchangeProfile(exchangeCode) {
+    const normalized = normalizeExchangeCode(exchangeCode);
+    if (!normalized) return null;
+    const profileCode = EQUITY_EXCHANGE_ALIAS_MAP.get(normalized) || normalized;
+    const profile = EQUITY_EXCHANGE_PROFILES[profileCode];
+    return profile ? { ...profile, code: profileCode } : null;
+  }
+
+  function parseEquityTickerInput(rawTicker) {
+    const input = String(rawTicker || "").trim().replace(/,+$/, "");
+    if (!input) return { baseSymbol: "", exchangeCode: "", rawSymbol: "", isIndex: false };
+
+    const tokens = input.split(/\s+/).filter(Boolean);
+    let symbolToken = tokens[0] || "";
+    let exchangeCode = "";
+    let explicitExchange = false;
+
+    if (/^[A-Za-z0-9]+:.+/.test(symbolToken)) {
+      const [prefix, ...rest] = symbolToken.split(":");
+      exchangeCode = prefix;
+      symbolToken = rest.join(":");
+      explicitExchange = true;
+    } else if (tokens[1] && getEquityExchangeProfile(tokens[1])) {
+      exchangeCode = tokens[1];
+      explicitExchange = true;
+    }
+
+    symbolToken = symbolToken.replace(/,+$/, "");
+    if (symbolToken.startsWith("^")) {
+      return {
+        baseSymbol: symbolToken.toUpperCase(),
+        exchangeCode: "",
+        rawSymbol: symbolToken.toUpperCase(),
+        isIndex: true,
+        explicitExchange: false
+      };
+    }
+
+    const dotIndex = symbolToken.lastIndexOf(".");
+    if (dotIndex > 0) {
+      const suffix = symbolToken.slice(dotIndex + 1);
+      const profile = getEquityExchangeProfile(suffix);
+      if (profile) {
+        exchangeCode = suffix;
+        symbolToken = symbolToken.slice(0, dotIndex);
+        explicitExchange = true;
+      }
+    }
+
+    const baseSymbol = symbolToken.replace(/[^A-Za-z0-9-]/g, "").toUpperCase();
+    return {
+      baseSymbol,
+      exchangeCode: normalizeExchangeCode(exchangeCode),
+      rawSymbol: symbolToken.toUpperCase(),
+      isIndex: false,
+      explicitExchange
+    };
+  }
+
+  function buildEquityLookupCandidates(rawTicker) {
+    const parsed = parseEquityTickerInput(rawTicker);
+    if (!parsed.baseSymbol) return [];
+    if (parsed.isIndex) return [{ symbol: parsed.baseSymbol, baseSymbol: parsed.baseSymbol, provider: "yahoo", label: parsed.baseSymbol }];
+
+    const candidates = [];
+    const seen = new Set();
+    const addCandidate = (symbol, profile = null, options = {}) => {
+      const normalizedSymbol = String(symbol || "").trim().toUpperCase();
+      if (!normalizedSymbol || seen.has(normalizedSymbol)) return;
+      seen.add(normalizedSymbol);
+      candidates.push({
+        symbol: normalizedSymbol,
+        baseSymbol: parsed.baseSymbol,
+        provider: options.provider || "yahoo",
+        exchangeCode: profile?.code || parsed.exchangeCode || "",
+        exchangeProfile: profile,
+        stooqSymbol: options.stooqSymbol || "",
+        searchProfile: options.searchProfile || null,
+        label: options.label || normalizedSymbol
+      });
     };
 
-    return `${base}${suffixMap[suffix] ?? `.${suffix}`}`;
+    const exchangeProfile = getEquityExchangeProfile(parsed.exchangeCode);
+    if (exchangeProfile) {
+      const suffixes = [exchangeProfile.yahooSuffix, ...(exchangeProfile.alternateYahooSuffixes || [])]
+        .filter((suffix) => suffix != null);
+      suffixes.forEach((suffix) => {
+        const yahooSymbol = suffix ? `${parsed.baseSymbol}${suffix}` : parsed.baseSymbol;
+        const stooqSymbol = exchangeProfile.stooqSuffix ? `${parsed.baseSymbol.toLowerCase()}.${exchangeProfile.stooqSuffix}` : "";
+        addCandidate(yahooSymbol, exchangeProfile, { stooqSymbol, label: `${parsed.baseSymbol} ${exchangeProfile.exchangeName}` });
+      });
+    }
+
+    if (!exchangeProfile) {
+      const cleaned = String(rawTicker || "").trim().split(/\s+/)[0].replace(/^[A-Z0-9]+:/i, "").replace(/,+$/, "");
+      addCandidate(cleaned.includes(".") ? cleaned : parsed.baseSymbol, null);
+    }
+
+    return candidates;
+  }
+
+  function buildEquityLookupKey(rawTicker) {
+    const parsed = parseEquityTickerInput(rawTicker);
+    const profile = getEquityExchangeProfile(parsed.exchangeCode);
+    return [parsed.baseSymbol, profile?.code || parsed.exchangeCode || ""].filter(Boolean).join(".");
+  }
+
+  async function fetchMarketHistoryWithFallback(rawTicker, range) {
+    const directCandidates = buildEquityLookupCandidates(rawTicker);
+    const searchedCandidates = [];
+    let searchAttempted = false;
+    let lastError = new Error(`Market data request failed for ${String(rawTicker || "").trim() || "the selected ticker"}.`);
+
+    const tryCandidates = async (candidates) => {
+      for (const candidate of candidates) {
+        try {
+          const result = await fetchMarketHistory(candidate.symbol, range);
+          return { ...result, symbol: candidate.symbol, candidate, provider: "Yahoo Finance" };
+        } catch (error) {
+          lastError = error;
+        }
+
+        if (candidate.stooqSymbol) {
+          try {
+            const result = await fetchStooqHistory(candidate.stooqSymbol, range);
+            return { ...result, symbol: candidate.symbol, candidate, provider: "Stooq" };
+          } catch (error) {
+            lastError = error;
+          }
+        }
+      }
+      return null;
+    };
+
+    const directResult = await tryCandidates(directCandidates);
+    if (directResult) return directResult;
+
+    try {
+      searchedCandidates.push(...await fetchYahooSearchCandidates(rawTicker, directCandidates));
+      searchAttempted = true;
+    } catch (error) {
+      lastError = error;
+    }
+
+    const searchResult = await tryCandidates(searchedCandidates);
+    if (searchResult) return searchResult;
+
+    const parsed = parseEquityTickerInput(rawTicker);
+    const exchangeHint = getEquityExchangeProfile(parsed.exchangeCode)?.exchangeName || parsed.exchangeCode;
+    const hint = exchangeHint
+      ? ` Try an exchange-qualified ticker for ${exchangeHint}, or enter the security manually if public feeds do not carry that frontier exchange.`
+      : " Try an exchange-qualified ticker such as KASE:SYMBOL, SYMBOL.KZ, UZSE:SYMBOL, or SYMBOL.UZ for frontier exchanges.";
+    const searchText = searchAttempted ? " Direct and search-based lookup both failed." : "";
+    throw new Error(`${lastError.message}${searchText}${hint}`);
   }
 
   async function fetchMarketHistory(symbol, range) {
@@ -4536,29 +4747,208 @@ document.addEventListener("DOMContentLoaded", () => {
     throw lastError;
   }
 
-  async function resolveMarketSecurityProfile(symbol, chartMeta = {}) {
+  async function fetchStooqHistory(stooqSymbol, range) {
+    const normalizedRange = ["6mo", "1y", "2y", "5y"].includes(range) ? range : "6mo";
+    const symbol = String(stooqSymbol || "").trim().toLowerCase();
+    if (!symbol) throw new Error("No Stooq symbol was available for this security.");
+
+    const requestPaths = [
+      `https://stooq.com/q/d/l/?s=${encodeURIComponent(symbol)}&i=d`,
+      `https://r.jina.ai/http://stooq.com/q/d/l/?s=${encodeURIComponent(symbol)}&i=d`
+    ];
+    let lastError = new Error(`Stooq history request failed for ${symbol}.`);
+
+    for (const url of requestPaths) {
+      try {
+        const response = await fetchWithTimeout(url, {
+          cache: "no-store",
+          headers: {
+            Accept: "text/csv, text/plain;q=0.9, */*;q=0.8"
+          }
+        }, 12000);
+
+        if (!response.ok) throw new Error(`Stooq history request returned ${response.status}.`);
+        const rows = parseStooqCsvHistory(await response.text(), normalizedRange);
+        if (rows.length < 5) throw new Error("The Stooq feed did not return enough observations.");
+        return {
+          rows,
+          meta: { symbol: stooqSymbol, exchangeName: "Stooq market data" }
+        };
+      } catch (error) {
+        lastError = error;
+      }
+    }
+
+    throw lastError;
+  }
+
+  function parseStooqCsvHistory(rawText, range) {
+    const rows = String(rawText || "")
+      .trim()
+      .split(/\r?\n/)
+      .map((line) => line.split(",").map((cell) => cell.trim()));
+
+    if (rows.length < 2 || !/^date$/i.test(rows[0]?.[0] || "")) {
+      throw new Error("The Stooq feed returned an unexpected response.");
+    }
+
+    const cutoff = buildMarketHistoryCutoffDate(range);
+    return rows
+      .slice(1)
+      .map((cells) => ({
+        date: cells[0],
+        close: Number(cells[4])
+      }))
+      .filter((row) => /^\d{4}-\d{2}-\d{2}$/.test(row.date) && (!cutoff || row.date >= cutoff) && Number.isFinite(row.close) && row.close > 0);
+  }
+
+  function buildMarketHistoryCutoffDate(range) {
+    const now = new Date();
+    const cutoff = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
+    if (range === "6mo") cutoff.setUTCMonth(cutoff.getUTCMonth() - 6);
+    else if (range === "1y") cutoff.setUTCFullYear(cutoff.getUTCFullYear() - 1);
+    else if (range === "2y") cutoff.setUTCFullYear(cutoff.getUTCFullYear() - 2);
+    else if (range === "5y") cutoff.setUTCFullYear(cutoff.getUTCFullYear() - 5);
+    else return "";
+    return cutoff.toISOString().slice(0, 10);
+  }
+
+  async function fetchYahooSearchCandidates(rawTicker, seedCandidates = []) {
+    const parsed = parseEquityTickerInput(rawTicker);
+    if (!parsed.baseSymbol) return [];
+
+    const profile = getEquityExchangeProfile(parsed.exchangeCode);
+    const queryParts = [
+      parsed.baseSymbol,
+      profile?.exchangeName,
+      ...(profile?.searchAliases || [])
+    ].filter(Boolean);
+    const query = queryParts.join(" ");
+    const requestPaths = [
+      `https://query1.finance.yahoo.com/v1/finance/search?q=${encodeURIComponent(query)}&quotesCount=8&newsCount=0`,
+      `https://query2.finance.yahoo.com/v1/finance/search?q=${encodeURIComponent(query)}&quotesCount=8&newsCount=0`,
+      `https://r.jina.ai/http://query1.finance.yahoo.com/v1/finance/search?q=${encodeURIComponent(query)}&quotesCount=8&newsCount=0`,
+      `https://r.jina.ai/http://query2.finance.yahoo.com/v1/finance/search?q=${encodeURIComponent(query)}&quotesCount=8&newsCount=0`
+    ];
+    const seedSymbols = new Set(seedCandidates.map((candidate) => candidate.symbol));
+    let lastError = new Error(`Ticker search failed for ${parsed.baseSymbol}.`);
+
+    for (const url of requestPaths) {
+      try {
+        const response = await fetchWithTimeout(url, {
+          cache: "no-store",
+          headers: {
+            Accept: "application/json, text/plain;q=0.9, */*;q=0.8"
+          }
+        }, 10000);
+
+        if (!response.ok) throw new Error(`Ticker search returned ${response.status}.`);
+        const payloadText = extractJsonObject(await response.text());
+        const payload = payloadText ? JSON.parse(payloadText) : null;
+        const quotes = Array.isArray(payload?.quotes) ? payload.quotes : [];
+        return quotes
+          .filter((quote) => quote?.symbol && /equity|stock|etf/i.test(String(quote.quoteType || quote.typeDisp || "equity")))
+          .map((quote) => {
+            const symbol = String(quote.symbol || "").trim().toUpperCase();
+            const searchProfile = {
+              symbol,
+              companyName: String(quote.longname || quote.shortname || quote.name || "").trim(),
+              exchangeName: String(quote.exchDisp || quote.exchange || "").trim(),
+              currency: normalizeMarketCurrency(quote.currency || profile?.currency || ""),
+              market: String(quote.market || "").trim(),
+              quoteType: String(quote.quoteType || "").trim()
+            };
+            return {
+              symbol,
+              baseSymbol: parsed.baseSymbol,
+              provider: "yahoo-search",
+              exchangeCode: profile?.code || parsed.exchangeCode || "",
+              exchangeProfile: profile,
+              stooqSymbol: profile?.stooqSuffix ? `${parsed.baseSymbol.toLowerCase()}.${profile.stooqSuffix}` : "",
+              searchProfile,
+              label: searchProfile.companyName || symbol
+            };
+          })
+          .filter((candidate) => candidate.symbol && !seedSymbols.has(candidate.symbol))
+          .sort((left, right) => scoreYahooSearchCandidate(right, parsed, profile) - scoreYahooSearchCandidate(left, parsed, profile))
+          .slice(0, 6);
+      } catch (error) {
+        lastError = error;
+      }
+    }
+
+    throw lastError;
+  }
+
+  function scoreYahooSearchCandidate(candidate, parsed, profile) {
+    let score = 0;
+    const symbol = String(candidate.symbol || "");
+    const exchangeName = normalizeComparableText(candidate.searchProfile?.exchangeName || "");
+    if (symbol.toUpperCase().startsWith(parsed.baseSymbol)) score += 4;
+    if (profile?.yahooSuffix && symbol.endsWith(profile.yahooSuffix)) score += 5;
+    if (profile?.exchangeName && exchangeName.includes(normalizeComparableText(profile.exchangeName))) score += 3;
+    (profile?.searchAliases || []).forEach((alias) => {
+      if (exchangeName.includes(normalizeComparableText(alias))) score += 1;
+    });
+    return score;
+  }
+
+  async function resolveMarketSecurityProfile(symbol, chartMeta = {}, candidate = null) {
     const baseProfile = buildMarketSecurityProfile(chartMeta, symbol);
+    const candidateProfile = buildMarketSecurityProfileFromCandidate(candidate, symbol);
     const needsQuoteLookup = !baseProfile.companyName || !baseProfile.currency || !baseProfile.exchangeName || !baseProfile.marketCap || !baseProfile.sector || !baseProfile.industry;
 
-    if (!needsQuoteLookup) return baseProfile;
+    if (!needsQuoteLookup) return mergeSecurityProfiles(baseProfile, candidateProfile);
 
     try {
       const quoteProfile = await fetchMarketQuoteProfile(symbol);
-      return {
-        companyName: quoteProfile.companyName || baseProfile.companyName,
-        exchangeName: quoteProfile.exchangeName || baseProfile.exchangeName,
-        currency: quoteProfile.currency || baseProfile.currency,
-        marketCap: quoteProfile.marketCap || baseProfile.marketCap,
-        sector: quoteProfile.sector || baseProfile.sector,
-        industry: quoteProfile.industry || baseProfile.industry,
-        market: quoteProfile.market || baseProfile.market,
-        quoteType: quoteProfile.quoteType || baseProfile.quoteType,
-        symbol: quoteProfile.symbol || baseProfile.symbol
-      };
+      return mergeSecurityProfiles(quoteProfile, baseProfile, candidateProfile);
     } catch (error) {
       console.warn(`Unable to resolve quote profile for ${symbol}:`, error);
-      return baseProfile;
+      return mergeSecurityProfiles(baseProfile, candidateProfile);
     }
+  }
+
+  function buildMarketSecurityProfileFromCandidate(candidate, fallbackSymbol = "") {
+    const profile = candidate?.exchangeProfile || {};
+    const searchProfile = candidate?.searchProfile || {};
+    return {
+      companyName: String(searchProfile.companyName || "").trim(),
+      exchangeName: String(searchProfile.exchangeName || profile.exchangeName || "").trim(),
+      currency: normalizeMarketCurrency(searchProfile.currency || profile.currency || ""),
+      marketCap: Number(searchProfile.marketCap) || null,
+      sector: String(searchProfile.sector || "").trim(),
+      industry: String(searchProfile.industry || "").trim(),
+      market: String(searchProfile.market || profile.countryCode || "").trim(),
+      quoteType: String(searchProfile.quoteType || "EQUITY").trim(),
+      symbol: String(searchProfile.symbol || candidate?.symbol || fallbackSymbol || "").trim()
+    };
+  }
+
+  function mergeSecurityProfiles(...profiles) {
+    const merged = {
+      companyName: "",
+      exchangeName: "",
+      currency: "",
+      marketCap: null,
+      sector: "",
+      industry: "",
+      market: "",
+      quoteType: "",
+      symbol: ""
+    };
+
+    profiles.filter(Boolean).forEach((profile) => {
+      Object.keys(merged).forEach((key) => {
+        if (key === "marketCap") {
+          if (!merged.marketCap && Number(profile.marketCap) > 0) merged.marketCap = Number(profile.marketCap);
+          return;
+        }
+        if (!merged[key] && profile[key]) merged[key] = String(profile[key]).trim();
+      });
+    });
+
+    return merged;
   }
 
   function buildMarketSecurityProfile(meta = {}, fallbackSymbol = "") {
@@ -4758,7 +5148,35 @@ document.addEventListener("DOMContentLoaded", () => {
       HKD: "HKD",
       CAD: "CAD",
       AUD: "AUD",
-      CHF: "CHF"
+      CHF: "CHF",
+      CNY: "CNY",
+      INR: "INR",
+      KZT: "KZT",
+      UZS: "UZS",
+      KGS: "KGS",
+      TJS: "TJS",
+      TMT: "TMT",
+      GEL: "GEL",
+      AMD: "AMD",
+      AZN: "AZN",
+      ZAC: "ZAc",
+      ZAc: "ZAc",
+      SAR: "SAR",
+      AED: "AED",
+      QAR: "QAR",
+      KRW: "KRW",
+      SGD: "SGD",
+      MYR: "MYR",
+      THB: "THB",
+      IDR: "IDR",
+      PHP: "PHP",
+      VND: "VND",
+      MXN: "MXN",
+      BRL: "BRL",
+      PLN: "PLN",
+      SEK: "SEK",
+      DKK: "DKK",
+      NOK: "NOK"
     };
 
     return currencyMap[normalized] || normalized;
@@ -4768,9 +5186,9 @@ document.addEventListener("DOMContentLoaded", () => {
     return String(state.lastResolvedEquitySymbol || state.equityStats?.symbol || "").trim();
   }
 
-  function assertCurrentEquityLookup(requestId, symbol) {
-    const activeSymbol = marketDataSymbolFromTicker(dom.ticker.value);
-    if (state.equityLookupRequestId === requestId && activeSymbol === symbol) return;
+  function assertCurrentEquityLookup(requestId, lookupKey) {
+    const activeLookupKey = buildEquityLookupKey(dom.ticker.value);
+    if (state.equityLookupRequestId === requestId && activeLookupKey === lookupKey) return;
     const error = new Error("Stale equity metadata response ignored.");
     error.code = "STALE_EQUITY_LOOKUP";
     throw error;
@@ -4869,6 +5287,10 @@ document.addEventListener("DOMContentLoaded", () => {
 
   function resolvePriceCurrency(data) {
     return String(data.priceCurrency || data.equityStats?.providerCurrency || "").trim();
+  }
+
+  function marketDataSourceLabel(data) {
+    return String(data.equityStats?.providerName || "Market data").trim();
   }
 
   function buildEquityChartConfig({ securitySeries, benchmarkSeries, securityLabel, benchmarkLabel }) {
@@ -5250,12 +5672,13 @@ document.addEventListener("DOMContentLoaded", () => {
       syncPrimaryPhone();
       if (isEquitySelected()) {
         const activeSymbol = marketDataSymbolFromTicker(dom.ticker.value.trim());
+        const activeLookupKey = buildEquityLookupKey(dom.ticker.value.trim());
         const activeBenchmarkSymbol = dom.benchmarkTicker.value.trim() ? marketDataSymbolFromTicker(dom.benchmarkTicker.value.trim()) : "";
         const activeRange = dom.chartRange.value || "6mo";
         const needsFreshTearSheet =
           !state.priceChartImageBytes ||
           state.equityStats.currentPrice == null ||
-          state.equityStats.symbol !== activeSymbol ||
+          (state.equityStats.lookupKey ? state.equityStats.lookupKey !== activeLookupKey : state.equityStats.symbol !== activeSymbol) ||
           state.equityStats.benchmarkSymbol !== activeBenchmarkSymbol ||
           state.equityStats.range !== activeRange;
 
@@ -5301,6 +5724,146 @@ document.addEventListener("DOMContentLoaded", () => {
       dom.generateDocBtn.classList.remove("loading");
       dom.generateDocBtn.textContent = "Generate Word Document";
     }
+  }
+
+  async function exportBlankTemplate() {
+    closePreviewModal();
+    closeSummaryModal();
+    clearMessage();
+
+    if (typeof window.docx === "undefined" || typeof window.saveAs === "undefined") {
+      setMessage("error", "The Word export libraries are unavailable in this browser session. Refresh the page and try again.");
+      return;
+    }
+
+    const button = dom.exportBlankTemplateBtn;
+    const originalText = button?.textContent || "Export Blank Template";
+    if (button) {
+      button.disabled = true;
+      button.classList.add("loading");
+      button.textContent = "Exporting Template";
+    }
+
+    try {
+      const noteType = dom.noteType.value.trim() || "General Note";
+      const data = buildBlankTemplateData(noteType);
+      data.noteId = buildNoteId(data);
+      const doc = await createDocument(data);
+      const blob = await window.docx.Packer.toBlob(doc);
+      const fileName = `${formatDateShort(parseInputDate(data.publicationDate) || data.generatedAt)}_${slugify(noteType)}_blank_template.docx`;
+      window.saveAs(blob, fileName);
+      setMessage("success", `Blank ${noteType} template exported as ${fileName}.`);
+    } catch (error) {
+      console.error("Blank template export failed:", error);
+      setMessage("error", `Blank template export failed: ${error.message}`);
+    } finally {
+      if (button) {
+        button.disabled = false;
+        button.classList.remove("loading");
+        button.textContent = originalText;
+      }
+    }
+  }
+
+  function buildBlankTemplateData(noteType) {
+    const normalizedType = noteType || "General Note";
+    const publicationDate = todayIsoDate();
+    const isEquity = normalizedType === "Equity Research";
+    const isMacroFi = isMacroFiNoteType(normalizedType);
+    const bodySectionLayout = buildBlankTemplateBodySectionLayout(normalizedType);
+    const financialMatrix = isEquity
+      ? normalizeFinancialMatrix(null, parseInputDate(publicationDate) || new Date())
+      : null;
+
+    return {
+      noteType: normalizedType,
+      distribution: "Internal Working Draft",
+      publicationDate,
+      deskLine: defaultDeskLine(normalizedType),
+      title: `${normalizedType} Template`,
+      deck: "[Standfirst / one-line framing]",
+      topic: "[Topic / coverage angle]",
+      coverageCountry: "",
+      issuerId: "",
+      macroFiHeading: isMacroFi ? (normalizedType === "Fixed Income Research" ? "Ratings Overview" : "Sovereign Ratings") : "",
+      sovereignRegion: "",
+      sovereignCurrency: "",
+      sovereignClassification: "",
+      sovereignBenchmark: "",
+      agencyRating: "",
+      shortTermRating: "",
+      longTermRating: "",
+      ratingsProfileNotes: "",
+      ratingsProfile: [],
+      authorLastName: "",
+      authorFirstName: "",
+      authorPhone: "",
+      coAuthors: [],
+      ticker: isEquity ? "[Ticker]" : "",
+      equityCompanyName: isEquity ? "[Company / Issuer]" : "",
+      equitySecurityDisplay: isEquity ? "[Exchange / security display]" : "",
+      equitySectorLine: isEquity ? "[Sector / industry]" : "",
+      crgRating: isEquity ? "Not Rated (NR)" : "",
+      targetPrice: "",
+      priceCurrency: "",
+      benchmarkName: "",
+      benchmarkTicker: "",
+      marketCapUsd: "",
+      adtUsd: "",
+      businessDescription: isEquity ? "[Business description paragraph.]" : "",
+      valuationSummary: isEquity ? "[Valuation summary paragraph.]" : "",
+      financialTableTitle: isEquity ? "Year-end 31 Dec" : "",
+      financialSourceNote: isEquity ? "Source: Company data, Cordoba Research Group estimates" : "",
+      financialTableNotes: "",
+      financialTableInput: financialMatrix ? JSON.stringify(financialMatrix) : "",
+      modelLink: "",
+      bodySectionLayout,
+      keyTakeaways: "[Key takeaway 1]\n[Key takeaway 2]\n[Key takeaway 3]",
+      analysis: "[Core analysis paragraph.]\n\n[Additional analysis paragraph.]",
+      content: "[Supporting detail / additional context.]",
+      fiveYearRationale: isEquity ? "[5 Year rationale and price-target basis.]" : "",
+      esgSummary: isEquity ? "[ESG summary and material considerations.]" : "",
+      cordobaView: "[Cordoba View / house view.]",
+      imageFiles: [],
+      figurePlacements: {},
+      figureDetails: {},
+      figureQuality: {},
+      modelFiles: [],
+      priceChartImageBytes: null,
+      equityStats: {
+        currentPrice: null,
+        realisedVolAnn: null,
+        rangeReturn: null,
+        priceDate: null,
+        providerCurrency: "",
+        providerName: "",
+        benchmarkLabel: "",
+        chartMode: "price",
+        lookupKey: "",
+        symbol: "",
+        benchmarkSymbol: "",
+        range: ""
+      },
+      generatedAt: new Date()
+    };
+  }
+
+  function buildBlankTemplateBodySectionLayout(noteType) {
+    const entries = [
+      { key: "keyTakeaways", label: defaultHeadingForSection("keyTakeaways"), content: "[Key takeaway 1]\n[Key takeaway 2]\n[Key takeaway 3]", role: "core", hidden: false },
+      { key: "analysis", label: defaultHeadingForSection("analysis"), content: "[Core analysis paragraph.]\n\n[Additional analysis paragraph.]", role: "core", hidden: false },
+      { key: "content", label: defaultHeadingForSection("content"), content: "[Supporting detail / additional context.]", role: "core", hidden: false }
+    ];
+
+    if (noteType === "Equity Research") {
+      entries.push(
+        { key: "fiveYearRationale", label: defaultHeadingForSection("fiveYearRationale"), content: "[5 Year rationale and price-target basis.]", role: "core", hidden: false },
+        { key: "esgSummary", label: defaultHeadingForSection("esgSummary"), content: "[ESG summary and material considerations.]", role: "core", hidden: false }
+      );
+    }
+
+    entries.push({ key: "cordobaView", label: defaultHeadingForSection("cordobaView"), content: "[Cordoba View / house view.]", role: "core", hidden: false });
+    return entries;
   }
 
   function collectFormData() {
@@ -5802,7 +6365,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
   function serializeRichTextBlocksToPreviewHtml(blocks) {
     return (blocks || []).map((block) => {
-      if (block.type === "spacer") return "";
+      if (block.type === "spacer") return '<p class="preview-rich-spacer"><br></p>';
       if (block.type === "list") {
         const tag = block.ordered ? "ol" : "ul";
         const align = normalizeParagraphAlignment(block.align);
@@ -6130,7 +6693,7 @@ document.addEventListener("DOMContentLoaded", () => {
               ? `<img src="${chartSrc}" alt="Relative performance chart">`
               : `<div class="preview-chart-empty">No tear sheet chart loaded.</div>`}
           </div>
-          <p>Source: Yahoo Finance market data${data.equityStats.benchmarkLabel ? `, benchmarked against ${escapeHtml(data.equityStats.benchmarkLabel)}` : ""}</p>
+          <p>Source: ${escapeHtml(marketDataSourceLabel(data))}${data.equityStats.benchmarkLabel ? `, benchmarked against ${escapeHtml(data.equityStats.benchmarkLabel)}` : ""}</p>
         </div>
       </section>
     `;
@@ -6759,9 +7322,8 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   function buildPreviewMainPageHtml(data, publicationDate, analystContacts, availablePlacements, sections, pageNumber, totalPages) {
-    const middleSections = sections.filter((entry) => entry.key !== "keyTakeaways" && entry.key !== "cordobaView");
+    const middleSections = sections.filter((entry) => entry.key !== "keyTakeaways");
     const keyTakeaways = sections.find((entry) => entry.key === "keyTakeaways");
-    const cordobaView = sections.find((entry) => entry.key === "cordobaView");
     const previewParts = [`<article class="preview-export-page">`, buildPreviewBannerHtml(data, publicationDate)];
 
     if (data.noteType === "Equity Research") {
@@ -6799,7 +7361,12 @@ document.addEventListener("DOMContentLoaded", () => {
         }));
         previewParts.push(buildPreviewFigureMarkup(data.imageFiles, data, availablePlacements, "after-valuationSummary"));
       }
+      let supportInsertedBeforeCordoba = false;
       middleSections.forEach((section) => {
+        if (section.key === "cordobaView" && !supportInsertedBeforeCordoba) {
+          previewParts.push(buildPreviewSupportHtml(data));
+          supportInsertedBeforeCordoba = true;
+        }
         previewParts.push(buildPreviewNarrativeHtml(section.label, section.content, {
           data,
           availablePlacements,
@@ -6807,15 +7374,7 @@ document.addEventListener("DOMContentLoaded", () => {
         }));
         previewParts.push(buildPreviewFigureMarkup(data.imageFiles, data, availablePlacements, `after-${section.key}`));
       });
-      previewParts.push(buildPreviewSupportHtml(data));
-      if (cordobaView?.content) {
-        previewParts.push(buildPreviewNarrativeHtml(cordobaView.label, cordobaView.content, {
-          data,
-          availablePlacements,
-          sectionKey: "cordobaView"
-        }));
-        previewParts.push(buildPreviewFigureMarkup(data.imageFiles, data, availablePlacements, "after-cordobaView"));
-      }
+      if (!supportInsertedBeforeCordoba) previewParts.push(buildPreviewSupportHtml(data));
       const endFigures = buildPreviewFigureMarkup(data.imageFiles, data, availablePlacements, "end");
       if (endFigures) previewParts.push(endFigures);
     } else {
@@ -6850,15 +7409,6 @@ document.addEventListener("DOMContentLoaded", () => {
         }));
         previewParts.push(buildPreviewFigureMarkup(data.imageFiles, data, availablePlacements, `after-${section.key}`));
       });
-
-      if (cordobaView?.content) {
-        previewParts.push(buildPreviewNarrativeHtml(cordobaView.label, cordobaView.content, {
-          data,
-          availablePlacements,
-          sectionKey: "cordobaView"
-        }));
-        previewParts.push(buildPreviewFigureMarkup(data.imageFiles, data, availablePlacements, "after-cordobaView"));
-      }
 
       const endFigures = buildPreviewFigureMarkup(data.imageFiles, data, availablePlacements, "end");
       if (endFigures) previewParts.push(endFigures);
@@ -6963,15 +7513,14 @@ document.addEventListener("DOMContentLoaded", () => {
       publicationDate
     });
     const analystContacts = collectAnalystContacts(data);
-    const { keyTakeaways, middle, cordobaView } = getNarrativeSectionPartitions(data);
+    const { keyTakeaways, middle } = getNarrativeSectionPartitions(data);
     const figureCounterRef = { value: 1 };
     const availablePlacements = new Set(getFigurePlacementOptions(data.noteType).map((option) => option.value));
 
     if (data.noteType === "Equity Research") {
       return createEquityResearchDocument(docxLib, colors, data, publicationDate, bannerBytes, analystContacts, {
         keyTakeaways,
-        middle,
-        cordobaView
+        middle
       }, figureCounterRef);
     }
 
@@ -7025,18 +7574,6 @@ document.addEventListener("DOMContentLoaded", () => {
         docxLib,
         colors,
         getFigureFilesForPlacement(data, `after-${section.key}`, availablePlacements),
-        figureCounterRef,
-        { figureDetails: data.figureDetails }
-      );
-    }
-
-    if (cordobaView?.content) {
-      await appendNarrativeSectionWithFigures(documentChildren, docxLib, colors, cordobaView, data, availablePlacements, figureCounterRef);
-      await appendPlacedFigures(
-        documentChildren,
-        docxLib,
-        colors,
-        getFigureFilesForPlacement(data, "after-cordobaView", availablePlacements),
         figureCounterRef,
         { figureDetails: data.figureDetails }
       );
@@ -7116,7 +7653,7 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   async function createEquityResearchDocument(docxLib, colors, data, publicationDate, bannerBytes, analystContacts, narrativeSections, figureCounterRef) {
-    const { keyTakeaways, middle, cordobaView } = narrativeSections;
+    const { keyTakeaways, middle } = narrativeSections;
     const availablePlacements = new Set(getFigurePlacementOptions(data.noteType).map((option) => option.value));
     const children = [
       new docxLib.Paragraph({
@@ -7166,7 +7703,14 @@ document.addEventListener("DOMContentLoaded", () => {
       );
     }
 
+    const supportParagraphs = buildSupportingMaterialParagraphs(docxLib, colors, data);
+    let supportInsertedBeforeCordoba = false;
+
     for (const section of middle) {
+      if (section.key === "cordobaView" && supportParagraphs.length && !supportInsertedBeforeCordoba) {
+        children.push(buildNomuraSubhead(docxLib, colors, "Model Files"), ...supportParagraphs);
+        supportInsertedBeforeCordoba = true;
+      }
       await appendNarrativeSectionWithFigures(children, docxLib, colors, section, data, availablePlacements, figureCounterRef);
       await appendPlacedFigures(
         children,
@@ -7178,21 +7722,8 @@ document.addEventListener("DOMContentLoaded", () => {
       );
     }
 
-    const supportParagraphs = buildSupportingMaterialParagraphs(docxLib, colors, data);
-    if (supportParagraphs.length) {
+    if (supportParagraphs.length && !supportInsertedBeforeCordoba) {
       children.push(buildNomuraSubhead(docxLib, colors, "Model Files"), ...supportParagraphs);
-    }
-
-    if (cordobaView?.content) {
-      await appendNarrativeSectionWithFigures(children, docxLib, colors, cordobaView, data, availablePlacements, figureCounterRef);
-      await appendPlacedFigures(
-        children,
-        docxLib,
-        colors,
-        getFigureFilesForPlacement(data, "after-cordobaView", availablePlacements),
-        figureCounterRef,
-        { figureDetails: data.figureDetails }
-      );
     }
 
     const endFigures = getFigureFilesForPlacement(data, "end", availablePlacements);
@@ -7531,7 +8062,7 @@ document.addEventListener("DOMContentLoaded", () => {
       new docxLib.Paragraph({
         children: [
           new docxLib.TextRun({
-            text: `Source: Yahoo Finance market data${data.equityStats.benchmarkLabel ? `, benchmarked against ${data.equityStats.benchmarkLabel}` : ""}`,
+            text: `Source: ${marketDataSourceLabel(data)}${data.equityStats.benchmarkLabel ? `, benchmarked against ${data.equityStats.benchmarkLabel}` : ""}`,
             size: 11,
             color: colors.muted,
             font: "Arial"
@@ -8770,6 +9301,10 @@ document.addEventListener("DOMContentLoaded", () => {
       return [new docxLib.Paragraph({ text: "No content supplied.", spacing: { after: 44 } })];
     }
 
+    const paragraphSpacingAfter = 48;
+    const compactSpacingAfter = 28;
+    const spacerParagraphSpacingAfter = 54;
+
     const alignmentMap = {
       left: docxLib.AlignmentType?.LEFT || "left",
       center: docxLib.AlignmentType?.CENTER || "center",
@@ -8867,7 +9402,7 @@ document.addEventListener("DOMContentLoaded", () => {
       const hasNextVisibleBlock = blocks.slice(index + 1).some((entry) => entry.type !== "spacer");
 
       if (block.type === "spacer") {
-        if (!hasNextVisibleBlock || index === 0) return paragraphs;
+        if ((!hasNextVisibleBlock || index === 0) && blocks.length > 1) return paragraphs;
         paragraphs.push(
           new docxLib.Paragraph({
             children: [
@@ -8878,7 +9413,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 color: "1B1F24"
               })
             ],
-            spacing: { after: 0 }
+            spacing: { before: 0, after: spacerParagraphSpacingAfter }
           })
         );
         return paragraphs;
@@ -8892,7 +9427,7 @@ document.addEventListener("DOMContentLoaded", () => {
               indent: { left: 180, hanging: 120 },
               alignment: baseFormat.alignment,
               children: makeRuns(item.runs, baseFormat, prefix),
-              spacing: { after: itemIndex === block.items.length - 1 ? 0 : 18 }
+              spacing: { after: itemIndex === block.items.length - 1 ? paragraphSpacingAfter : 10, line: 220 }
             })
           );
         });
@@ -8902,7 +9437,11 @@ document.addEventListener("DOMContentLoaded", () => {
             alignment: baseFormat.alignment,
             indent: baseFormat.indent,
             children: makeRuns(block.runs, baseFormat),
-            spacing: { after: 0 }
+            spacing: {
+              before: normalizeParagraphStyle(block.style) === "subheading" ? 24 : 0,
+              after: normalizeParagraphStyle(block.style) === "source-note" ? compactSpacingAfter : paragraphSpacingAfter,
+              line: 220
+            }
           })
         );
       }
