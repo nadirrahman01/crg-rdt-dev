@@ -343,6 +343,47 @@ document.addEventListener("DOMContentLoaded", () => {
     body: ["keyTakeaways", "analysis", "cordobaView"]
   };
 
+  const WORKFLOW_STAGES = [
+    { value: "authoring", label: "Authoring" },
+    { value: "draft", label: "Draft" },
+    { value: "compliance_review", label: "Compliance Review" },
+    { value: "editorial_review", label: "Editorial Review" },
+    { value: "approved", label: "Approved" },
+    { value: "published", label: "Published" },
+    { value: "archived", label: "Archived" }
+  ];
+
+  const WORKSPACE_TABS = [
+    { key: "editor", label: "Editor" },
+    { key: "financials", label: "Financials" },
+    { key: "metadata", label: "Metadata" },
+    { key: "components", label: "Components" },
+    { key: "compliance", label: "Compliance" },
+    { key: "distribution", label: "Distribution" },
+    { key: "analytics", label: "Analytics / Readership" },
+    { key: "history", label: "History / Changes" }
+  ];
+
+  const SECTION_TAB_MAP = {
+    "section-note": "editor",
+    "section-authors": "editor",
+    "section-body": "editor",
+    "section-exhibits": "editor",
+    "section-equity": "financials",
+    "section-output": "distribution"
+  };
+
+  const COMPONENT_LIBRARY = [
+    { key: "custom-section", label: "Custom Block", description: "Add a free-form editorial section." },
+    { key: "risks", label: "Risks Box", description: "Insert a standard risks component." },
+    { key: "catalysts", label: "Catalysts Box", description: "Insert a catalysts / trigger section." },
+    { key: "disclosure", label: "Disclosure Block", description: "Insert compliance / disclosure text." },
+    { key: "figure", label: "Figure Block", description: "Attach a chart or exhibit directly into the note." },
+    { key: "financials", label: "Financial Table", description: "Jump to the live financial model grid." },
+    { key: "valuation", label: "Valuation Module", description: "Jump to valuation and price-target support." },
+    { key: "attachments", label: "Attachments", description: "Attach models or support files." }
+  ];
+
   const form = document.getElementById("researchForm");
   if (!form) return;
 
@@ -532,7 +573,23 @@ document.addEventListener("DOMContentLoaded", () => {
     figurePreviewUrls: {},
     previewObjectUrls: [],
     richEditors: new Map(),
-    summaryHtml: ""
+    summaryHtml: "",
+    activeWorkspaceTab: "editor",
+    usageMetrics: {
+      previews: 0,
+      exports: 0,
+      blankExports: 0,
+      summaries: 0,
+      publishClicks: 0,
+      emails: 0,
+      autosaves: 0,
+      chartRefreshes: 0,
+      lastPreviewAt: "",
+      lastExportAt: "",
+      lastBlankExportAt: "",
+      lastPublishedAt: ""
+    },
+    workflowEvents: []
   };
 
   const draftFieldIds = [
@@ -589,7 +646,32 @@ document.addEventListener("DOMContentLoaded", () => {
     "fiveYearRationale",
     "esgSummary",
     "cordobaView",
-    "chartRange"
+    "chartRange",
+    "workflowStage",
+    "documentOwner",
+    "editorialOwner",
+    "complianceOwner",
+    "productionOwner",
+    "rixmlContentType",
+    "metadataDocumentFamily",
+    "metadataPrimarySector",
+    "metadataPrimaryGeography",
+    "metadataSearchTags",
+    "metadataAudience",
+    "metadataLanguage",
+    "metadataEntitlements",
+    "metadataProductCode",
+    "editorialApprovalStatus",
+    "complianceApprovalStatus",
+    "recordRetentionClass",
+    "accessClassification",
+    "distributionPrimaryChannel",
+    "distributionAudience",
+    "distributionLists",
+    "distributionEmbargo",
+    "distributionEntitlement",
+    "distributionPublicationState",
+    "distributionPackagingNotes"
   ];
 
   const RICH_TEXT_FIELD_IDS = [
@@ -606,16 +688,19 @@ document.addEventListener("DOMContentLoaded", () => {
 
   function init() {
     startHeaderClock();
+    buildInstitutionalWorkspace();
     restoreRailState();
     populateCoverageCountryOptions();
     populateIndustryOptions();
     wireSectionNavigation();
+    wireInstitutionalWorkspaceEvents();
     wirePrimaryPhone();
     initializeBodySectionEditor();
     wireFormEvents();
     restoreDraft();
     initializeRichTextEditors();
     initializeSummaryEditor();
+    ensureInstitutionalDefaults();
     ensurePublicationDate();
     initializeFinancialTableEditor();
     applyFinancialHeaderLockState();
@@ -642,13 +727,839 @@ document.addEventListener("DOMContentLoaded", () => {
     dom.headerDateTime.textContent = formatLocalTimestamp(new Date());
   }
 
+  function getWorkflowStageOptionsHtml(selectedValue = "authoring") {
+    return WORKFLOW_STAGES.map((stage) => {
+      const selected = stage.value === selectedValue ? " selected" : "";
+      return `<option value="${escapeAttribute(stage.value)}"${selected}>${escapeHtml(stage.label)}</option>`;
+    }).join("");
+  }
+
+  function getWorkspaceTabsMarkup() {
+    return WORKSPACE_TABS.map((tab, index) => `
+      <button
+        type="button"
+        class="institution-tab-btn${index === 0 ? " is-active" : ""}"
+        data-workspace-tab="${escapeAttribute(tab.key)}"
+        role="tab"
+        aria-selected="${index === 0 ? "true" : "false"}"
+      >${escapeHtml(tab.label)}</button>
+    `).join("");
+  }
+
+  function buildComponentButtonsMarkup() {
+    return COMPONENT_LIBRARY.map((component) => `
+      <button type="button" class="component-insert-btn" data-insert-component="${escapeAttribute(component.key)}">
+        <strong>${escapeHtml(component.label)}</strong>
+        <span>${escapeHtml(component.description)}</span>
+      </button>
+    `).join("");
+  }
+
+  function buildMetadataPanelMarkup() {
+    return `
+      <div class="workflow-panel-stack">
+        <section class="workflow-panel-card">
+          <div class="workflow-panel-head">
+            <div>
+              <p class="section-kicker">Structured Metadata</p>
+              <h3>RIXML, taxonomy, and search controls</h3>
+              <p>Document metadata travels with packaging, search, filtering, and downstream distribution controls.</p>
+            </div>
+          </div>
+          <div class="field-grid field-grid-3">
+            <div class="field">
+              <label for="rixmlContentType">Content Classification</label>
+              <select id="rixmlContentType" name="rixmlContentType">
+                <option value="Research Note">Research Note</option>
+                <option value="Company Research">Company Research</option>
+                <option value="Macro Strategy">Macro Strategy</option>
+                <option value="Fixed Income Research">Fixed Income Research</option>
+                <option value="Commodity Commentary">Commodity Commentary</option>
+                <option value="Market Alert">Market Alert</option>
+              </select>
+            </div>
+            <div class="field">
+              <label for="metadataDocumentFamily">Document Family</label>
+              <input type="text" id="metadataDocumentFamily" name="metadataDocumentFamily" placeholder="Strategy / Equity / Fixed Income / Macro">
+            </div>
+            <div class="field">
+              <label for="metadataProductCode">Product Code</label>
+              <input type="text" id="metadataProductCode" name="metadataProductCode" placeholder="CRG-EQ / CRG-MA / CRG-FI">
+            </div>
+            <div class="field">
+              <label for="metadataPrimarySector">Primary Sector</label>
+              <input type="text" id="metadataPrimarySector" name="metadataPrimarySector" placeholder="Technology hardware, sovereign credit, oil & gas">
+            </div>
+            <div class="field">
+              <label for="metadataPrimaryGeography">Primary Geography</label>
+              <input type="text" id="metadataPrimaryGeography" name="metadataPrimaryGeography" placeholder="Central Asia, South Asia, Western Europe">
+            </div>
+            <div class="field">
+              <label for="metadataLanguage">Language</label>
+              <input type="text" id="metadataLanguage" name="metadataLanguage" placeholder="English">
+            </div>
+            <div class="field field-span-2">
+              <label for="metadataSearchTags">Search / Topic Tags</label>
+              <input type="text" id="metadataSearchTags" name="metadataSearchTags" placeholder="GDP, rates, valuation, sovereign spread, semiconductors">
+            </div>
+            <div class="field">
+              <label for="metadataAudience">Audience Segment</label>
+              <input type="text" id="metadataAudience" name="metadataAudience" placeholder="Institutional, internal review, education">
+            </div>
+            <div class="field field-span-2">
+              <label for="metadataEntitlements">Entitlement / Access Group</label>
+              <input type="text" id="metadataEntitlements" name="metadataEntitlements" placeholder="Internal research, approved distribution, restricted circulation">
+            </div>
+          </div>
+        </section>
+
+        <section class="workflow-panel-card">
+          <div class="workflow-panel-head">
+            <div>
+              <p class="section-kicker">Coverage Map</p>
+              <h3>Live note identity</h3>
+              <p>These cards reflect the live note and give production teams the same high-level metadata they would expect in a governed publishing platform.</p>
+            </div>
+          </div>
+          <div class="institution-summary-grid">
+            <article class="institution-summary-card">
+              <span>Coverage</span>
+              <strong id="metadataCoverageSummary">Coverage pending</strong>
+            </article>
+            <article class="institution-summary-card">
+              <span>Authors</span>
+              <strong id="metadataAuthorSummary">Author assignment pending</strong>
+            </article>
+            <article class="institution-summary-card">
+              <span>Packaging</span>
+              <strong id="metadataPackageSummary">Packaging not yet configured</strong>
+            </article>
+            <article class="institution-summary-card">
+              <span>Searchability</span>
+              <strong id="metadataSearchSummary">Tags pending</strong>
+            </article>
+          </div>
+        </section>
+      </div>
+    `;
+  }
+
+  function buildComponentsPanelMarkup() {
+    return `
+      <div class="workflow-panel-stack">
+        <section class="workflow-panel-card">
+          <div class="workflow-panel-head">
+            <div>
+              <p class="section-kicker">Component Library</p>
+              <h3>Reusable content blocks</h3>
+              <p>Use house components for structure, reuse, governance, and faster drafting.</p>
+            </div>
+          </div>
+          <div class="component-library-grid">
+            ${buildComponentButtonsMarkup()}
+          </div>
+        </section>
+
+        <section class="workflow-panel-card">
+          <div class="workflow-panel-head">
+            <div>
+              <p class="section-kicker">Live Registry</p>
+              <h3>Current document components</h3>
+              <p>Every major content object in the live note is registered here for movement, packaging, and auditability.</p>
+            </div>
+          </div>
+          <div id="componentRegistryList" class="component-registry-list"></div>
+        </section>
+
+        <section class="workflow-panel-card">
+          <div class="workflow-panel-head">
+            <div>
+              <p class="section-kicker">Tokens</p>
+              <h3>Copyable reference tokens</h3>
+              <p>Insert these into the note to keep exhibit references in sync with the live figure registry.</p>
+            </div>
+          </div>
+          <div id="componentTokenList" class="token-chip-list"></div>
+        </section>
+      </div>
+    `;
+  }
+
+  function buildCompliancePanelMarkup() {
+    return `
+      <div class="workflow-panel-stack">
+        <section class="workflow-panel-card">
+          <div class="workflow-panel-head">
+            <div>
+              <p class="section-kicker">Approvals</p>
+              <h3>Workflow checkpoints and governance</h3>
+              <p>Authoring, review, approval, and recordkeeping controls stay visible while the note is still being built.</p>
+            </div>
+          </div>
+          <div class="field-grid field-grid-2">
+            <div class="field">
+              <label for="editorialApprovalStatus">Editorial Approval</label>
+              <select id="editorialApprovalStatus" name="editorialApprovalStatus">
+                <option value="Pending">Pending</option>
+                <option value="In Review">In Review</option>
+                <option value="Approved">Approved</option>
+                <option value="Blocked">Blocked</option>
+              </select>
+            </div>
+            <div class="field">
+              <label for="complianceApprovalStatus">Compliance Approval</label>
+              <select id="complianceApprovalStatus" name="complianceApprovalStatus">
+                <option value="Pending">Pending</option>
+                <option value="In Review">In Review</option>
+                <option value="Approved">Approved</option>
+                <option value="Blocked">Blocked</option>
+              </select>
+            </div>
+            <div class="field">
+              <label for="recordRetentionClass">Retention Class</label>
+              <input type="text" id="recordRetentionClass" name="recordRetentionClass" placeholder="Research publication record">
+            </div>
+            <div class="field">
+              <label for="accessClassification">Access Classification</label>
+              <input type="text" id="accessClassification" name="accessClassification" placeholder="Internal / restricted / approved distribution">
+            </div>
+          </div>
+        </section>
+
+        <section class="workflow-panel-card">
+          <div class="workflow-panel-head">
+            <div>
+              <p class="section-kicker">Validation</p>
+              <h3>Pre-publication review</h3>
+              <p>The same structural checks that govern export are surfaced here as a production review queue.</p>
+            </div>
+          </div>
+          <div id="complianceReviewMirror" class="compliance-review-mirror"></div>
+        </section>
+
+        <section class="workflow-panel-card">
+          <div class="workflow-panel-head">
+            <div>
+              <p class="section-kicker">Policy Coverage</p>
+              <h3>Publishing readiness controls</h3>
+              <p>These markers show whether the note has the metadata, disclosures, and packaging controls expected of an institutional workflow.</p>
+            </div>
+          </div>
+          <div id="compliancePolicyChecklist" class="policy-checklist"></div>
+        </section>
+      </div>
+    `;
+  }
+
+  function buildDistributionPanelMarkup() {
+    return `
+      <div class="workflow-panel-stack">
+        <section class="workflow-panel-card">
+          <div class="workflow-panel-head">
+            <div>
+              <p class="section-kicker">Distribution Desk</p>
+              <h3>Packaging and channel controls</h3>
+              <p>Set the live publication state, audience, and entitlement settings before packaging the note.</p>
+            </div>
+          </div>
+          <div class="field-grid field-grid-3">
+            <div class="field">
+              <label for="distributionPublicationState">Publication State</label>
+              <select id="distributionPublicationState" name="distributionPublicationState">
+                <option value="Draft">Draft</option>
+                <option value="Internal Review">Internal Review</option>
+                <option value="Approved for Distribution">Approved for Distribution</option>
+                <option value="Published">Published</option>
+                <option value="Archived">Archived</option>
+              </select>
+            </div>
+            <div class="field">
+              <label for="distributionPrimaryChannel">Primary Channel</label>
+              <select id="distributionPrimaryChannel" name="distributionPrimaryChannel">
+                <option value="Word / PDF">Word / PDF</option>
+                <option value="HTML Research Library">HTML Research Library</option>
+                <option value="HTML5 / Mobile">HTML5 / Mobile</option>
+                <option value="Email Distribution">Email Distribution</option>
+              </select>
+            </div>
+            <div class="field">
+              <label for="distributionEntitlement">Entitlement Profile</label>
+              <input type="text" id="distributionEntitlement" name="distributionEntitlement" placeholder="Internal, approved clients, restricted">
+            </div>
+            <div class="field">
+              <label for="distributionAudience">Audience</label>
+              <input type="text" id="distributionAudience" name="distributionAudience" placeholder="Research desk, approved circulation, client set">
+            </div>
+            <div class="field">
+              <label for="distributionLists">Distribution Lists</label>
+              <input type="text" id="distributionLists" name="distributionLists" placeholder="Desk review, sector list, macro circulation">
+            </div>
+            <div class="field">
+              <label for="distributionEmbargo">Embargo / Release Timing</label>
+              <input type="text" id="distributionEmbargo" name="distributionEmbargo" placeholder="Immediate, 08:00 London, post-close">
+            </div>
+            <div class="field field-span-3">
+              <label for="distributionPackagingNotes">Packaging Notes</label>
+              <input type="text" id="distributionPackagingNotes" name="distributionPackagingNotes" placeholder="HTML page, PDF, website summary, compliance archive">
+            </div>
+          </div>
+          <div class="institution-summary-grid distribution-summary-grid">
+            <article class="institution-summary-card">
+              <span>Channel Summary</span>
+              <strong id="distributionChannelSummary">Word / PDF package</strong>
+            </article>
+            <article class="institution-summary-card">
+              <span>Audience</span>
+              <strong id="distributionAudienceSummary">Audience not yet assigned</strong>
+            </article>
+            <article class="institution-summary-card">
+              <span>Entitlement</span>
+              <strong id="distributionEntitlementSummary">Entitlement profile pending</strong>
+            </article>
+            <article class="institution-summary-card">
+              <span>Embargo</span>
+              <strong id="distributionEmbargoSummary">Immediate release</strong>
+            </article>
+          </div>
+        </section>
+      </div>
+    `;
+  }
+
+  function buildAnalyticsPanelMarkup() {
+    return `
+      <div class="workflow-panel-stack">
+        <section class="workflow-panel-card">
+          <div class="workflow-panel-head">
+            <div>
+              <p class="section-kicker">Readership Architecture</p>
+              <h3>Interaction and packaging metrics</h3>
+              <p>The current front-end tracks production interactions now and leaves clear hooks for future distribution and readership integrations.</p>
+            </div>
+          </div>
+          <div id="analyticsMetricGrid" class="institution-summary-grid analytics-grid"></div>
+        </section>
+
+        <section class="workflow-panel-card">
+          <div class="workflow-panel-head">
+            <div>
+              <p class="section-kicker">Consumption Loop</p>
+              <h3>Future channel hooks</h3>
+              <p>These states show where Outlook, CRM, RMS, entitlement, and readership integrations would attach to the live note package.</p>
+            </div>
+          </div>
+          <div id="analyticsHooksList" class="component-registry-list"></div>
+        </section>
+      </div>
+    `;
+  }
+
+  function buildHistoryPanelMarkup() {
+    return `
+      <div class="workflow-panel-stack">
+        <section class="workflow-panel-card">
+          <div class="workflow-panel-head">
+            <div>
+              <p class="section-kicker">Audit Trail</p>
+              <h3>History, approvals, and packaging events</h3>
+              <p>Who changed what, when the stage moved, and when the publication package was generated all sit in one reviewable timeline.</p>
+            </div>
+          </div>
+          <div id="historyTimeline" class="history-timeline"></div>
+        </section>
+      </div>
+    `;
+  }
+
+  function buildInstitutionalWorkspace() {
+    if (!dom.form || document.getElementById("institutionShell")) {
+      hydrateInstitutionalDomRefs();
+      return;
+    }
+
+    dom.appBody.classList.add("is-platform-mode");
+
+    const shell = document.createElement("div");
+    shell.id = "institutionShell";
+    shell.className = "institution-shell";
+    shell.innerHTML = `
+      <section class="institution-ribbon">
+        <div class="institution-ribbon-main">
+          <div class="institution-ribbon-copy">
+            <p class="section-kicker">Institutional Research Workflow</p>
+            <h2 id="workspaceDocTitle">Untitled Research Note</h2>
+            <p id="workspaceDocMeta">Live browser-based authoring, packaging, governance, and publication controls.</p>
+          </div>
+          <div class="institution-ribbon-fields">
+            <label class="institution-compact-field">
+              <span>Stage</span>
+              <select id="workflowStage" name="workflowStage">${getWorkflowStageOptionsHtml()}</select>
+            </label>
+            <label class="institution-compact-field">
+              <span>Owner</span>
+              <input type="text" id="documentOwner" name="documentOwner" placeholder="Lead analyst / owner">
+            </label>
+            <label class="institution-compact-field">
+              <span>Editorial</span>
+              <input type="text" id="editorialOwner" name="editorialOwner" placeholder="Editorial reviewer">
+            </label>
+            <label class="institution-compact-field">
+              <span>Compliance</span>
+              <input type="text" id="complianceOwner" name="complianceOwner" placeholder="Compliance reviewer">
+            </label>
+            <label class="institution-compact-field">
+              <span>Production</span>
+              <input type="text" id="productionOwner" name="productionOwner" placeholder="Publishing / production">
+            </label>
+          </div>
+        </div>
+        <div class="institution-ribbon-side">
+          <div class="institution-chip-row">
+            <span class="institution-chip" id="workspaceDocumentLabel">Research Note</span>
+            <span class="institution-chip" id="workspaceReadinessChip">Draft</span>
+            <span class="institution-chip" id="workspaceChannelChip">Word / HTML / PDF</span>
+          </div>
+          <div class="institution-action-row">
+            <button type="button" class="btn btn-secondary btn-xs" data-workspace-shortcut="preview">Preview Publication View</button>
+            <button type="button" class="btn btn-secondary btn-xs" data-workspace-shortcut="summary">Website Summary</button>
+            <button type="button" class="btn btn-ghost btn-xs" data-workspace-tab="distribution">Distribution Desk</button>
+          </div>
+        </div>
+      </section>
+
+      <section class="institution-tabs-shell">
+        <div class="institution-tabs" role="tablist">${getWorkspaceTabsMarkup()}</div>
+        <div class="institution-command-bar">
+          <button type="button" class="institution-command-btn" data-workspace-tab="editor">Content</button>
+          <button type="button" class="institution-command-btn" data-insert-component="figure">Images</button>
+          <button type="button" class="institution-command-btn" data-workspace-tab="financials">Financials</button>
+          <button type="button" class="institution-command-btn" data-workspace-tab="metadata">Tags</button>
+          <button type="button" class="institution-command-btn" data-workspace-tab="compliance">Compliance</button>
+          <button type="button" class="institution-command-btn" data-workspace-tab="components">Components</button>
+          <button type="button" class="institution-command-btn" data-workspace-shortcut="preview">PDF Preview</button>
+        </div>
+        <div class="institution-tab-panels">
+          <section class="institution-tab-panel is-active" data-tab-panel="editor">
+            <div class="editor-workbench">
+              <aside class="editor-component-rail" id="editorComponentRail">
+                <div class="toolrail-group">
+                  <p class="rail-label">Insert</p>
+                  <div class="component-library-grid">${buildComponentButtonsMarkup()}</div>
+                </div>
+                <div class="toolrail-group">
+                  <p class="rail-label">Token Library</p>
+                  <div class="toolrail-token-card">
+                    <strong>Copyable tokens</strong>
+                    <p>Use the live figure tokens below when you want references inside the note body to stay synchronized with the exhibit registry.</p>
+                    <div id="figureTokenQuickList" class="token-chip-list"></div>
+                  </div>
+                </div>
+              </aside>
+
+              <div class="editor-canvas-column">
+                <div class="editor-canvas-topbar">
+                  <div>
+                    <strong>Live Research Canvas</strong>
+                    <span id="editorCanvasStatusText">Write directly in the publication document. The note, not the form, is the main working object.</span>
+                  </div>
+                  <div class="editor-canvas-actions">
+                    <button type="button" class="btn btn-secondary btn-xs" data-workspace-shortcut="validate">Run Validation</button>
+                    <button type="button" class="btn btn-ghost btn-xs" data-workspace-tab="components">Open Components</button>
+                  </div>
+                </div>
+                <div class="editor-document-stage">
+                  <div class="editor-document-canvas" id="editorDocumentCanvas"></div>
+                </div>
+              </div>
+
+              <aside class="editor-inspector" id="editorInspector">
+                <div class="inspector-card">
+                  <p class="rail-label">Document Properties</p>
+                  <div class="inspector-property-grid">
+                    <div><span>Note ID</span><strong id="workspaceNoteId">Pending on export</strong></div>
+                    <div><span>Status</span><strong id="workspacePackageChip">Package pending</strong></div>
+                    <div><span>Last saved</span><strong id="workspaceSaveState">Autosave idle</strong></div>
+                    <div><span>Audience</span><strong id="workspaceAudienceState">Audience pending</strong></div>
+                  </div>
+                </div>
+                <div class="inspector-card">
+                  <p class="rail-label">Packaging Readout</p>
+                  <div id="workspacePackagingSummary" class="workspace-packaging-summary"></div>
+                </div>
+                <div id="editorInspectorWorkflow"></div>
+              </aside>
+            </div>
+          </section>
+
+          <section class="institution-tab-panel" data-tab-panel="financials">
+            <div class="workflow-board">
+              <div class="workflow-board-head">
+                <div>
+                  <p class="section-kicker">Financial Modelling</p>
+                  <h3>Forecasts, tear sheets, and valuation packaging</h3>
+                  <p>The financial layer stays attached to the live note, but is worked in a dedicated production tab for analyst speed and cleaner review.</p>
+                </div>
+              </div>
+              <div class="workflow-board-grid">
+                <div id="financialsHost"></div>
+                <aside class="workflow-board-side">
+                  <section class="workflow-panel-card">
+                    <p class="rail-label">Coverage Architecture</p>
+                    <div id="financialsCoverageSummary" class="component-registry-list"></div>
+                  </section>
+                </aside>
+              </div>
+            </div>
+          </section>
+
+          <section class="institution-tab-panel" data-tab-panel="metadata"><div id="metadataHost"></div></section>
+          <section class="institution-tab-panel" data-tab-panel="components"><div id="componentsHost"></div></section>
+          <section class="institution-tab-panel" data-tab-panel="compliance"><div id="complianceHost"></div></section>
+          <section class="institution-tab-panel" data-tab-panel="distribution"><div id="distributionHost"></div></section>
+          <section class="institution-tab-panel" data-tab-panel="analytics"><div id="analyticsHost"></div></section>
+          <section class="institution-tab-panel" data-tab-panel="history"><div id="historyHost"></div></section>
+        </div>
+      </section>
+    `;
+
+    dom.form.prepend(shell);
+
+    const editorCanvas = shell.querySelector("#editorDocumentCanvas");
+    const financialsHost = shell.querySelector("#financialsHost");
+    const distributionHost = shell.querySelector("#distributionHost");
+    const editorInspectorWorkflow = shell.querySelector("#editorInspectorWorkflow");
+
+    const sectionNote = document.getElementById("section-note");
+    const sectionAuthors = document.getElementById("section-authors");
+    const sectionEquity = document.getElementById("section-equity");
+    const sectionBody = document.getElementById("section-body");
+    const sectionExhibits = document.getElementById("section-exhibits");
+    const sectionOutput = document.getElementById("section-output");
+
+    [sectionNote, sectionAuthors, sectionBody, sectionExhibits].filter(Boolean).forEach((section) => {
+      section.classList.add("institution-canvas-card");
+      editorCanvas.appendChild(section);
+    });
+
+    if (sectionNote) sectionNote.classList.add("canvas-frontmatter-card");
+    if (sectionBody) sectionBody.classList.add("canvas-body-card");
+    if (sectionExhibits) sectionExhibits.classList.add("canvas-figure-card");
+
+    if (sectionEquity) {
+      sectionEquity.classList.add("workflow-board-card");
+      financialsHost.appendChild(sectionEquity);
+    }
+
+    distributionHost.innerHTML = `${buildDistributionPanelMarkup()}<div id="distributionOutputHost"></div>`;
+    const distributionOutputHost = distributionHost.querySelector("#distributionOutputHost");
+    if (sectionOutput) {
+      sectionOutput.classList.add("workflow-board-card");
+      distributionOutputHost.appendChild(sectionOutput);
+    }
+
+    shell.querySelector("#metadataHost").innerHTML = buildMetadataPanelMarkup();
+    shell.querySelector("#componentsHost").innerHTML = buildComponentsPanelMarkup();
+    shell.querySelector("#complianceHost").innerHTML = buildCompliancePanelMarkup();
+    shell.querySelector("#analyticsHost").innerHTML = buildAnalyticsPanelMarkup();
+    shell.querySelector("#historyHost").innerHTML = buildHistoryPanelMarkup();
+
+    if (dom.workflowRail) {
+      dom.workflowRail.classList.add("institution-workflow-rail");
+      editorInspectorWorkflow.appendChild(dom.workflowRail);
+    }
+
+    hydrateInstitutionalDomRefs();
+    switchWorkspaceTab(state.activeWorkspaceTab, { suppressLog: true });
+  }
+
+  function hydrateInstitutionalDomRefs() {
+    dom.institutionShell = document.getElementById("institutionShell");
+    dom.workflowStage = document.getElementById("workflowStage");
+    dom.documentOwner = document.getElementById("documentOwner");
+    dom.editorialOwner = document.getElementById("editorialOwner");
+    dom.complianceOwner = document.getElementById("complianceOwner");
+    dom.productionOwner = document.getElementById("productionOwner");
+    dom.rixmlContentType = document.getElementById("rixmlContentType");
+    dom.metadataDocumentFamily = document.getElementById("metadataDocumentFamily");
+    dom.metadataPrimarySector = document.getElementById("metadataPrimarySector");
+    dom.metadataPrimaryGeography = document.getElementById("metadataPrimaryGeography");
+    dom.metadataSearchTags = document.getElementById("metadataSearchTags");
+    dom.metadataAudience = document.getElementById("metadataAudience");
+    dom.metadataLanguage = document.getElementById("metadataLanguage");
+    dom.metadataEntitlements = document.getElementById("metadataEntitlements");
+    dom.metadataProductCode = document.getElementById("metadataProductCode");
+    dom.editorialApprovalStatus = document.getElementById("editorialApprovalStatus");
+    dom.complianceApprovalStatus = document.getElementById("complianceApprovalStatus");
+    dom.recordRetentionClass = document.getElementById("recordRetentionClass");
+    dom.accessClassification = document.getElementById("accessClassification");
+    dom.distributionPrimaryChannel = document.getElementById("distributionPrimaryChannel");
+    dom.distributionAudience = document.getElementById("distributionAudience");
+    dom.distributionLists = document.getElementById("distributionLists");
+    dom.distributionEmbargo = document.getElementById("distributionEmbargo");
+    dom.distributionEntitlement = document.getElementById("distributionEntitlement");
+    dom.distributionPublicationState = document.getElementById("distributionPublicationState");
+    dom.distributionPackagingNotes = document.getElementById("distributionPackagingNotes");
+    dom.workspaceDocTitle = document.getElementById("workspaceDocTitle");
+    dom.workspaceDocMeta = document.getElementById("workspaceDocMeta");
+    dom.workspaceDocumentLabel = document.getElementById("workspaceDocumentLabel");
+    dom.workspaceReadinessChip = document.getElementById("workspaceReadinessChip");
+    dom.workspaceChannelChip = document.getElementById("workspaceChannelChip");
+    dom.workspaceNoteId = document.getElementById("workspaceNoteId");
+    dom.workspacePackageChip = document.getElementById("workspacePackageChip");
+    dom.workspaceSaveState = document.getElementById("workspaceSaveState");
+    dom.workspaceAudienceState = document.getElementById("workspaceAudienceState");
+    dom.workspacePackagingSummary = document.getElementById("workspacePackagingSummary");
+    dom.metadataCoverageSummary = document.getElementById("metadataCoverageSummary");
+    dom.metadataAuthorSummary = document.getElementById("metadataAuthorSummary");
+    dom.metadataPackageSummary = document.getElementById("metadataPackageSummary");
+    dom.metadataSearchSummary = document.getElementById("metadataSearchSummary");
+    dom.componentRegistryList = document.getElementById("componentRegistryList");
+    dom.componentTokenList = document.getElementById("componentTokenList");
+    dom.figureTokenQuickList = document.getElementById("figureTokenQuickList");
+    dom.complianceReviewMirror = document.getElementById("complianceReviewMirror");
+    dom.compliancePolicyChecklist = document.getElementById("compliancePolicyChecklist");
+    dom.distributionChannelSummary = document.getElementById("distributionChannelSummary");
+    dom.distributionAudienceSummary = document.getElementById("distributionAudienceSummary");
+    dom.distributionEntitlementSummary = document.getElementById("distributionEntitlementSummary");
+    dom.distributionEmbargoSummary = document.getElementById("distributionEmbargoSummary");
+    dom.analyticsMetricGrid = document.getElementById("analyticsMetricGrid");
+    dom.analyticsHooksList = document.getElementById("analyticsHooksList");
+    dom.historyTimeline = document.getElementById("historyTimeline");
+    dom.financialsCoverageSummary = document.getElementById("financialsCoverageSummary");
+    dom.workspaceTabButtons = Array.from(document.querySelectorAll("[data-workspace-tab]"));
+  }
+
+  function wireInstitutionalWorkspaceEvents() {
+    const shell = document.getElementById("institutionShell");
+    if (!shell || shell.dataset.institutionWired === "true") return;
+    shell.dataset.institutionWired = "true";
+
+    shell.addEventListener("click", (event) => {
+      const tabButton = event.target.closest("[data-workspace-tab]");
+      if (tabButton) {
+        switchWorkspaceTab(tabButton.getAttribute("data-workspace-tab"));
+        return;
+      }
+
+      const componentButton = event.target.closest("[data-insert-component]");
+      if (componentButton) {
+        insertComponentFromLibrary(componentButton.getAttribute("data-insert-component"));
+        return;
+      }
+
+      const shortcutButton = event.target.closest("[data-workspace-shortcut]");
+      if (shortcutButton) {
+        handleWorkspaceShortcut(shortcutButton.getAttribute("data-workspace-shortcut"));
+        return;
+      }
+
+      const tokenButton = event.target.closest("[data-copy-token]");
+      if (tokenButton) {
+        const token = tokenButton.getAttribute("data-copy-token");
+        if (!token) return;
+        navigator.clipboard?.writeText(token).catch(() => undefined);
+        setMessage("success", `Copied token ${token}.`);
+      }
+    });
+
+    [
+      ["workflowStage", "Workflow stage updated"],
+      ["editorialApprovalStatus", "Editorial approval updated"],
+      ["complianceApprovalStatus", "Compliance approval updated"],
+      ["distributionPublicationState", "Distribution state updated"]
+    ].forEach(([id, title]) => {
+      const input = document.getElementById(id);
+      if (!input || input.dataset.workflowLogged === "true") return;
+      input.dataset.workflowLogged = "true";
+      input.addEventListener("change", () => {
+        recordWorkflowEvent("workflow", title, `${input.value || "Not set"}`);
+        updateAllUI();
+        queueDraftSave();
+      });
+    });
+  }
+
+  function switchWorkspaceTab(tabKey, options = {}) {
+    const nextTab = WORKSPACE_TABS.find((tab) => tab.key === tabKey)?.key || "editor";
+    state.activeWorkspaceTab = nextTab;
+
+    document.querySelectorAll("[data-tab-panel]").forEach((panel) => {
+      panel.classList.toggle("is-active", panel.getAttribute("data-tab-panel") === nextTab);
+    });
+
+    document.querySelectorAll("[data-workspace-tab]").forEach((button) => {
+      const isActive = button.getAttribute("data-workspace-tab") === nextTab;
+      button.classList.toggle("is-active", isActive);
+      if (button.classList.contains("institution-tab-btn")) button.setAttribute("aria-selected", String(isActive));
+    });
+
+    if (!options.suppressLog && options.record !== false) {
+      recordWorkflowEvent("navigation", "Workspace tab opened", WORKSPACE_TABS.find((tab) => tab.key === nextTab)?.label || nextTab, { silentSave: true });
+    }
+  }
+
+  function openSectionFromNav(sectionId) {
+    const target = document.getElementById(sectionId);
+    if (!target) return;
+    const tabKey = SECTION_TAB_MAP[sectionId] || "editor";
+    switchWorkspaceTab(tabKey, { suppressLog: true, record: false });
+    window.setTimeout(() => {
+      target.scrollIntoView({ behavior: "smooth", block: "start" });
+    }, 40);
+  }
+
+  function handleWorkspaceShortcut(shortcut) {
+    if (shortcut === "preview") {
+      openPreviewModal();
+      return;
+    }
+
+    if (shortcut === "summary") {
+      openSummaryModal();
+      return;
+    }
+
+    if (shortcut === "validate") {
+      switchWorkspaceTab("compliance", { suppressLog: true, record: false });
+      const validation = validateForm(true);
+      const review = buildPrePublishReview(collectFormData(), validation);
+      if (!validation.valid && validation.missing[0]?.id) {
+        const firstMissing = document.getElementById(validation.missing[0].id);
+        if (firstMissing) {
+          firstMissing.scrollIntoView({ behavior: "smooth", block: "center" });
+          firstMissing.focus();
+        }
+      }
+      setMessage(
+        review.blockingCount > 0 ? "error" : "success",
+        review.blockingCount > 0
+          ? `Validation found ${review.blockingCount} critical issue${review.blockingCount === 1 ? "" : "s"} to resolve.`
+          : "Validation completed. No critical blockers found."
+      );
+      return;
+    }
+  }
+
+  function insertComponentFromLibrary(componentKey) {
+    switchWorkspaceTab(componentKey === "financials" ? "financials" : "editor", { suppressLog: true, record: false });
+
+    if (componentKey === "custom-section") {
+      const section = addCustomBodySection({ label: "Custom Section", content: "" });
+      section?.querySelector("[data-custom-field='heading']")?.focus();
+      recordWorkflowEvent("component", "Custom component inserted", "Custom editorial block");
+      return;
+    }
+
+    if (componentKey === "risks") {
+      const section = addCustomBodySection({ label: "Risks", content: "" });
+      section?.querySelector("[data-custom-field='content']")?.focus();
+      recordWorkflowEvent("component", "House component inserted", "Risks");
+      return;
+    }
+
+    if (componentKey === "catalysts") {
+      const section = addCustomBodySection({ label: "Catalysts", content: "" });
+      section?.querySelector("[data-custom-field='content']")?.focus();
+      recordWorkflowEvent("component", "House component inserted", "Catalysts");
+      return;
+    }
+
+    if (componentKey === "disclosure") {
+      const section = addCustomBodySection({
+        label: "Disclosure",
+        content: "This section captures the house disclosure, caveat set, or regulatory note relevant to the draft."
+      });
+      section?.querySelector("[data-custom-field='content']")?.focus();
+      recordWorkflowEvent("component", "House component inserted", "Disclosure");
+      return;
+    }
+
+    if (componentKey === "figure") {
+      dom.imageUpload?.click();
+      recordWorkflowEvent("component", "Figure workflow opened", "Figure / exhibit upload");
+      return;
+    }
+
+    if (componentKey === "financials") {
+      switchWorkspaceTab("financials", { suppressLog: true, record: false });
+      dom.financialTableEditor?.scrollIntoView({ behavior: "smooth", block: "center" });
+      dom.financialTableEditor?.focus();
+      recordWorkflowEvent("component", "Financial module opened", "Financial forecast grid");
+      return;
+    }
+
+    if (componentKey === "valuation") {
+      switchWorkspaceTab(isEquitySelected() ? "financials" : "editor", { suppressLog: true, record: false });
+      const target = isEquitySelected() ? dom.valuationSummary : dom.analysis;
+      target?.scrollIntoView({ behavior: "smooth", block: "center" });
+      target?.focus();
+      recordWorkflowEvent("component", "Valuation module opened", "Valuation summary");
+      return;
+    }
+
+    if (componentKey === "attachments") {
+      dom.modelFiles?.click();
+      recordWorkflowEvent("component", "Attachment workflow opened", "Model / support files");
+    }
+  }
+
+  function ensureInstitutionalDefaults() {
+    hydrateInstitutionalDomRefs();
+    if (dom.workflowStage && !dom.workflowStage.value) dom.workflowStage.value = "authoring";
+    if (dom.rixmlContentType && !dom.rixmlContentType.value) dom.rixmlContentType.value = defaultRixmlContentType(dom.noteType.value);
+    if (dom.metadataDocumentFamily && !dom.metadataDocumentFamily.value) dom.metadataDocumentFamily.value = defaultMetadataFamily(dom.noteType.value);
+    if (dom.metadataProductCode && !dom.metadataProductCode.value) dom.metadataProductCode.value = defaultMetadataProductCode(dom.noteType.value);
+    if (dom.metadataPrimarySector && !dom.metadataPrimarySector.value.trim() && dom.equitySectorLine?.value.trim()) {
+      dom.metadataPrimarySector.value = dom.equitySectorLine.value.trim();
+    }
+    if (dom.metadataPrimaryGeography && !dom.metadataPrimaryGeography.value.trim()) {
+      if (dom.sovereignRegion?.value.trim()) dom.metadataPrimaryGeography.value = dom.sovereignRegion.value.trim();
+      else if (dom.coverageCountry?.value.trim()) dom.metadataPrimaryGeography.value = getCoverageCountryLabel(dom.coverageCountry.value.trim());
+    }
+    if (dom.metadataLanguage && !dom.metadataLanguage.value) dom.metadataLanguage.value = "English";
+    if (dom.metadataAudience && !dom.metadataAudience.value) dom.metadataAudience.value = "Institutional / internal review";
+    if (dom.metadataEntitlements && !dom.metadataEntitlements.value) dom.metadataEntitlements.value = dom.distribution.value.trim() || "Internal Working Draft";
+    if (dom.distributionPrimaryChannel && !dom.distributionPrimaryChannel.value) dom.distributionPrimaryChannel.value = "Word / PDF";
+    if (dom.distributionPublicationState && !dom.distributionPublicationState.value) dom.distributionPublicationState.value = "Draft";
+    if (dom.distributionEntitlement && !dom.distributionEntitlement.value) dom.distributionEntitlement.value = dom.distribution.value.trim() || "Internal Working Draft";
+    if (dom.recordRetentionClass && !dom.recordRetentionClass.value) dom.recordRetentionClass.value = "Research publication record";
+    if (dom.accessClassification && !dom.accessClassification.value) dom.accessClassification.value = "Internal";
+    if (dom.editorialApprovalStatus && !dom.editorialApprovalStatus.value) dom.editorialApprovalStatus.value = "Pending";
+    if (dom.complianceApprovalStatus && !dom.complianceApprovalStatus.value) dom.complianceApprovalStatus.value = "Pending";
+  }
+
+  function defaultRixmlContentType(noteType) {
+    const map = {
+      "Equity Research": "Company Research",
+      "Macro Research": "Macro Strategy",
+      "Fixed Income Research": "Fixed Income Research",
+      "Commodity Insights": "Commodity Commentary",
+      "Short Note / Market Alert": "Market Alert"
+    };
+    return map[noteType] || "Research Note";
+  }
+
+  function defaultMetadataFamily(noteType) {
+    const map = {
+      "Equity Research": "Equity",
+      "Macro Research": "Macro",
+      "Fixed Income Research": "Fixed Income",
+      "Commodity Insights": "Commodities",
+      "Short Note / Market Alert": "Market Alerts"
+    };
+    return map[noteType] || "Strategy";
+  }
+
+  function defaultMetadataProductCode(noteType) {
+    return `CRG-${noteTypeCode(noteType || dom.noteType?.value || "General Note")}`;
+  }
+
   function wireSectionNavigation() {
     const navButtons = Array.from(document.querySelectorAll(".section-nav-link"));
     navButtons.forEach((button) => {
       button.addEventListener("click", () => {
         const targetId = button.getAttribute("data-target");
-        const target = document.getElementById(targetId);
-        if (target) target.scrollIntoView({ behavior: "smooth", block: "start" });
+        openSectionFromNav(targetId);
       });
     });
 
@@ -691,10 +1602,20 @@ document.addEventListener("DOMContentLoaded", () => {
     dom.noteType.addEventListener("change", () => {
       ensureDeskLineDefault();
       toggleNoteTypeSections();
+      ensureInstitutionalDefaults();
       resetChartState({ keepStatusText: false });
       syncFigurePlacementControls();
       updateAllUI();
       queueDraftSave();
+    });
+
+    dom.distribution?.addEventListener("change", () => {
+      if (dom.metadataEntitlements && !dom.metadataEntitlements.value.trim()) {
+        dom.metadataEntitlements.value = dom.distribution.value.trim();
+      }
+      if (dom.distributionEntitlement && !dom.distributionEntitlement.value.trim()) {
+        dom.distributionEntitlement.value = dom.distribution.value.trim();
+      }
     });
 
     dom.publicationDate.addEventListener("change", () => {
@@ -915,9 +1836,17 @@ document.addEventListener("DOMContentLoaded", () => {
     dom.appBody.classList.toggle("is-rail-collapsed", state.railCollapsed);
     dom.toggleRailBtn.classList.toggle("is-collapsed", state.railCollapsed);
     dom.toggleRailIcon.textContent = state.railCollapsed ? ">" : "<";
-    dom.toggleRailText.textContent = state.railCollapsed ? "Show Workflow Panel" : "Hide Workflow Panel";
+    const isPlatformMode = dom.appBody.classList.contains("is-platform-mode");
+    dom.toggleRailText.textContent = isPlatformMode
+      ? (state.railCollapsed ? "Show Properties Panel" : "Hide Properties Panel")
+      : (state.railCollapsed ? "Show Workflow Panel" : "Hide Workflow Panel");
     dom.toggleRailBtn.setAttribute("aria-expanded", String(!state.railCollapsed));
-    dom.toggleRailBtn.setAttribute("aria-label", state.railCollapsed ? "Show workflow side panel" : "Hide workflow side panel");
+    dom.toggleRailBtn.setAttribute(
+      "aria-label",
+      isPlatformMode
+        ? (state.railCollapsed ? "Show properties side panel" : "Hide properties side panel")
+        : (state.railCollapsed ? "Show workflow side panel" : "Hide workflow side panel")
+    );
   }
 
   function toggleRail() {
@@ -1556,6 +2485,10 @@ document.addEventListener("DOMContentLoaded", () => {
     changed = setAutoFilledField(dom.sovereignCurrency, metadata.currency) || changed;
     changed = setAutoFilledField(dom.sovereignClassification, metadata.classification) || changed;
     changed = setAutoFilledField(dom.sovereignBenchmark, metadata.benchmark) || changed;
+    if (dom.metadataPrimaryGeography && !dom.metadataPrimaryGeography.value.trim()) {
+      dom.metadataPrimaryGeography.value = metadata.region;
+      changed = true;
+    }
     if (Array.isArray(metadata.ratings) && metadata.ratings.length && !collectRatingsProfile().length) {
       restoreRatingsProfile(metadata.ratings);
       changed = true;
@@ -1715,6 +2648,7 @@ document.addEventListener("DOMContentLoaded", () => {
       const cardElement = dom.bodySections.querySelector(`[data-section-key='${key}']`);
       const customTextarea = cardElement?.querySelector("textarea[data-custom-field='content']");
       if (customTextarea) enhanceRichTextField(customTextarea);
+      recordWorkflowEvent("component", "Custom section added", String(seed.label || "Custom Section"), { silentSave: true });
       return cardElement;
     }
 
@@ -1741,6 +2675,7 @@ document.addEventListener("DOMContentLoaded", () => {
       return;
     }
 
+    recordWorkflowEvent("structure", action === "remove" ? "Body section removed" : "Body section reordered", getBodySectionHeading(card), { silentSave: true });
     syncFigurePlacementControls();
     updateAllUI();
     queueDraftSave();
@@ -3087,6 +4022,42 @@ document.addEventListener("DOMContentLoaded", () => {
       );
     }
 
+    if (!String(data.metadataSearchTags || "").trim()) {
+      findings.push(
+        buildFinding(
+          "suggestion",
+          "Search tags not assigned",
+          "Add topic or search tags so the note packages cleanly for research-library search and downstream distribution.",
+          "Metadata",
+          { focusId: "metadataSearchTags" }
+        )
+      );
+    }
+
+    if (!String(data.distributionEntitlement || "").trim()) {
+      findings.push(
+        buildFinding(
+          "warning",
+          "Entitlement profile missing",
+          "Set the distribution entitlement profile so the publication package carries a clear access classification.",
+          "Distribution",
+          { focusId: "distributionEntitlement" }
+        )
+      );
+    }
+
+    if (!String(data.recordRetentionClass || "").trim()) {
+      findings.push(
+        buildFinding(
+          "suggestion",
+          "Retention class not assigned",
+          "Assign a retention class so the draft can travel into a formal publication record and audit process.",
+          "Compliance",
+          { focusId: "recordRetentionClass" }
+        )
+      );
+    }
+
     findings.sort((left, right) => left.sortOrder - right.sortOrder);
 
     const criticalCount = findings.filter((finding) => finding.severity === "critical").length;
@@ -3321,6 +4292,292 @@ document.addEventListener("DOMContentLoaded", () => {
     return dom.deskLine.value.trim() || defaultDeskLine(dom.noteType.value);
   }
 
+  function buildWorkflowStageLabel(value) {
+    return WORKFLOW_STAGES.find((stage) => stage.value === value)?.label || "Authoring";
+  }
+
+  function getActiveDistributionChannel() {
+    return dom.distributionPrimaryChannel?.value.trim() || "Word / PDF";
+  }
+
+  function formatAutosaveState() {
+    if (!state.lastSavedAt) return "Autosave idle";
+    return `Saved ${formatLocalTimestamp(new Date(state.lastSavedAt))}`;
+  }
+
+  function renderInstitutionalHeader(data, validation, review) {
+    hydrateInstitutionalDomRefs();
+    if (!dom.workspaceDocTitle) return;
+
+    const stageLabel = buildWorkflowStageLabel(dom.workflowStage?.value || "authoring");
+    const publicationDate = data.publicationDate ? formatInputDateLabel(data.publicationDate) : "Date pending";
+    const authorLine = buildPrimaryAuthorLine() || "Author pending";
+    const noteId = buildPreviewNoteId(data);
+    const channel = getActiveDistributionChannel();
+    const audience = dom.distributionAudience?.value.trim() || dom.metadataAudience?.value.trim() || "Audience pending";
+
+    dom.workspaceDocTitle.textContent = data.title || `${data.noteType || "Research"} draft`;
+    dom.workspaceDocMeta.textContent = [data.noteType || "Research note", authorLine, publicationDate].filter(Boolean).join(" | ");
+    dom.workspaceDocumentLabel.textContent = data.noteType || "Research Note";
+    dom.workspaceReadinessChip.textContent = stageLabel;
+    dom.workspaceChannelChip.textContent = channel;
+    dom.workspaceNoteId.textContent = noteId;
+    dom.workspacePackageChip.textContent = review.blockingCount > 0 ? "Package blocked" : (validation.valid ? "Package ready" : "Package in build");
+    dom.workspaceSaveState.textContent = formatAutosaveState();
+    dom.workspaceAudienceState.textContent = audience;
+
+    if (dom.workspacePackagingSummary) {
+      const supportBits = [];
+      if (state.priceChartImageBytes) supportBits.push("chart package");
+      if ((state.figureFiles || []).length) supportBits.push(`${state.figureFiles.length} exhibit${state.figureFiles.length === 1 ? "" : "s"}`);
+      if (Array.from(dom.modelFiles?.files || []).length) supportBits.push(`${Array.from(dom.modelFiles.files).length} attachment${Array.from(dom.modelFiles.files).length === 1 ? "" : "s"}`);
+      dom.workspacePackagingSummary.innerHTML = `
+        <p><strong>Publication state:</strong> ${escapeHtml(dom.distributionPublicationState?.value || "Draft")}</p>
+        <p><strong>Entitlement:</strong> ${escapeHtml(dom.distributionEntitlement?.value || dom.metadataEntitlements?.value || "Pending")}</p>
+        <p><strong>Support pack:</strong> ${escapeHtml(supportBits.length ? supportBits.join(", ") : "No supporting assets packaged yet")}</p>
+      `;
+    }
+  }
+
+  function renderMetadataDashboards(data) {
+    if (dom.metadataCoverageSummary) {
+      const coverage = isEquitySelected()
+        ? [data.equityCompanyName || data.ticker || "Security pending", data.equitySectorLine || "Sector pending", data.priceCurrency || "Currency pending"].join(" | ")
+        : isMacroFiSelected()
+          ? [getCoverageCountryLabel(data.coverageCountry), data.sovereignRegion || "Region pending", data.sovereignClassification || "Classification pending"].join(" | ")
+          : [data.topic || "Topic pending", data.deskLine || "Desk line pending"].join(" | ");
+      dom.metadataCoverageSummary.textContent = coverage;
+    }
+
+    if (dom.metadataAuthorSummary) {
+      const coAuthorCount = data.coAuthors?.length || 0;
+      dom.metadataAuthorSummary.textContent = `${buildPrimaryAuthorLine() || "Primary author pending"}${coAuthorCount ? ` | ${coAuthorCount} co-author${coAuthorCount === 1 ? "" : "s"}` : ""}`;
+    }
+
+    if (dom.metadataPackageSummary) {
+      dom.metadataPackageSummary.textContent = `${getActiveDistributionChannel()} | ${dom.distributionPublicationState?.value || "Draft"}`;
+    }
+
+    if (dom.metadataSearchSummary) {
+      const tags = dom.metadataSearchTags?.value.trim() || data.topic || "Tags pending";
+      dom.metadataSearchSummary.textContent = tags;
+    }
+  }
+
+  function renderComponentRegistry(data) {
+    const sections = normalizeBodySectionLayoutForExport(data).filter((entry) => !entry.hidden);
+    const figureItems = (state.figureFiles || []).map((file, index) => {
+      const key = figureFileKey(file);
+      const detail = getFigureDetailForFile(file, index);
+      return {
+        title: buildFigureLabel(detail, index + 1),
+        meta: detail.title || file.name,
+        token: figureReferenceToken(key)
+      };
+    });
+
+    if (dom.componentRegistryList) {
+      dom.componentRegistryList.innerHTML = [
+        ...sections.map((section) => `
+          <article class="component-registry-item">
+            <strong>${escapeHtml(section.label)}</strong>
+            <span>${escapeHtml(section.role === "custom" ? "Custom editorial block" : "Core note component")}</span>
+          </article>
+        `),
+        ...figureItems.map((figure) => `
+          <article class="component-registry-item">
+            <strong>${escapeHtml(figure.title)}</strong>
+            <span>${escapeHtml(figure.meta)}</span>
+          </article>
+        `)
+      ].join("") || `<article class="component-registry-item"><strong>No components yet</strong><span>Add sections or figures to build the reusable document structure.</span></article>`;
+    }
+
+    const tokenMarkup = figureItems.map((figure) => `
+      <button type="button" class="token-chip" data-copy-token="${escapeAttribute(figure.token)}">${escapeHtml(figure.token)}</button>
+    `).join("") || `<span class="token-empty">Add a figure to generate reference tokens.</span>`;
+
+    if (dom.componentTokenList) dom.componentTokenList.innerHTML = tokenMarkup;
+    if (dom.figureTokenQuickList) dom.figureTokenQuickList.innerHTML = tokenMarkup;
+  }
+
+  function buildCompliancePolicyItems(data, validation, review) {
+    return [
+      {
+        label: "Core metadata",
+        state: validation.complete >= Math.max(1, Math.round(validation.total * 0.8)) ? "ready" : "pending",
+        detail: `${validation.complete}/${validation.total} mandatory fields complete`
+      },
+      {
+        label: "Approval routing",
+        state: dom.editorialApprovalStatus?.value === "Approved" && dom.complianceApprovalStatus?.value === "Approved" ? "ready" : "pending",
+        detail: `Editorial ${dom.editorialApprovalStatus?.value || "Pending"} | Compliance ${dom.complianceApprovalStatus?.value || "Pending"}`
+      },
+      {
+        label: "Distribution classification",
+        state: dom.distributionEntitlement?.value.trim() && dom.accessClassification?.value.trim() ? "ready" : "pending",
+        detail: dom.distributionEntitlement?.value.trim() || "Set entitlement and access classification"
+      },
+      {
+        label: "Figure quality control",
+        state: review.findings.some((finding) => finding.title.toLowerCase().includes("image resolution")) ? "warning" : "ready",
+        detail: review.findings.some((finding) => finding.title.toLowerCase().includes("image resolution")) ? "One or more figures may need a sharper source image" : "No low-resolution figure warnings"
+      },
+      {
+        label: "Retention and audit",
+        state: dom.recordRetentionClass?.value.trim() ? "ready" : "pending",
+        detail: dom.recordRetentionClass?.value.trim() || "Assign a retention class for the publication record"
+      },
+      {
+        label: "Structured discovery",
+        state: dom.metadataSearchTags?.value.trim() && dom.metadataPrimaryGeography?.value.trim() ? "ready" : "pending",
+        detail: dom.metadataSearchTags?.value.trim() || "Search tags pending"
+      }
+    ];
+  }
+
+  function renderComplianceDashboards(data, validation, review) {
+    if (dom.complianceReviewMirror) {
+      dom.complianceReviewMirror.innerHTML = review.findings.length
+        ? review.findings.slice(0, 8).map((finding) => `
+          <article class="compliance-review-item is-${escapeAttribute(finding.severity)}">
+            <strong>${escapeHtml(finding.title)}</strong>
+            <span>${escapeHtml(finding.detail || finding.section)}</span>
+          </article>
+        `).join("")
+        : `<article class="compliance-review-item is-clear"><strong>No critical blockers</strong><span>The note is structurally clear for the current workflow stage.</span></article>`;
+    }
+
+    if (dom.compliancePolicyChecklist) {
+      dom.compliancePolicyChecklist.innerHTML = buildCompliancePolicyItems(data, validation, review).map((item) => `
+        <article class="policy-checklist-item is-${escapeAttribute(item.state)}">
+          <strong>${escapeHtml(item.label)}</strong>
+          <span>${escapeHtml(item.detail)}</span>
+        </article>
+      `).join("");
+    }
+  }
+
+  function renderDistributionDashboards() {
+    if (dom.distributionChannelSummary) dom.distributionChannelSummary.textContent = getActiveDistributionChannel();
+    if (dom.distributionAudienceSummary) dom.distributionAudienceSummary.textContent = dom.distributionAudience?.value.trim() || "Audience not yet assigned";
+    if (dom.distributionEntitlementSummary) dom.distributionEntitlementSummary.textContent = dom.distributionEntitlement?.value.trim() || "Entitlement profile pending";
+    if (dom.distributionEmbargoSummary) dom.distributionEmbargoSummary.textContent = dom.distributionEmbargo?.value.trim() || "Immediate release";
+  }
+
+  function renderAnalyticsDashboard(data) {
+    if (dom.analyticsMetricGrid) {
+      const metrics = [
+        { label: "Previews", value: state.usageMetrics.previews },
+        { label: "Word Exports", value: state.usageMetrics.exports },
+        { label: "Blank Templates", value: state.usageMetrics.blankExports },
+        { label: "Website Summaries", value: state.usageMetrics.summaries },
+        { label: "Publish Clicks", value: state.usageMetrics.publishClicks },
+        { label: "Email Drafts", value: state.usageMetrics.emails },
+        { label: "Autosaves", value: state.usageMetrics.autosaves },
+        { label: "Chart Refreshes", value: state.usageMetrics.chartRefreshes }
+      ];
+      dom.analyticsMetricGrid.innerHTML = metrics.map((metric) => `
+        <article class="institution-summary-card">
+          <span>${escapeHtml(metric.label)}</span>
+          <strong>${escapeHtml(String(metric.value || 0))}</strong>
+        </article>
+      `).join("");
+    }
+
+    if (dom.analyticsHooksList) {
+      const hooks = [
+        ["Distribution package", `${getActiveDistributionChannel()} package routed via ${dom.distributionLists?.value.trim() || "list not yet assigned"}`],
+        ["Entitlement controls", dom.distributionEntitlement?.value.trim() || dom.metadataEntitlements?.value.trim() || "Entitlement routing pending"],
+        ["Audience mapping", dom.distributionAudience?.value.trim() || dom.metadataAudience?.value.trim() || "Audience segment pending"],
+        ["Readership loop", data.title ? `Prepared for downstream analytics on ${data.title}` : "Awaiting note title for downstream analytics hooks"]
+      ];
+      dom.analyticsHooksList.innerHTML = hooks.map(([title, detail]) => `
+        <article class="component-registry-item">
+          <strong>${escapeHtml(title)}</strong>
+          <span>${escapeHtml(detail)}</span>
+        </article>
+      `).join("");
+    }
+  }
+
+  function renderHistoryTimeline() {
+    if (!dom.historyTimeline) return;
+    if (!state.workflowEvents.length) {
+      dom.historyTimeline.innerHTML = `<article class="history-item"><strong>No workflow events yet</strong><span>Major actions, approvals, and packaging events will appear here.</span></article>`;
+      return;
+    }
+
+    dom.historyTimeline.innerHTML = state.workflowEvents.slice(0, 24).map((entry) => `
+      <article class="history-item">
+        <div class="history-item-top">
+          <strong>${escapeHtml(entry.title)}</strong>
+          <span>${escapeHtml(formatLocalTimestamp(new Date(entry.timestamp)))}</span>
+        </div>
+        <span>${escapeHtml(entry.detail || entry.type)}</span>
+      </article>
+    `).join("");
+  }
+
+  function renderFinancialsCoveragePanel(data) {
+    if (!dom.financialsCoverageSummary) return;
+    const items = [];
+    if (data.ticker) items.push(["Ticker", data.ticker]);
+    if (data.equityCompanyName) items.push(["Company", data.equityCompanyName]);
+    if (data.equitySecurityDisplay) items.push(["Security", data.equitySecurityDisplay]);
+    if (data.equitySectorLine) items.push(["Sector", data.equitySectorLine]);
+    if (data.marketCapUsd) items.push(["Market cap", `${data.marketCapUsd}${data.priceCurrency ? ` ${data.priceCurrency}` : ""}`]);
+    if (state.equityStats.providerName) items.push(["Data source", state.equityStats.providerName]);
+
+    dom.financialsCoverageSummary.innerHTML = items.length
+      ? items.map(([title, detail]) => `
+        <article class="component-registry-item">
+          <strong>${escapeHtml(title)}</strong>
+          <span>${escapeHtml(detail)}</span>
+        </article>
+      `).join("")
+      : `<article class="component-registry-item"><strong>Equity coverage pending</strong><span>Run the tear sheet or fill the financial fields to populate the institutional coverage layer.</span></article>`;
+  }
+
+  function renderInstitutionalUI(data, validation, review) {
+    renderInstitutionalHeader(data, validation, review);
+    renderMetadataDashboards(data);
+    renderComponentRegistry(data);
+    renderComplianceDashboards(data, validation, review);
+    renderDistributionDashboards();
+    renderAnalyticsDashboard(data);
+    renderHistoryTimeline();
+    renderFinancialsCoveragePanel(data);
+  }
+
+  function touchUsageMetric(metricKey) {
+    if (!Object.prototype.hasOwnProperty.call(state.usageMetrics, metricKey)) return;
+    state.usageMetrics[metricKey] = Number(state.usageMetrics[metricKey] || 0) + 1;
+    const now = new Date().toISOString();
+    if (metricKey === "previews") state.usageMetrics.lastPreviewAt = now;
+    if (metricKey === "exports") state.usageMetrics.lastExportAt = now;
+    if (metricKey === "blankExports") state.usageMetrics.lastBlankExportAt = now;
+    if (metricKey === "publishClicks") state.usageMetrics.lastPublishedAt = now;
+    if (dom.analyticsMetricGrid || dom.analyticsHooksList) {
+      renderAnalyticsDashboard(collectFormData());
+    }
+  }
+
+  function recordWorkflowEvent(type, title, detail = "", options = {}) {
+    const entry = {
+      id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+      type,
+      title,
+      detail,
+      timestamp: new Date().toISOString(),
+      stage: dom.workflowStage?.value || "authoring"
+    };
+    state.workflowEvents.unshift(entry);
+    state.workflowEvents = state.workflowEvents.slice(0, 80);
+    renderHistoryTimeline();
+    if (!options.silentSave) queueDraftSave();
+  }
+
   function updateAllUI() {
     const validation = validateForm(false);
     const data = collectFormData();
@@ -3329,6 +4586,7 @@ document.addEventListener("DOMContentLoaded", () => {
     updateSectionPills(validation, review);
     updateSummaryCards(validation, review, data);
     updatePreview(data);
+    renderInstitutionalUI(data, validation, review);
     updateUpsideDisplay();
   }
 
@@ -3391,15 +4649,20 @@ document.addEventListener("DOMContentLoaded", () => {
       financialHeaderLocked: state.financialHeaderLocked,
       equityAutofillSymbol: getLastResolvedEquitySymbol(),
       autofillState: collectAutofillState(),
+      activeWorkspaceTab: state.activeWorkspaceTab,
+      usageMetrics: { ...state.usageMetrics },
+      workflowEvents: [...state.workflowEvents],
       savedAt: new Date().toISOString()
     };
   }
 
   function saveDraft() {
     try {
+      touchUsageMetric("autosaves");
       const payload = serializeDraft();
       window.localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
       state.lastSavedAt = payload.savedAt;
+      if (dom.workspaceSaveState) dom.workspaceSaveState.textContent = formatAutosaveState();
     } catch (error) {
       console.error("Autosave failed:", error);
     }
@@ -3425,6 +4688,12 @@ document.addEventListener("DOMContentLoaded", () => {
       state.lastSavedAt = payload.savedAt || null;
       state.financialHeaderLocked = Boolean(payload.financialHeaderLocked);
       state.lastResolvedEquitySymbol = String(payload.equityAutofillSymbol || "").trim();
+      state.activeWorkspaceTab = WORKSPACE_TABS.some((tab) => tab.key === payload.activeWorkspaceTab) ? payload.activeWorkspaceTab : "editor";
+      state.usageMetrics = {
+        ...state.usageMetrics,
+        ...(payload.usageMetrics || {})
+      };
+      state.workflowEvents = Array.isArray(payload.workflowEvents) ? payload.workflowEvents : [];
       dom.deskLine.dataset.autofill = "true";
       dom.equityCompanyName.dataset.autofill = dom.equityCompanyName.value.trim() ? "false" : "true";
       dom.equitySecurityDisplay.dataset.autofill = dom.equitySecurityDisplay.value.trim() ? "false" : "true";
@@ -3450,7 +4719,9 @@ document.addEventListener("DOMContentLoaded", () => {
       renderIndustryOptions("");
       syncBodySectionVisibility();
       ensureDeskLineDefault(true);
+      ensureInstitutionalDefaults();
       applyFinancialHeaderLockState();
+      switchWorkspaceTab(state.activeWorkspaceTab, { suppressLog: true });
     } catch (error) {
       console.error("Draft restore failed:", error);
     }
@@ -3468,6 +4739,22 @@ document.addEventListener("DOMContentLoaded", () => {
     state.financialHeaderLocked = false;
     state.lastResolvedEquitySymbol = "";
     state.equityLookupRequestId += 1;
+    state.activeWorkspaceTab = "editor";
+    state.usageMetrics = {
+      previews: 0,
+      exports: 0,
+      blankExports: 0,
+      summaries: 0,
+      publishClicks: 0,
+      emails: 0,
+      autosaves: 0,
+      chartRefreshes: 0,
+      lastPreviewAt: "",
+      lastExportAt: "",
+      lastBlankExportAt: "",
+      lastPublishedAt: ""
+    };
+    state.workflowEvents = [];
     clearFigurePreviewUrls();
     state.figurePlacements = {};
     state.figureDetails = {};
@@ -3507,6 +4794,8 @@ document.addEventListener("DOMContentLoaded", () => {
     closePreviewModal();
     closeSummaryModal();
     clearMessage();
+    ensureInstitutionalDefaults();
+    switchWorkspaceTab("editor", { suppressLog: true });
     updateAllUI();
   }
 
@@ -3914,11 +5203,13 @@ document.addEventListener("DOMContentLoaded", () => {
     });
 
     setManagedFigureFiles(nextFiles);
+    recordWorkflowEvent("asset", "Figures attached", `${incoming.length} file${incoming.length === 1 ? "" : "s"} added`, { silentSave: true });
     dom.imageUpload.value = "";
   }
 
   function removeFigureByKey(figureKey) {
     setManagedFigureFiles((state.figureFiles || []).filter((file) => figureFileKey(file) !== figureKey));
+    recordWorkflowEvent("asset", "Figure removed", figureKey || "Figure", { silentSave: true });
     syncFigurePlacementControls();
     updateAllUI();
     queueDraftSave();
@@ -4410,6 +5701,8 @@ document.addEventListener("DOMContentLoaded", () => {
 
     try {
       await loadEquityMarketSnapshot();
+      touchUsageMetric("chartRefreshes");
+      recordWorkflowEvent("market-data", "Tear sheet refreshed", dom.ticker.value.trim(), { silentSave: true });
     } catch (error) {
       if (error?.code === "STALE_EQUITY_LOOKUP") return;
       resetChartState({ keepStatusText: true });
@@ -5258,6 +6551,10 @@ document.addEventListener("DOMContentLoaded", () => {
     const sectorLine = [profile.sector, profile.industry].filter(Boolean).join(" - ");
     if (sectorLine) {
       changed = setAutoFilledField(dom.equitySectorLine, sectorLine, autofillOptions) || changed;
+      if (dom.metadataPrimarySector && (!dom.metadataPrimarySector.value.trim() || options.force)) {
+        dom.metadataPrimarySector.value = sectorLine;
+        changed = true;
+      }
       renderIndustryOptions("");
     }
 
@@ -5581,6 +6878,8 @@ document.addEventListener("DOMContentLoaded", () => {
     const data = collectFormData();
     const payload = buildCrgEmailPayload(data);
     const mailto = buildMailto("research@cordobarg.com", payload.cc, payload.subject, payload.body);
+    touchUsageMetric("emails");
+    recordWorkflowEvent("distribution", "Email draft opened", payload.subject, { silentSave: true });
     window.location.href = mailto;
   }
 
@@ -5709,6 +7008,8 @@ document.addEventListener("DOMContentLoaded", () => {
       const doc = await createDocument(data);
       const blob = await window.docx.Packer.toBlob(doc);
       window.saveAs(blob, documentFileName);
+      touchUsageMetric("exports");
+      recordWorkflowEvent("packaging", "Word package generated", documentFileName, { silentSave: true });
       saveDraft();
       setMessage(
         "success",
@@ -5752,6 +7053,8 @@ document.addEventListener("DOMContentLoaded", () => {
       const blob = await window.docx.Packer.toBlob(doc);
       const fileName = `${formatDateShort(parseInputDate(data.publicationDate) || data.generatedAt)}_${slugify(noteType)}_blank_template.docx`;
       window.saveAs(blob, fileName);
+      touchUsageMetric("blankExports");
+      recordWorkflowEvent("packaging", "Blank template exported", `${noteType} | ${fileName}`, { silentSave: true });
       setMessage("success", `Blank ${noteType} template exported as ${fileName}.`);
     } catch (error) {
       console.error("Blank template export failed:", error);
@@ -5844,6 +7147,31 @@ document.addEventListener("DOMContentLoaded", () => {
         benchmarkSymbol: "",
         range: ""
       },
+      workflowStage: "authoring",
+      documentOwner: "",
+      editorialOwner: "",
+      complianceOwner: "",
+      productionOwner: "",
+      rixmlContentType: defaultRixmlContentType(normalizedType),
+      metadataDocumentFamily: defaultMetadataFamily(normalizedType),
+      metadataPrimarySector: "",
+      metadataPrimaryGeography: "",
+      metadataSearchTags: "",
+      metadataAudience: "Institutional / internal review",
+      metadataLanguage: "English",
+      metadataEntitlements: "Internal Working Draft",
+      metadataProductCode: defaultMetadataProductCode(normalizedType),
+      editorialApprovalStatus: "Pending",
+      complianceApprovalStatus: "Pending",
+      recordRetentionClass: "Research publication record",
+      accessClassification: "Internal",
+      distributionPrimaryChannel: "Word / PDF",
+      distributionAudience: "",
+      distributionLists: "",
+      distributionEmbargo: "",
+      distributionEntitlement: "Internal Working Draft",
+      distributionPublicationState: "Draft",
+      distributionPackagingNotes: "",
       generatedAt: new Date()
     };
   }
@@ -5926,6 +7254,31 @@ document.addEventListener("DOMContentLoaded", () => {
       modelFiles: Array.from(dom.modelFiles.files || []),
       priceChartImageBytes: state.priceChartImageBytes,
       equityStats: { ...state.equityStats },
+      workflowStage: dom.workflowStage?.value.trim() || "authoring",
+      documentOwner: dom.documentOwner?.value.trim() || "",
+      editorialOwner: dom.editorialOwner?.value.trim() || "",
+      complianceOwner: dom.complianceOwner?.value.trim() || "",
+      productionOwner: dom.productionOwner?.value.trim() || "",
+      rixmlContentType: dom.rixmlContentType?.value.trim() || "",
+      metadataDocumentFamily: dom.metadataDocumentFamily?.value.trim() || "",
+      metadataPrimarySector: dom.metadataPrimarySector?.value.trim() || "",
+      metadataPrimaryGeography: dom.metadataPrimaryGeography?.value.trim() || "",
+      metadataSearchTags: dom.metadataSearchTags?.value.trim() || "",
+      metadataAudience: dom.metadataAudience?.value.trim() || "",
+      metadataLanguage: dom.metadataLanguage?.value.trim() || "",
+      metadataEntitlements: dom.metadataEntitlements?.value.trim() || "",
+      metadataProductCode: dom.metadataProductCode?.value.trim() || "",
+      editorialApprovalStatus: dom.editorialApprovalStatus?.value.trim() || "",
+      complianceApprovalStatus: dom.complianceApprovalStatus?.value.trim() || "",
+      recordRetentionClass: dom.recordRetentionClass?.value.trim() || "",
+      accessClassification: dom.accessClassification?.value.trim() || "",
+      distributionPrimaryChannel: dom.distributionPrimaryChannel?.value.trim() || "",
+      distributionAudience: dom.distributionAudience?.value.trim() || "",
+      distributionLists: dom.distributionLists?.value.trim() || "",
+      distributionEmbargo: dom.distributionEmbargo?.value.trim() || "",
+      distributionEntitlement: dom.distributionEntitlement?.value.trim() || "",
+      distributionPublicationState: dom.distributionPublicationState?.value.trim() || "",
+      distributionPackagingNotes: dom.distributionPackagingNotes?.value.trim() || "",
       generatedAt: new Date()
     };
   }
@@ -7123,6 +8476,8 @@ document.addEventListener("DOMContentLoaded", () => {
     dom.summaryEditor.innerHTML = summaryHtml;
     updateRichEditorEmptyState(dom.summaryEditor);
     dom.summaryModal.hidden = false;
+    touchUsageMetric("summaries");
+    recordWorkflowEvent("distribution", "Website summary opened", data.title || data.noteType || "Research draft", { silentSave: true });
   }
 
   function closeSummaryModal() {
@@ -7152,6 +8507,8 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   function publishSummaryToResearchCommentary() {
+    touchUsageMetric("publishClicks");
+    recordWorkflowEvent("distribution", "Publishing page opened", "Research & Commentary", { silentSave: true });
     window.open("https://cordobarg.com/wp-admin/post-new.php", "_blank", "noopener");
   }
 
@@ -7481,6 +8838,8 @@ document.addEventListener("DOMContentLoaded", () => {
 
     dom.previewModalBody.innerHTML = `<div class="preview-page-stage">${previewMarkup}</div>`;
     dom.previewModal.hidden = false;
+    touchUsageMetric("previews");
+    recordWorkflowEvent("preview", "Publication preview opened", data.title || data.noteType || "Research draft", { silentSave: true });
   }
 
   function closePreviewModal() {
