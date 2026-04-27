@@ -2877,7 +2877,605 @@ code {
   }
 }
 
+.app-body.is-platform-mode {
+  display: block;
+  min-height: auto;
+}
+
+.app-body.is-platform-mode .workspace {
+  padding: 14px 18px 26px;
+}
+
+.institution-shell {
+  display: grid;
+  gap: 16px;
+}
+
+.institution-ribbon,
+.institution-tabs-shell,
+.workflow-panel-card,
+.editor-component-rail,
+.editor-inspector,
+.editor-canvas-topbar,
+.workflow-board-side .workflow-panel-card {
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  background: rgba(255, 255, 255, 0.96);
+  box-shadow: var(--shadow);
+}
+
+.institution-ribbon {
+  display: grid;
+  grid-template-columns: minmax(0, 1.4fr) minmax(320px, 0.8fr);
+  gap: 18px;
+  padding: 16px 18px;
+}
+
+.institution-ribbon-main {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(420px, 0.95fr);
+  gap: 18px;
+  align-items: start;
+}
+
+.institution-ribbon-copy h2 {
+  margin: 4px 0 0;
+  font-size: 26px;
+  line-height: 1.08;
+  letter-spacing: -0.03em;
+}
+
+.institution-ribbon-copy p:last-child {
+  margin: 8px 0 0;
+  color: var(--ink-soft);
+}
+
+.institution-ribbon-fields {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.institution-compact-field {
+  display: grid;
+  gap: 6px;
+}
+
+.institution-compact-field span {
+  color: var(--ink-muted);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.institution-compact-field input,
+.institution-compact-field select {
+  min-height: 38px;
+  padding: 8px 10px;
+  font-size: 13px;
+}
+
+.institution-ribbon-side {
+  display: grid;
+  gap: 14px;
+  align-content: start;
+}
+
+.institution-chip-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.institution-chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 7px 10px;
+  border-radius: 999px;
+  border: 1px solid rgba(132, 95, 15, 0.16);
+  background: rgba(132, 95, 15, 0.08);
+  color: var(--red-dark);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+.institution-action-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+.institution-tabs-shell {
+  padding: 14px;
+}
+
+.institution-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--line);
+}
+
+.institution-tab-btn,
+.institution-command-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 9px 12px;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--ink-soft);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: border-color 120ms ease, background 120ms ease, color 120ms ease;
+}
+
+.institution-tab-btn:hover,
+.institution-command-btn:hover {
+  border-color: var(--line);
+  background: var(--panel-soft);
+  color: var(--navy);
+}
+
+.institution-tab-btn.is-active,
+.institution-command-btn.is-active {
+  border-color: rgba(132, 95, 15, 0.18);
+  background: rgba(132, 95, 15, 0.08);
+  color: var(--red-dark);
+}
+
+.institution-command-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 12px 0 14px;
+}
+
+.institution-tab-panels {
+  min-width: 0;
+}
+
+.institution-tab-panel {
+  display: none;
+}
+
+.institution-tab-panel.is-active {
+  display: block;
+}
+
+.editor-workbench {
+  display: grid;
+  grid-template-columns: 250px minmax(0, 1fr) 320px;
+  gap: 14px;
+  align-items: start;
+}
+
+.editor-component-rail,
+.editor-inspector {
+  position: sticky;
+  top: 112px;
+  padding: 14px;
+  display: grid;
+  gap: 14px;
+}
+
+.toolrail-group {
+  display: grid;
+  gap: 10px;
+}
+
+.toolrail-token-card {
+  display: grid;
+  gap: 8px;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: var(--panel-soft);
+}
+
+.toolrail-token-card strong {
+  color: var(--navy);
+  font-size: 13px;
+}
+
+.toolrail-token-card p {
+  margin: 0;
+  color: var(--ink-soft);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.component-library-grid {
+  display: grid;
+  gap: 8px;
+}
+
+.component-insert-btn {
+  display: grid;
+  gap: 4px;
+  width: 100%;
+  padding: 11px 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: #fff;
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 120ms ease, background 120ms ease, transform 120ms ease;
+}
+
+.component-insert-btn:hover {
+  border-color: var(--line-strong);
+  background: var(--panel-soft);
+  transform: translateY(-1px);
+}
+
+.component-insert-btn strong {
+  color: var(--navy);
+  font-size: 13px;
+}
+
+.component-insert-btn span {
+  color: var(--ink-soft);
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.editor-canvas-column {
+  min-width: 0;
+  display: grid;
+  gap: 12px;
+}
+
+.editor-canvas-topbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 14px;
+  padding: 12px 14px;
+}
+
+.editor-canvas-topbar strong {
+  display: block;
+  color: var(--navy);
+  font-size: 13px;
+}
+
+#editorCanvasStatusText {
+  display: block;
+  margin-top: 4px;
+  color: var(--ink-soft);
+  font-size: 12px;
+}
+
+.editor-canvas-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+.editor-document-stage {
+  padding: 18px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.88), rgba(255, 255, 255, 0.88)),
+    linear-gradient(135deg, rgba(132, 95, 15, 0.035), rgba(29, 39, 52, 0.02));
+}
+
+.editor-document-canvas {
+  display: grid;
+  gap: 14px;
+  max-width: 920px;
+  margin: 0 auto;
+}
+
+.editor-document-canvas .section-card {
+  box-shadow: none;
+  border-color: #dfe4ea;
+}
+
+.institution-canvas-card {
+  background: #fff;
+}
+
+.canvas-frontmatter-card {
+  border-top: 3px solid rgba(132, 95, 15, 0.85);
+}
+
+.canvas-frontmatter-card input#title {
+  min-height: 56px;
+  font-size: 30px;
+  font-weight: 700;
+  letter-spacing: -0.04em;
+}
+
+.canvas-frontmatter-card input#deck {
+  min-height: 48px;
+  font-size: 17px;
+  font-weight: 600;
+  color: var(--ink-soft);
+}
+
+.canvas-frontmatter-card .section-head,
+.canvas-body-card .section-head,
+.canvas-figure-card .section-head,
+.workflow-board-card .section-head {
+  margin-bottom: 14px;
+  padding-bottom: 12px;
+}
+
+.editor-inspector .workflow-rail,
+.institution-workflow-rail {
+  position: static;
+  top: auto;
+  height: auto;
+  padding: 0;
+  overflow: visible;
+  border: 0;
+  background: transparent;
+}
+
+.editor-inspector .rail-panel:last-child,
+.institution-workflow-rail .rail-panel:last-child {
+  margin-bottom: 0;
+}
+
+.inspector-card {
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: var(--panel-soft);
+}
+
+.inspector-property-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  margin-top: 8px;
+}
+
+.inspector-property-grid span {
+  display: block;
+  color: var(--ink-muted);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.inspector-property-grid strong {
+  display: block;
+  margin-top: 5px;
+  color: var(--navy);
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.workspace-packaging-summary {
+  display: grid;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.workspace-packaging-summary p {
+  margin: 0;
+  color: var(--ink-soft);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.workflow-board,
+.workflow-panel-stack {
+  display: grid;
+  gap: 14px;
+}
+
+.workflow-board-head,
+.workflow-panel-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 14px;
+}
+
+.workflow-board-head h3,
+.workflow-panel-head h3 {
+  margin: 4px 0 0;
+  font-size: 18px;
+  letter-spacing: -0.02em;
+}
+
+.workflow-board-head p:last-child,
+.workflow-panel-head p:last-child {
+  margin: 6px 0 0;
+  color: var(--ink-soft);
+}
+
+.workflow-board-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 300px;
+  gap: 14px;
+  align-items: start;
+}
+
+.workflow-board-side {
+  display: grid;
+  gap: 14px;
+}
+
+.workflow-panel-card {
+  padding: 16px;
+}
+
+.institution-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.institution-summary-card {
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: var(--panel-soft);
+}
+
+.institution-summary-card span {
+  display: block;
+  color: var(--ink-muted);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.institution-summary-card strong {
+  display: block;
+  margin-top: 7px;
+  color: var(--navy);
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.component-registry-list,
+.policy-checklist,
+.history-timeline,
+.compliance-review-mirror {
+  display: grid;
+  gap: 8px;
+}
+
+.component-registry-item,
+.policy-checklist-item,
+.history-item,
+.compliance-review-item {
+  padding: 11px 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: #fff;
+}
+
+.component-registry-item strong,
+.policy-checklist-item strong,
+.history-item strong,
+.compliance-review-item strong {
+  display: block;
+  color: var(--navy);
+  font-size: 13px;
+}
+
+.component-registry-item span,
+.policy-checklist-item span,
+.history-item span,
+.compliance-review-item span {
+  display: block;
+  margin-top: 4px;
+  color: var(--ink-soft);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.policy-checklist-item.is-ready,
+.compliance-review-item.is-clear {
+  border-color: rgba(37, 115, 75, 0.24);
+  background: rgba(37, 115, 75, 0.05);
+}
+
+.policy-checklist-item.is-warning,
+.compliance-review-item.is-warning {
+  border-color: rgba(180, 139, 51, 0.28);
+  background: rgba(180, 139, 51, 0.07);
+}
+
+.policy-checklist-item.is-pending,
+.compliance-review-item.is-critical {
+  border-color: rgba(132, 95, 15, 0.22);
+  background: rgba(132, 95, 15, 0.06);
+}
+
+.history-item-top {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: baseline;
+}
+
+.history-item-top span {
+  margin-top: 0;
+  color: var(--ink-muted);
+  font-size: 11px;
+  white-space: nowrap;
+}
+
+.token-chip-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.token-chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 7px 10px;
+  border: 1px dashed rgba(132, 95, 15, 0.38);
+  border-radius: 999px;
+  background: rgba(132, 95, 15, 0.06);
+  color: var(--red-dark);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.token-empty {
+  color: var(--ink-muted);
+  font-size: 12px;
+}
+
+.distribution-summary-grid,
+.analytics-grid {
+  margin-top: 12px;
+}
+
+.workflow-board-card {
+  margin: 0;
+}
+
+.app-body.is-platform-mode.is-rail-collapsed .editor-workbench {
+  grid-template-columns: 250px minmax(0, 1fr);
+}
+
+.app-body.is-platform-mode.is-rail-collapsed .editor-inspector {
+  display: none;
+}
+
 @media (max-width: 1320px) {
+  .institution-ribbon,
+  .institution-ribbon-main,
+  .workflow-board-grid,
+  .editor-workbench {
+    grid-template-columns: 1fr;
+  }
+
+  .institution-ribbon-side,
+  .institution-action-row {
+    justify-content: flex-start;
+  }
+
+  .editor-component-rail,
+  .editor-inspector {
+    position: static;
+    top: auto;
+  }
+
   .app-header,
   .app-body,
   .section-head,
@@ -2899,6 +3497,11 @@ code {
 }
 
 @media (max-width: 980px) {
+  .institution-summary-grid,
+  .inspector-property-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+
   .field-grid-2,
   .field-grid-3,
   .field-grid-4,
@@ -2920,6 +3523,28 @@ code {
 }
 
 @media (max-width: 720px) {
+  .institution-tabs,
+  .institution-command-bar,
+  .institution-action-row,
+  .editor-canvas-actions,
+  .token-chip-list {
+    flex-direction: column;
+  }
+
+  .institution-summary-grid,
+  .inspector-property-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .canvas-frontmatter-card input#title {
+    min-height: 48px;
+    font-size: 24px;
+  }
+
+  .canvas-frontmatter-card input#deck {
+    font-size: 15px;
+  }
+
   .app-header,
   .workflow-rail,
   .workspace {
