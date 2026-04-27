@@ -82,9 +82,12 @@ body.rpc-auth-open {
 }
 
 .rpc-login-brand img {
+  display: block;
+  margin: 0 auto;
   width: 276px;
   max-width: 78vw;
   height: auto;
+  object-fit: contain;
 }
 
 .rpc-login-brand h1 {
@@ -157,7 +160,7 @@ body.rpc-auth-open {
   box-shadow: none;
 }
 
-.rpc-input-wrap svg,
+.rpc-input-wrap > svg,
 .rpc-search-icon {
   position: absolute;
   top: 50%;
@@ -174,6 +177,29 @@ body.rpc-auth-open {
 .rpc-input-wrap .rpc-input-trailing {
   right: 14px;
   cursor: pointer;
+}
+
+.rpc-password-toggle {
+  position: absolute;
+  top: 50%;
+  right: 10px;
+  transform: translateY(-50%);
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--rpc-ink-faint);
+  display: inline-grid;
+  place-items: center;
+}
+
+.rpc-password-toggle svg {
+  position: static;
+  transform: none;
+  width: 18px;
+  height: 18px;
+  color: currentColor;
 }
 
 .rpc-input-wrap.has-leading input {
@@ -253,6 +279,42 @@ body.rpc-auth-open {
   color: var(--rpc-ink);
   font-size: 15px;
   font-weight: 700;
+}
+
+.rpc-ms-btn {
+  width: 100%;
+  padding: 0 22px;
+}
+
+.rpc-ms-btn-content {
+  width: 100%;
+  min-height: 50px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  white-space: nowrap;
+}
+
+.rpc-ms-mark {
+  width: 18px;
+  height: 18px;
+  flex: 0 0 18px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.rpc-ms-mark svg {
+  display: block;
+  width: 18px;
+  height: 18px;
+}
+
+.rpc-ms-label {
+  display: inline-block;
+  line-height: 1;
+  white-space: nowrap;
 }
 
 .rpc-ghost-btn {
