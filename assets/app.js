@@ -717,6 +717,7 @@ document.addEventListener("DOMContentLoaded", () => {
     syncFigurePlacementControls();
     updateAllUI();
     checkLibraries();
+    installPlatformApi();
   }
 
   function startHeaderClock() {
@@ -5040,6 +5041,7 @@ document.addEventListener("DOMContentLoaded", () => {
     updatePreview(data);
     renderInstitutionalUI(data, validation, review);
     updateUpsideDisplay();
+    dispatchPlatformStateChange();
   }
 
   function queueDraftSave() {
@@ -5115,6 +5117,7 @@ document.addEventListener("DOMContentLoaded", () => {
       window.localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
       state.lastSavedAt = payload.savedAt;
       if (dom.workspaceSaveState) dom.workspaceSaveState.textContent = formatAutosaveState();
+      dispatchPlatformStateChange();
     } catch (error) {
       console.error("Autosave failed:", error);
     }
@@ -11789,5 +11792,291 @@ document.addEventListener("DOMContentLoaded", () => {
       image.src = objectUrl;
 
     });
+  }
+
+  function createPlatformSnapshot() {
+    const data = collectFormData();
+    const validation = validateForm(false);
+    const review = buildPrePublishReview(data, validation);
+    const noteId = buildPreviewNoteId(data);
+    const publicationDate = parseInputDate(data.publicationDate) || data.generatedAt || new Date();
+    const analystContacts = collectAnalystContacts(data);
+    const availablePlacements = new Set(getFigurePlacementOptions(data.noteType).map((option) => option.value));
+    const previewHtml = buildPreviewMainPageHtml(
+      { ...data, noteId },
+      publicationDate,
+      analystContacts,
+      availablePlacements,
+      normalizeBodySectionLayoutForExport(data).filter((entry) => !entry.hidden && entry.content),
+      1,
+      1
+    );
+    const summaryHtml = buildSummaryDraftHtml(data);
+    const figures = (state.figureFiles || []).map((file, index) => {
+      const key = figureFileKey(file);
+      const detail = resolveFigureDetailForOutput(file, index + 1, data.figureDetails || {});
+      return {
+        key,
+        fileName: file.name,
+        token: figureReferenceToken(key),
+        previewUrl: getFigurePreviewUrl(file),
+        detail
+      };
+    });
+    const sectionLayout = normalizeBodySectionLayoutForExport(data).filter((entry) => !entry.hidden);
+    const wordSource = [
+      data.title,
+      data.deck,
+      ...sectionLayout.map((entry) => entry.content || ""),
+      data.businessDescription,
+      data.valuationSummary
+    ].filter(Boolean).join(" ");
+    const wordCount = countMeaningfulWords(wordSource);
+
+    return {
+      data,
+      validation,
+      review,
+      noteId,
+      publicationDateLabel: formatInputDateLabel(data.publicationDate),
+      authorLine: buildPrimaryAuthorLine(),
+      shariah: getShariahStatusModel(data),
+      sectionLayout,
+      figures,
+      summaryHtml,
+      previewHtml,
+      previewSrcdoc: buildPreviewDocumentSrcdoc({ ...data, noteId }, previewHtml),
+      lastSavedAt: state.lastSavedAt,
+      history: [...state.workflowEvents],
+      usageMetrics: { ...state.usageMetrics },
+      wordCount,
+      readingTimeMinutes: Math.max(1, Math.round(wordCount / 240))
+    };
+  }
+
+  function dispatchPlatformStateChange() {
+    if (typeof window === "undefined") return;
+    if (!window.RDTLegacyAPI) return;
+    window.dispatchEvent(new CustomEvent("rdt:statechange", {
+      detail: createPlatformSnapshot()
+    }));
+  }
+
+  function setFieldValueById(fieldId, value) {
+    const element = document.getElementById(fieldId);
+    if (!element || element instanceof HTMLInputElement && element.type === "file") return false;
+    element.value = value;
+    element.dispatchEvent(new Event("input", { bubbles: true }));
+    element.dispatchEvent(new Event("change", { bubbles: true }));
+    return true;
+  }
+
+  function setRichTextFieldValueById(fieldId, html) {
+    const element = document.getElementById(fieldId);
+    if (!(element instanceof HTMLTextAreaElement)) return false;
+    element.value = buildRichTextStorageValue(html);
+    element.dispatchEvent(new Event("input", { bubbles: true }));
+    element.dispatchEvent(new Event("change", { bubbles: true }));
+    refreshRichTextEditorsFromSources();
+    return true;
+  }
+
+  function getBodySectionCardByKey(sectionKey) {
+    return dom.bodySections?.querySelector(`.body-section-card[data-section-key='${CSS.escape(sectionKey)}']`) || null;
+  }
+
+  function updateSectionByKey(sectionKey, patch = {}) {
+    const card = getBodySectionCardByKey(sectionKey);
+    if (!card) return false;
+
+    if (typeof patch.label === "string") {
+      if (card.dataset.sectionRole === "custom") {
+        const input = card.querySelector("[data-custom-field='heading']");
+        if (input) input.value = patch.label;
+      } else {
+        const input = card.querySelector(".body-section-heading input");
+        if (input) input.value = patch.label;
+      }
+    }
+
+    if (typeof patch.content === "string") {
+      if (card.dataset.sectionRole === "custom") {
+        const input = card.querySelector("[data-custom-field='content']");
+        if (input instanceof HTMLTextAreaElement) {
+          input.value = buildRichTextStorageValue(patch.content);
+          input.dispatchEvent(new Event("input", { bubbles: true }));
+          input.dispatchEvent(new Event("change", { bubbles: true }));
+        }
+      } else {
+        setRichTextFieldValueById(sectionKey, patch.content);
+      }
+    }
+
+    syncFigurePlacementControls();
+    updateAllUI();
+    queueDraftSave();
+    return true;
+  }
+
+  function addPlatformCustomSection(label = "Custom Section", afterSectionKey = "") {
+    const afterCard = afterSectionKey ? getBodySectionCardByKey(afterSectionKey) : null;
+    const card = addCustomBodySection({ label, content: "" }, { afterCard });
+    decorateLiveNarrativeComponents();
+    syncFigurePlacementControls();
+    updateAllUI();
+    queueDraftSave();
+    return card?.dataset.sectionKey || "";
+  }
+
+  function moveSectionToIndex(sectionKey, targetIndex) {
+    if (!dom.bodySections) return false;
+    const card = getBodySectionCardByKey(sectionKey);
+    if (!card) return false;
+    const cards = Array.from(dom.bodySections.querySelectorAll(".body-section-card"));
+    const boundedIndex = Math.max(0, Math.min(Number(targetIndex) || 0, cards.length - 1));
+    const anchor = cards[boundedIndex];
+    if (!anchor || anchor === card) return false;
+    if (boundedIndex >= cards.indexOf(card)) {
+      anchor.insertAdjacentElement("afterend", card);
+    } else {
+      dom.bodySections.insertBefore(card, anchor);
+    }
+    syncFigurePlacementControls();
+    updateAllUI();
+    queueDraftSave();
+    return true;
+  }
+
+  function removeCustomSectionByKey(sectionKey) {
+    const card = getBodySectionCardByKey(sectionKey);
+    if (!card || card.dataset.sectionRole !== "custom") return false;
+    card.remove();
+    syncFigurePlacementControls();
+    updateAllUI();
+    queueDraftSave();
+    return true;
+  }
+
+  function parseAuthorDisplayName(displayName) {
+    const parts = String(displayName || "").trim().split(/\s+/).filter(Boolean);
+    if (!parts.length) return { firstName: "", lastName: "" };
+    const firstName = parts.shift() || "";
+    return { firstName, lastName: parts.join(" ") };
+  }
+
+  function replaceCoAuthorsForPlatform(authorNames = []) {
+    if (!dom.coAuthorsList) return;
+    dom.coAuthorsList.innerHTML = "";
+    state.coAuthorCount = 0;
+    authorNames.forEach((name) => {
+      const parsed = parseAuthorDisplayName(name);
+      if (!parsed.firstName && !parsed.lastName) return;
+      addCoAuthorCard({
+        firstName: parsed.firstName,
+        lastName: parsed.lastName,
+        countryCode: "44",
+        phoneLocal: ""
+      });
+    });
+  }
+
+  function setAuthorLineValue(rawLine) {
+    const parts = String(rawLine || "")
+      .split("|")
+      .map((entry) => entry.trim())
+      .filter(Boolean);
+    if (!parts.length) return false;
+
+    let deskLine = "";
+    if (/desk/i.test(parts[parts.length - 1])) {
+      deskLine = parts.pop() || "";
+    }
+
+    const [primaryAuthor = "", ...coAuthors] = parts;
+    const parsedPrimary = parseAuthorDisplayName(primaryAuthor);
+    if (!parsedPrimary.firstName && !parsedPrimary.lastName) return false;
+
+    dom.authorFirstName.value = parsedPrimary.firstName;
+    dom.authorLastName.value = parsedPrimary.lastName;
+    replaceCoAuthorsForPlatform(coAuthors);
+
+    if (deskLine) {
+      dom.deskLine.value = deskLine;
+      dom.deskLine.dataset.autofill = "false";
+    }
+
+    updateAllUI();
+    queueDraftSave();
+    return true;
+  }
+
+  function updateFigureDetailByKey(figureKey, patch = {}) {
+    const fileIndex = (state.figureFiles || []).findIndex((file) => figureFileKey(file) === figureKey);
+    const file = fileIndex >= 0 ? state.figureFiles[fileIndex] : null;
+    if (!file) return false;
+    const current = {
+      ...getFigureDetailForFile(file, fileIndex),
+      ...(state.figureDetails[figureKey] || {})
+    };
+    const next = { ...current, ...patch };
+    state.figureDetails[figureKey] = next;
+    if (Object.prototype.hasOwnProperty.call(patch, "placement") || Object.prototype.hasOwnProperty.call(patch, "pairWithKey") || Object.prototype.hasOwnProperty.call(patch, "pairWithNext")) {
+      if (next.placement) state.figurePlacements[figureKey] = next.placement;
+      syncFigurePairPlacementGroup(figureKey);
+    }
+    syncFigurePlacementControls();
+    updateFigureSummary();
+    updateAllUI();
+    queueDraftSave();
+    return true;
+  }
+
+  function installPlatformApi() {
+    window.RDTLegacyAPI = {
+      getSnapshot: createPlatformSnapshot,
+      subscribe(callback) {
+        if (typeof callback !== "function") return () => undefined;
+        const handler = (event) => callback(event.detail);
+        window.addEventListener("rdt:statechange", handler);
+        return () => window.removeEventListener("rdt:statechange", handler);
+      },
+      setFieldValue: setFieldValueById,
+      setRichTextValue: setRichTextFieldValueById,
+      renderRichTextHtml(value) {
+        return buildEditorRichTextHtml(value);
+      },
+      serializeRichTextHtml(html) {
+        return buildRichTextStorageValue(html);
+      },
+      plainTextFromHtml(html) {
+        return richTextToPlainText(html);
+      },
+      updateSection: updateSectionByKey,
+      addCustomSection: addPlatformCustomSection,
+      moveSectionToIndex,
+      removeSection: removeCustomSectionByKey,
+      updateFigureDetail: updateFigureDetailByKey,
+      removeFigure: removeFigureByKey,
+      setAuthorLine: setAuthorLineValue,
+      triggerFigureUpload() {
+        dom.imageUpload?.click();
+      },
+      triggerAttachmentUpload() {
+        dom.modelFiles?.click();
+      },
+      openPreview: openPreviewModal,
+      openSummary: openSummaryModal,
+      generateWord() {
+        form.requestSubmit(dom.generateDocBtn);
+      },
+      exportBlankTemplate,
+      resetDraft,
+      setMessage,
+      switchWorkspaceTab,
+      getFigurePlacementOptions() {
+        return getFigurePlacementOptions(dom.noteType.value);
+      }
+    };
+    dispatchPlatformStateChange();
   }
 });
