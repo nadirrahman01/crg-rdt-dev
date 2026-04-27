@@ -360,15 +360,14 @@ document.addEventListener("DOMContentLoaded", () => {
     { key: "components", label: "Components" },
     { key: "compliance", label: "Compliance" },
     { key: "distribution", label: "Distribution" },
-    { key: "analytics", label: "Analytics / Readership" },
     { key: "history", label: "History / Changes" }
   ];
 
   const SECTION_TAB_MAP = {
     "section-note": "editor",
-    "section-authors": "editor",
+    "section-authors": "metadata",
     "section-body": "editor",
-    "section-exhibits": "editor",
+    "section-exhibits": "components",
     "section-equity": "financials",
     "section-output": "distribution"
   };
@@ -575,6 +574,8 @@ document.addEventListener("DOMContentLoaded", () => {
     richEditors: new Map(),
     summaryHtml: "",
     activeWorkspaceTab: "editor",
+    activeEditorComponentId: "frontmatter",
+    liveMirrors: [],
     usageMetrics: {
       previews: 0,
       exports: 0,
@@ -671,7 +672,8 @@ document.addEventListener("DOMContentLoaded", () => {
     "distributionEmbargo",
     "distributionEntitlement",
     "distributionPublicationState",
-    "distributionPackagingNotes"
+    "distributionPackagingNotes",
+    "shariahComplianceStatus"
   ];
 
   const RICH_TEXT_FIELD_IDS = [
@@ -759,13 +761,7 @@ document.addEventListener("DOMContentLoaded", () => {
     return `
       <div class="workflow-panel-stack">
         <section class="workflow-panel-card">
-          <div class="workflow-panel-head">
-            <div>
-              <p class="section-kicker">Structured Metadata</p>
-              <h3>RIXML, taxonomy, and search controls</h3>
-              <p>Document metadata travels with packaging, search, filtering, and downstream distribution controls.</p>
-            </div>
-          </div>
+          <p class="rail-label">Structured Metadata</p>
           <div class="field-grid field-grid-3">
             <div class="field">
               <label for="rixmlContentType">Content Classification</label>
@@ -814,13 +810,7 @@ document.addEventListener("DOMContentLoaded", () => {
         </section>
 
         <section class="workflow-panel-card">
-          <div class="workflow-panel-head">
-            <div>
-              <p class="section-kicker">Coverage Map</p>
-              <h3>Live note identity</h3>
-              <p>These cards reflect the live note and give production teams the same high-level metadata they would expect in a governed publishing platform.</p>
-            </div>
-          </div>
+          <p class="rail-label">Snapshot</p>
           <div class="institution-summary-grid">
             <article class="institution-summary-card">
               <span>Coverage</span>
@@ -889,14 +879,16 @@ document.addEventListener("DOMContentLoaded", () => {
     return `
       <div class="workflow-panel-stack">
         <section class="workflow-panel-card">
-          <div class="workflow-panel-head">
-            <div>
-              <p class="section-kicker">Approvals</p>
-              <h3>Workflow checkpoints and governance</h3>
-              <p>Authoring, review, approval, and recordkeeping controls stay visible while the note is still being built.</p>
-            </div>
-          </div>
           <div class="field-grid field-grid-2">
+            <div class="field">
+              <label for="shariahComplianceStatus">Shariah Status</label>
+              <select id="shariahComplianceStatus" name="shariahComplianceStatus">
+                <option value="Auto">Auto</option>
+                <option value="Compliant">Compliant</option>
+                <option value="Non-compliant">Non-compliant</option>
+                <option value="Review">Review</option>
+              </select>
+            </div>
             <div class="field">
               <label for="editorialApprovalStatus">Editorial Approval</label>
               <select id="editorialApprovalStatus" name="editorialApprovalStatus">
@@ -924,27 +916,16 @@ document.addEventListener("DOMContentLoaded", () => {
               <input type="text" id="accessClassification" name="accessClassification" placeholder="Internal / restricted / approved distribution">
             </div>
           </div>
+          <div id="shariahComplianceSummary" class="component-registry-list"></div>
         </section>
 
         <section class="workflow-panel-card">
-          <div class="workflow-panel-head">
-            <div>
-              <p class="section-kicker">Validation</p>
-              <h3>Pre-publication review</h3>
-              <p>The same structural checks that govern export are surfaced here as a production review queue.</p>
-            </div>
-          </div>
+          <p class="rail-label">Review</p>
           <div id="complianceReviewMirror" class="compliance-review-mirror"></div>
         </section>
 
         <section class="workflow-panel-card">
-          <div class="workflow-panel-head">
-            <div>
-              <p class="section-kicker">Policy Coverage</p>
-              <h3>Publishing readiness controls</h3>
-              <p>These markers show whether the note has the metadata, disclosures, and packaging controls expected of an institutional workflow.</p>
-            </div>
-          </div>
+          <p class="rail-label">Controls</p>
           <div id="compliancePolicyChecklist" class="policy-checklist"></div>
         </section>
       </div>
@@ -955,13 +936,7 @@ document.addEventListener("DOMContentLoaded", () => {
     return `
       <div class="workflow-panel-stack">
         <section class="workflow-panel-card">
-          <div class="workflow-panel-head">
-            <div>
-              <p class="section-kicker">Distribution Desk</p>
-              <h3>Packaging and channel controls</h3>
-              <p>Set the live publication state, audience, and entitlement settings before packaging the note.</p>
-            </div>
-          </div>
+          <p class="rail-label">Distribution</p>
           <div class="field-grid field-grid-3">
             <div class="field">
               <label for="distributionPublicationState">Publication State</label>
@@ -1058,13 +1033,7 @@ document.addEventListener("DOMContentLoaded", () => {
     return `
       <div class="workflow-panel-stack">
         <section class="workflow-panel-card">
-          <div class="workflow-panel-head">
-            <div>
-              <p class="section-kicker">Audit Trail</p>
-              <h3>History, approvals, and packaging events</h3>
-              <p>Who changed what, when the stage moved, and when the publication package was generated all sit in one reviewable timeline.</p>
-            </div>
-          </div>
+          <p class="rail-label">History</p>
           <div id="historyTimeline" class="history-timeline"></div>
         </section>
       </div>
@@ -1074,6 +1043,7 @@ document.addEventListener("DOMContentLoaded", () => {
   function buildInstitutionalWorkspace() {
     if (!dom.form || document.getElementById("institutionShell")) {
       hydrateInstitutionalDomRefs();
+      buildLiveNoteCanvas();
       return;
     }
 
@@ -1086,9 +1056,9 @@ document.addEventListener("DOMContentLoaded", () => {
       <section class="institution-ribbon">
         <div class="institution-ribbon-main">
           <div class="institution-ribbon-copy">
-            <p class="section-kicker">Institutional Research Workflow</p>
+            <p class="section-kicker">Research Production</p>
             <h2 id="workspaceDocTitle">Untitled Research Note</h2>
-            <p id="workspaceDocMeta">Live browser-based authoring, packaging, governance, and publication controls.</p>
+            <p id="workspaceDocMeta">Live note authoring</p>
           </div>
           <div class="institution-ribbon-fields">
             <label class="institution-compact-field">
@@ -1118,11 +1088,12 @@ document.addEventListener("DOMContentLoaded", () => {
             <span class="institution-chip" id="workspaceDocumentLabel">Research Note</span>
             <span class="institution-chip" id="workspaceReadinessChip">Draft</span>
             <span class="institution-chip" id="workspaceChannelChip">Word / HTML / PDF</span>
+            <span class="institution-chip institution-chip-subtle" id="liveShariahChip">Shariah: review</span>
           </div>
           <div class="institution-action-row">
-            <button type="button" class="btn btn-secondary btn-xs" data-workspace-shortcut="preview">Preview Publication View</button>
+            <button type="button" class="btn btn-secondary btn-xs" data-workspace-shortcut="preview">Preview</button>
             <button type="button" class="btn btn-secondary btn-xs" data-workspace-shortcut="summary">Website Summary</button>
-            <button type="button" class="btn btn-ghost btn-xs" data-workspace-tab="distribution">Distribution Desk</button>
+            <button type="button" class="btn btn-primary btn-xs" id="workspacePublishShortcut" data-workspace-tab="distribution">Publish</button>
           </div>
         </div>
       </section>
@@ -1130,51 +1101,50 @@ document.addEventListener("DOMContentLoaded", () => {
       <section class="institution-tabs-shell">
         <div class="institution-tabs" role="tablist">${getWorkspaceTabsMarkup()}</div>
         <div class="institution-command-bar">
-          <button type="button" class="institution-command-btn" data-workspace-tab="editor">Content</button>
-          <button type="button" class="institution-command-btn" data-insert-component="figure">Images</button>
-          <button type="button" class="institution-command-btn" data-workspace-tab="financials">Financials</button>
-          <button type="button" class="institution-command-btn" data-workspace-tab="metadata">Tags</button>
-          <button type="button" class="institution-command-btn" data-workspace-tab="compliance">Compliance</button>
-          <button type="button" class="institution-command-btn" data-workspace-tab="components">Components</button>
-          <button type="button" class="institution-command-btn" data-workspace-shortcut="preview">PDF Preview</button>
+          <button type="button" class="institution-command-btn" data-insert-component="custom-section">Custom Block</button>
+          <button type="button" class="institution-command-btn" data-insert-component="risks">Risks</button>
+          <button type="button" class="institution-command-btn" data-insert-component="catalysts">Catalysts</button>
+          <button type="button" class="institution-command-btn" data-insert-component="disclosure">Disclosure</button>
+          <button type="button" class="institution-command-btn" data-insert-component="figure">Figure</button>
+          <button type="button" class="institution-command-btn" data-workspace-shortcut="validate">Validate</button>
         </div>
         <div class="institution-tab-panels">
           <section class="institution-tab-panel is-active" data-tab-panel="editor">
-            <div class="editor-workbench">
+            <div class="authoring-studio">
               <aside class="editor-component-rail" id="editorComponentRail">
                 <div class="toolrail-group">
                   <p class="rail-label">Insert</p>
                   <div class="component-library-grid">${buildComponentButtonsMarkup()}</div>
                 </div>
-                <div class="toolrail-group">
-                  <p class="rail-label">Token Library</p>
-                  <div class="toolrail-token-card">
-                    <strong>Copyable tokens</strong>
-                    <p>Use the live figure tokens below when you want references inside the note body to stay synchronized with the exhibit registry.</p>
-                    <div id="figureTokenQuickList" class="token-chip-list"></div>
-                  </div>
+                <div class="toolrail-group toolrail-group-compact">
+                  <p class="rail-label">Tokens</p>
+                  <div id="figureTokenQuickList" class="token-chip-list"></div>
                 </div>
               </aside>
 
               <div class="editor-canvas-column">
                 <div class="editor-canvas-topbar">
                   <div>
-                    <strong>Live Research Canvas</strong>
-                    <span id="editorCanvasStatusText">Write directly in the publication document. The note, not the form, is the main working object.</span>
+                    <strong>Live Note</strong>
+                    <span id="editorCanvasStatusText">Draft in the publication canvas.</span>
                   </div>
                   <div class="editor-canvas-actions">
-                    <button type="button" class="btn btn-secondary btn-xs" data-workspace-shortcut="validate">Run Validation</button>
-                    <button type="button" class="btn btn-ghost btn-xs" data-workspace-tab="components">Open Components</button>
+                    <button type="button" class="btn btn-secondary btn-xs" data-workspace-shortcut="preview">Preview</button>
+                    <button type="button" class="btn btn-ghost btn-xs" data-workspace-tab="components">Assets</button>
                   </div>
                 </div>
                 <div class="editor-document-stage">
-                  <div class="editor-document-canvas" id="editorDocumentCanvas"></div>
+                  <div class="live-note-canvas" id="liveNoteCanvas"></div>
                 </div>
               </div>
 
               <aside class="editor-inspector" id="editorInspector">
                 <div class="inspector-card">
-                  <p class="rail-label">Document Properties</p>
+                  <p class="rail-label">Selection</p>
+                  <div id="selectedComponentCard" class="selected-component-card"></div>
+                </div>
+                <div class="inspector-card">
+                  <p class="rail-label">Document</p>
                   <div class="inspector-property-grid">
                     <div><span>Note ID</span><strong id="workspaceNoteId">Pending on export</strong></div>
                     <div><span>Status</span><strong id="workspacePackageChip">Package pending</strong></div>
@@ -1182,10 +1152,7 @@ document.addEventListener("DOMContentLoaded", () => {
                     <div><span>Audience</span><strong id="workspaceAudienceState">Audience pending</strong></div>
                   </div>
                 </div>
-                <div class="inspector-card">
-                  <p class="rail-label">Packaging Readout</p>
-                  <div id="workspacePackagingSummary" class="workspace-packaging-summary"></div>
-                </div>
+                <div class="inspector-card"><p class="rail-label">Packaging</p><div id="workspacePackagingSummary" class="workspace-packaging-summary"></div></div>
                 <div id="editorInspectorWorkflow"></div>
               </aside>
             </div>
@@ -1193,18 +1160,11 @@ document.addEventListener("DOMContentLoaded", () => {
 
           <section class="institution-tab-panel" data-tab-panel="financials">
             <div class="workflow-board">
-              <div class="workflow-board-head">
-                <div>
-                  <p class="section-kicker">Financial Modelling</p>
-                  <h3>Forecasts, tear sheets, and valuation packaging</h3>
-                  <p>The financial layer stays attached to the live note, but is worked in a dedicated production tab for analyst speed and cleaner review.</p>
-                </div>
-              </div>
               <div class="workflow-board-grid">
                 <div id="financialsHost"></div>
                 <aside class="workflow-board-side">
                   <section class="workflow-panel-card">
-                    <p class="rail-label">Coverage Architecture</p>
+                    <p class="rail-label">Coverage</p>
                     <div id="financialsCoverageSummary" class="component-registry-list"></div>
                   </section>
                 </aside>
@@ -1212,11 +1172,10 @@ document.addEventListener("DOMContentLoaded", () => {
             </div>
           </section>
 
-          <section class="institution-tab-panel" data-tab-panel="metadata"><div id="metadataHost"></div></section>
-          <section class="institution-tab-panel" data-tab-panel="components"><div id="componentsHost"></div></section>
+          <section class="institution-tab-panel" data-tab-panel="metadata"><div id="metadataHost" class="platform-tab-grid"></div></section>
+          <section class="institution-tab-panel" data-tab-panel="components"><div id="componentsHost" class="platform-tab-grid"></div></section>
           <section class="institution-tab-panel" data-tab-panel="compliance"><div id="complianceHost"></div></section>
           <section class="institution-tab-panel" data-tab-panel="distribution"><div id="distributionHost"></div></section>
-          <section class="institution-tab-panel" data-tab-panel="analytics"><div id="analyticsHost"></div></section>
           <section class="institution-tab-panel" data-tab-panel="history"><div id="historyHost"></div></section>
         </div>
       </section>
@@ -1224,10 +1183,15 @@ document.addEventListener("DOMContentLoaded", () => {
 
     dom.form.prepend(shell);
 
-    const editorCanvas = shell.querySelector("#editorDocumentCanvas");
+    const metadataHost = shell.querySelector("#metadataHost");
+    const componentsHost = shell.querySelector("#componentsHost");
     const financialsHost = shell.querySelector("#financialsHost");
     const distributionHost = shell.querySelector("#distributionHost");
     const editorInspectorWorkflow = shell.querySelector("#editorInspectorWorkflow");
+    const sourceDataHost = document.createElement("div");
+    sourceDataHost.id = "sourceDataHost";
+    sourceDataHost.className = "source-data-host";
+    dom.form.appendChild(sourceDataHost);
 
     const sectionNote = document.getElementById("section-note");
     const sectionAuthors = document.getElementById("section-authors");
@@ -1236,31 +1200,64 @@ document.addEventListener("DOMContentLoaded", () => {
     const sectionExhibits = document.getElementById("section-exhibits");
     const sectionOutput = document.getElementById("section-output");
 
-    [sectionNote, sectionAuthors, sectionBody, sectionExhibits].filter(Boolean).forEach((section) => {
-      section.classList.add("institution-canvas-card");
-      editorCanvas.appendChild(section);
-    });
+    const metadataMain = document.createElement("div");
+    metadataMain.className = "tab-workspace-main";
+    const metadataSide = document.createElement("aside");
+    metadataSide.className = "tab-workspace-side";
+    metadataHost.append(metadataMain, metadataSide);
 
-    if (sectionNote) sectionNote.classList.add("canvas-frontmatter-card");
-    if (sectionBody) sectionBody.classList.add("canvas-body-card");
-    if (sectionExhibits) sectionExhibits.classList.add("canvas-figure-card");
+    if (sectionNote) {
+      sectionNote.classList.add("platform-side-form", "platform-note-form");
+      metadataMain.appendChild(sectionNote);
+    }
+
+    if (sectionAuthors) {
+      sectionAuthors.classList.add("platform-side-form", "platform-author-form");
+      metadataMain.appendChild(sectionAuthors);
+    }
+
+    metadataSide.innerHTML = buildMetadataPanelMarkup();
 
     if (sectionEquity) {
-      sectionEquity.classList.add("workflow-board-card");
+      sectionEquity.classList.add("workflow-board-card", "platform-side-form");
       financialsHost.appendChild(sectionEquity);
+    }
+
+    if (sectionBody) {
+      sectionBody.classList.add("source-only-section");
+      sourceDataHost.appendChild(sectionBody);
+    }
+
+    componentsHost.innerHTML = `
+      <div class="tab-workspace-main" id="componentsMainColumn">
+        <div id="componentsFigureHost"></div>
+      </div>
+      <aside class="tab-workspace-side">
+        <div class="workflow-panel-card">
+        <p class="rail-label">Component Library</p>
+        <div class="component-library-grid">${buildComponentButtonsMarkup()}</div>
+        </div>
+        <div class="workflow-panel-card">
+        <p class="rail-label">Registry</p>
+        <div id="componentRegistryList" class="component-registry-list"></div>
+        <div class="token-chip-list component-token-strip" id="componentTokenList"></div>
+        </div>
+      </aside>
+    `;
+
+    if (sectionExhibits) {
+      sectionExhibits.classList.add("platform-side-form", "platform-figure-form");
+      componentsHost.querySelector("#componentsFigureHost").appendChild(sectionExhibits);
     }
 
     distributionHost.innerHTML = `${buildDistributionPanelMarkup()}<div id="distributionOutputHost"></div>`;
     const distributionOutputHost = distributionHost.querySelector("#distributionOutputHost");
     if (sectionOutput) {
-      sectionOutput.classList.add("workflow-board-card");
+      sectionOutput.classList.add("workflow-board-card", "platform-side-form");
       distributionOutputHost.appendChild(sectionOutput);
     }
 
-    shell.querySelector("#metadataHost").innerHTML = buildMetadataPanelMarkup();
-    shell.querySelector("#componentsHost").innerHTML = buildComponentsPanelMarkup();
     shell.querySelector("#complianceHost").innerHTML = buildCompliancePanelMarkup();
-    shell.querySelector("#analyticsHost").innerHTML = buildAnalyticsPanelMarkup();
     shell.querySelector("#historyHost").innerHTML = buildHistoryPanelMarkup();
 
     if (dom.workflowRail) {
@@ -1269,11 +1266,412 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     hydrateInstitutionalDomRefs();
+    buildLiveNoteCanvas();
     switchWorkspaceTab(state.activeWorkspaceTab, { suppressLog: true });
+  }
+
+  function createLiveMirrorControl(sourceId, options = {}) {
+    const source = document.getElementById(sourceId);
+    if (!source) return null;
+
+    let control;
+    if (source instanceof HTMLSelectElement) {
+      control = document.createElement("select");
+      control.innerHTML = source.innerHTML;
+    } else {
+      control = document.createElement("input");
+      control.type = source instanceof HTMLInputElement && source.type === "date" ? "date" : "text";
+      control.placeholder = options.placeholder || source.getAttribute("placeholder") || "";
+    }
+
+    control.className = options.className || "";
+    control.setAttribute("data-mirror-source", sourceId);
+    syncLiveMirrorControl(source, control);
+
+    const pushToSource = () => {
+      const nextValue = control.value;
+      if (source.value === nextValue) return;
+      source.value = nextValue;
+      source.dispatchEvent(new Event("input", { bubbles: true }));
+      source.dispatchEvent(new Event("change", { bubbles: true }));
+      updateAllUI();
+      queueDraftSave();
+    };
+
+    control.addEventListener(control.tagName === "SELECT" ? "change" : "input", pushToSource);
+    control.addEventListener("change", pushToSource);
+
+    const syncBack = () => syncLiveMirrorControl(source, control);
+    source.addEventListener("input", syncBack);
+    source.addEventListener("change", syncBack);
+
+    state.liveMirrors.push({ source, control });
+    return control;
+  }
+
+  function syncLiveMirrorControl(source, control) {
+    if (!source || !control || document.activeElement === control) return;
+    if (control.tagName === "SELECT" && control.innerHTML !== source.innerHTML) {
+      control.innerHTML = source.innerHTML;
+    }
+    control.value = source.value;
+  }
+
+  function syncAllLiveMirrors() {
+    state.liveMirrors = (state.liveMirrors || []).filter((entry) => document.body.contains(entry.source) && document.body.contains(entry.control));
+    state.liveMirrors.forEach(({ source, control }) => syncLiveMirrorControl(source, control));
+  }
+
+  function buildLiveNoteCanvas() {
+    const host = document.getElementById("liveNoteCanvas");
+    if (!host || host.dataset.liveBuilt === "true") {
+      hydrateInstitutionalDomRefs();
+      renderLiveNotePresentation(collectFormData());
+      return;
+    }
+
+    host.dataset.liveBuilt = "true";
+    host.innerHTML = `
+      <article class="live-note-header-block live-note-block is-selected" data-live-component-id="frontmatter" data-live-component-type="frontmatter">
+        <div class="live-note-meta-row">
+          <div class="live-note-meta-slot" id="liveNoteTypeSlot"></div>
+          <div class="live-note-meta-slot" id="livePublicationDateSlot"></div>
+          <div class="live-note-meta-slot" id="liveDeskLineSlot"></div>
+        </div>
+        <div class="live-note-title-slot" id="liveTitleSlot"></div>
+        <div class="live-note-deck-slot" id="liveDeckSlot"></div>
+        <div class="live-note-submeta-row">
+          <div class="live-note-author-row">
+            <div id="liveAuthorFirstSlot"></div>
+            <div id="liveAuthorLastSlot"></div>
+          </div>
+          <div class="live-note-topic-slot" id="liveTopicSlot"></div>
+        </div>
+        <div class="live-note-status-row">
+          <span class="live-note-inline-status" id="liveBylineChip">Author details</span>
+          <span class="live-note-inline-status live-note-inline-status-subtle" id="liveCanvasStageChip">Authoring</span>
+          <span class="live-note-inline-status live-note-inline-status-subtle" id="liveNoteShariahStatus">Shariah: review</span>
+        </div>
+      </article>
+      <div class="live-note-insert-bar live-note-block" data-live-component-id="insert-bar" data-live-component-type="tools">
+        <span>Insert</span>
+        <button type="button" class="institution-command-btn" data-insert-component="custom-section">Section</button>
+        <button type="button" class="institution-command-btn" data-insert-component="risks">Risks</button>
+        <button type="button" class="institution-command-btn" data-insert-component="catalysts">Catalysts</button>
+        <button type="button" class="institution-command-btn" data-insert-component="disclosure">Disclosure</button>
+        <button type="button" class="institution-command-btn" data-insert-component="figure">Figure</button>
+      </div>
+      <div id="liveEquityNarrativeHost" class="live-equity-narrative-host"></div>
+      <div id="liveBodyComponentHost" class="live-body-component-host"></div>
+      <div id="liveNoteEndFigures" class="live-note-end-figures"></div>
+    `;
+
+    const mirrorConfig = [
+      ["noteType", "liveNoteTypeSlot", "live-meta-select"],
+      ["publicationDate", "livePublicationDateSlot", "live-meta-date"],
+      ["deskLine", "liveDeskLineSlot", "live-meta-input"],
+      ["title", "liveTitleSlot", "live-note-title-input"],
+      ["deck", "liveDeckSlot", "live-note-deck-input"],
+      ["authorFirstName", "liveAuthorFirstSlot", "live-author-input"],
+      ["authorLastName", "liveAuthorLastSlot", "live-author-input"],
+      ["topic", "liveTopicSlot", "live-note-topic-input"]
+    ];
+
+    mirrorConfig.forEach(([sourceId, targetId, className]) => {
+      const target = host.querySelector(`#${targetId}`);
+      const control = createLiveMirrorControl(sourceId, { className });
+      if (target && control) target.appendChild(control);
+    });
+
+    const liveBodyHost = host.querySelector("#liveBodyComponentHost");
+    if (liveBodyHost && dom.bodySections) {
+      liveBodyHost.appendChild(dom.bodySections);
+      dom.bodySections.classList.add("live-body-sections");
+    }
+
+    const liveEquityHost = host.querySelector("#liveEquityNarrativeHost");
+    moveEquityNarrativeFieldsIntoLiveCanvas(liveEquityHost);
+    decorateLiveNarrativeComponents();
+    bindLiveCanvasEvents();
+    renderLiveNotePresentation(collectFormData());
+  }
+
+  function moveEquityNarrativeFieldsIntoLiveCanvas(host) {
+    if (!host || !dom.businessDescription || !dom.valuationSummary) return;
+    [
+      { input: dom.businessDescription, id: "businessDescription", title: "Business Description" },
+      { input: dom.valuationSummary, id: "valuationSummary", title: "Valuation Summary" }
+    ].forEach(({ input, id, title }) => {
+      const field = input.closest(".field");
+      if (!field) return;
+      field.classList.add("live-note-block", "live-note-field-block");
+      field.setAttribute("data-live-component-id", id);
+      field.setAttribute("data-live-component-type", "narrative");
+      const label = field.querySelector("label");
+      if (label) label.textContent = title;
+      host.appendChild(field);
+    });
+  }
+
+  function decorateLiveNarrativeComponents() {
+    if (!dom.bodySections) return;
+    dom.bodySections.querySelectorAll(".body-section-card").forEach((card) => {
+      const sectionKey = card.dataset.sectionKey || "";
+      card.classList.add("live-note-block", "live-note-section-block");
+      card.setAttribute("data-live-component-id", `section-${sectionKey}`);
+      card.setAttribute("data-live-component-type", card.dataset.sectionRole === "custom" ? "custom-section" : "section");
+
+      const toolbar = card.querySelector(".body-section-toolbar");
+      if (toolbar && !toolbar.querySelector(".live-drag-handle")) {
+        const handle = document.createElement("button");
+        handle.type = "button";
+        handle.className = "live-drag-handle";
+        handle.draggable = true;
+        handle.setAttribute("aria-label", "Reorder block");
+        handle.setAttribute("title", "Drag to reorder");
+        handle.textContent = "⋮⋮";
+        toolbar.prepend(handle);
+      }
+    });
+
+    enableLiveBodySectionDrag();
+  }
+
+  function enableLiveBodySectionDrag() {
+    if (!dom.bodySections || dom.bodySections.dataset.dragEnabled === "true") return;
+    dom.bodySections.dataset.dragEnabled = "true";
+
+    dom.bodySections.addEventListener("dragstart", (event) => {
+      const handle = event.target.closest(".live-drag-handle");
+      if (!handle) return;
+      const card = handle.closest(".body-section-card");
+      if (!card) return;
+      state.draggedBodySectionKey = card.dataset.sectionKey || "";
+      card.classList.add("is-dragging");
+      event.dataTransfer?.setData("text/plain", state.draggedBodySectionKey);
+      event.dataTransfer.effectAllowed = "move";
+    });
+
+    dom.bodySections.addEventListener("dragover", (event) => {
+      if (!state.draggedBodySectionKey) return;
+      const targetCard = event.target.closest(".body-section-card");
+      if (!targetCard || targetCard.dataset.sectionKey === state.draggedBodySectionKey) return;
+      event.preventDefault();
+      targetCard.classList.add("is-drag-target");
+    });
+
+    dom.bodySections.addEventListener("dragleave", (event) => {
+      const targetCard = event.target.closest(".body-section-card");
+      targetCard?.classList.remove("is-drag-target");
+    });
+
+    dom.bodySections.addEventListener("drop", (event) => {
+      if (!state.draggedBodySectionKey) return;
+      const targetCard = event.target.closest(".body-section-card");
+      const draggedCard = dom.bodySections.querySelector(`.body-section-card[data-section-key='${CSS.escape(state.draggedBodySectionKey)}']`);
+      if (!draggedCard || !targetCard || draggedCard === targetCard) return;
+      event.preventDefault();
+      targetCard.classList.remove("is-drag-target");
+      dom.bodySections.insertBefore(draggedCard, targetCard);
+      draggedCard.classList.remove("is-dragging");
+      state.draggedBodySectionKey = "";
+      syncFigurePlacementControls();
+      recordWorkflowEvent("structure", "Block reordered", getBodySectionHeading(draggedCard), { silentSave: true });
+      updateAllUI();
+      queueDraftSave();
+    });
+
+    dom.bodySections.addEventListener("dragend", () => {
+      state.draggedBodySectionKey = "";
+      dom.bodySections.querySelectorAll(".body-section-card").forEach((card) => {
+        card.classList.remove("is-dragging", "is-drag-target");
+      });
+    });
+  }
+
+  function bindLiveCanvasEvents() {
+    const host = document.getElementById("liveNoteCanvas");
+    if (!host || host.dataset.selectionBound === "true") return;
+    host.dataset.selectionBound = "true";
+
+    host.addEventListener("click", (event) => {
+      const component = event.target.closest("[data-live-component-id]");
+      if (!component) return;
+      setActiveEditorComponent(component.getAttribute("data-live-component-id"));
+    });
+
+    host.addEventListener("focusin", (event) => {
+      const component = event.target.closest("[data-live-component-id]");
+      if (!component) return;
+      setActiveEditorComponent(component.getAttribute("data-live-component-id"));
+    });
+
+    host.querySelector("#liveBylineChip")?.addEventListener("click", () => {
+      switchWorkspaceTab("metadata", { suppressLog: true, record: false });
+    });
+  }
+
+  function setActiveEditorComponent(componentId) {
+    state.activeEditorComponentId = componentId || "frontmatter";
+    document.querySelectorAll("[data-live-component-id]").forEach((node) => {
+      node.classList.toggle("is-selected", node.getAttribute("data-live-component-id") === state.activeEditorComponentId);
+    });
+    renderSelectedComponentInspector(collectFormData());
+  }
+
+  function getShariahStatusModel(data) {
+    const manual = String(data.shariahComplianceStatus || "").trim();
+    if (manual && manual !== "Auto") {
+      if (manual === "Compliant") return { tone: "ok", label: "Shariah: compliant", detail: "Manual override" };
+      if (manual === "Non-compliant") return { tone: "flag", label: "Shariah: non-compliant", detail: "Manual override" };
+      return { tone: "review", label: "Shariah: review", detail: "Manual override" };
+    }
+
+    const text = normalizeComparableText([
+      data.equitySectorLine,
+      data.businessDescription,
+      data.title,
+      data.topic
+    ].filter(Boolean).join(" "));
+
+    if (!text || data.noteType !== "Equity Research") {
+      return { tone: "review", label: "Shariah: review", detail: "Not assessed" };
+    }
+
+    const nonCompliantKeywords = [
+      "bank", "insurance", "conventional finance", "tobacco", "alcohol", "casino", "gambling",
+      "weapons", "defense", "porn", "adult entertainment", "pork"
+    ];
+
+    const hasFlag = nonCompliantKeywords.some((keyword) => text.includes(keyword));
+    if (hasFlag) return { tone: "flag", label: "Shariah: non-compliant", detail: "Sector / activity screening flag" };
+    return { tone: "ok", label: "Shariah: clear", detail: "No restricted sector match found" };
+  }
+
+  function renderSelectedComponentInspector(data) {
+    if (!dom.selectedComponentCard) return;
+    const componentId = state.activeEditorComponentId || "frontmatter";
+    let title = "Note Header";
+    let detail = "Title, deck, author line, and publication identity.";
+
+    if (componentId === "businessDescription") {
+      title = "Business Description";
+      detail = `${countMeaningfulWords(dom.businessDescription?.value || "")} words`;
+    } else if (componentId === "valuationSummary") {
+      title = "Valuation Summary";
+      detail = `${countMeaningfulWords(dom.valuationSummary?.value || "")} words`;
+    } else if (componentId.startsWith("section-")) {
+      const sectionKey = componentId.replace(/^section-/, "");
+      const card = dom.bodySections?.querySelector(`.body-section-card[data-section-key='${CSS.escape(sectionKey)}']`);
+      title = getBodySectionHeading(card) || "Section";
+      detail = `${countMeaningfulWords(getBodySectionContent(card))} words`;
+    } else if (componentId.startsWith("figure-")) {
+      const figureKey = componentId.replace(/^figure-/, "");
+      const index = (state.figureFiles || []).findIndex((file) => figureFileKey(file) === figureKey);
+      const file = index >= 0 ? state.figureFiles[index] : null;
+      const detailModel = file ? getFigureDetailForFile(file, index) : null;
+      title = detailModel ? buildFigureLabel(detailModel, index + 1) : "Figure";
+      detail = detailModel?.title || file?.name || "Figure block";
+    }
+
+    dom.selectedComponentCard.innerHTML = `
+      <strong>${escapeHtml(title)}</strong>
+      <span>${escapeHtml(detail)}</span>
+    `;
+  }
+
+  function buildLiveInlineFigureElement(file, index, data) {
+    const key = figureFileKey(file);
+    const detail = resolveFigureDetailForOutput(file, index + 1, data.figureDetails || {});
+    const figure = document.createElement("figure");
+    figure.className = "live-inline-figure-block live-note-block";
+    figure.setAttribute("data-live-component-id", `figure-${key}`);
+    figure.setAttribute("data-live-component-type", "figure");
+    figure.innerHTML = `
+      <figcaption class="live-inline-figure-head">${escapeHtml(buildFigureHeading(detail, index + 1))}</figcaption>
+      <div class="live-inline-figure-frame">
+        <img src="${escapeAttribute(getFigurePreviewUrl(file))}" alt="${escapeAttribute(detail.title || file.name)}">
+      </div>
+      ${(detail.source || detail.notes) ? `<div class="live-inline-figure-foot">${escapeHtml([detail.source ? `Source: ${detail.source}` : "", detail.notes ? `Note: ${detail.notes}` : ""].filter(Boolean).join(" "))}</div>` : ""}
+    `;
+    return figure;
+  }
+
+  function buildFigureHeading(detail, autoNumber) {
+    const label = buildFigureLabel(detail, autoNumber);
+    const title = String(detail.title || detail.caption || "").trim();
+    const subtitle = String(detail.subtitle || "").trim();
+    return [title ? `${label}: ${title}` : label, subtitle].filter(Boolean).join(" | ");
+  }
+
+  function renderLiveInlineFigures(data) {
+    const host = document.getElementById("liveNoteCanvas");
+    if (!host) return;
+    host.querySelectorAll(".live-inline-figure-block").forEach((node) => node.remove());
+
+    const liveEndHost = host.querySelector("#liveNoteEndFigures");
+    const sectionCards = new Map(
+      Array.from(dom.bodySections?.querySelectorAll(".body-section-card") || []).map((card) => [card.dataset.sectionKey, card])
+    );
+    const extraTargets = {
+      businessDescription: document.querySelector("[data-live-component-id='businessDescription']"),
+      valuationSummary: document.querySelector("[data-live-component-id='valuationSummary']")
+    };
+
+    (data.imageFiles || []).forEach((file, index) => {
+      const placement = resolveFigurePlacementForFile(file, data, new Set(getFigurePlacementOptions(data.noteType).map((option) => option.value)));
+      const figure = buildLiveInlineFigureElement(file, index, data);
+      const sectionMatch = placement.match(/^after-([a-zA-Z0-9_-]+)(?:-p\d+)?$/);
+      if (sectionMatch) {
+        const sectionKey = sectionMatch[1];
+        const target = sectionCards.get(sectionKey) || extraTargets[sectionKey];
+        if (target?.parentElement) {
+          target.insertAdjacentElement("afterend", figure);
+          return;
+        }
+      }
+      liveEndHost?.appendChild(figure);
+    });
+  }
+
+  function renderLiveNotePresentation(data) {
+    hydrateInstitutionalDomRefs();
+    syncAllLiveMirrors();
+    decorateLiveNarrativeComponents();
+    renderLiveInlineFigures(data);
+
+    const equityNarrativeHost = document.getElementById("liveEquityNarrativeHost");
+    if (equityNarrativeHost) equityNarrativeHost.hidden = !isEquitySelected();
+
+    const bylineParts = [dom.authorFirstName?.value.trim(), dom.authorLastName?.value.trim()].filter(Boolean);
+    const bylineChip = document.getElementById("liveBylineChip");
+    if (bylineChip) bylineChip.textContent = bylineParts.length ? bylineParts.join(" ") : "Author details";
+
+    const stageChip = document.getElementById("liveCanvasStageChip");
+    if (stageChip) stageChip.textContent = buildWorkflowStageLabel(dom.workflowStage?.value || "authoring");
+
+    const shariah = getShariahStatusModel(data);
+    if (dom.liveShariahChip) {
+      dom.liveShariahChip.textContent = shariah.label;
+      dom.liveShariahChip.classList.toggle("is-flag", shariah.tone === "flag");
+      dom.liveShariahChip.classList.toggle("is-ok", shariah.tone === "ok");
+      dom.liveShariahChip.classList.toggle("is-review", shariah.tone === "review");
+    }
+    const liveNoteShariahStatus = document.getElementById("liveNoteShariahStatus");
+    if (liveNoteShariahStatus) {
+      liveNoteShariahStatus.textContent = shariah.label;
+      liveNoteShariahStatus.classList.toggle("is-flag", shariah.tone === "flag");
+      liveNoteShariahStatus.classList.toggle("is-ok", shariah.tone === "ok");
+      liveNoteShariahStatus.classList.toggle("is-review", shariah.tone === "review");
+    }
+
+    renderSelectedComponentInspector(data);
   }
 
   function hydrateInstitutionalDomRefs() {
     dom.institutionShell = document.getElementById("institutionShell");
+    dom.sourceDataHost = document.getElementById("sourceDataHost");
+    dom.liveNoteCanvas = document.getElementById("liveNoteCanvas");
     dom.workflowStage = document.getElementById("workflowStage");
     dom.documentOwner = document.getElementById("documentOwner");
     dom.editorialOwner = document.getElementById("editorialOwner");
@@ -1299,16 +1697,19 @@ document.addEventListener("DOMContentLoaded", () => {
     dom.distributionEntitlement = document.getElementById("distributionEntitlement");
     dom.distributionPublicationState = document.getElementById("distributionPublicationState");
     dom.distributionPackagingNotes = document.getElementById("distributionPackagingNotes");
+    dom.shariahComplianceStatus = document.getElementById("shariahComplianceStatus");
     dom.workspaceDocTitle = document.getElementById("workspaceDocTitle");
     dom.workspaceDocMeta = document.getElementById("workspaceDocMeta");
     dom.workspaceDocumentLabel = document.getElementById("workspaceDocumentLabel");
     dom.workspaceReadinessChip = document.getElementById("workspaceReadinessChip");
     dom.workspaceChannelChip = document.getElementById("workspaceChannelChip");
+    dom.liveShariahChip = document.getElementById("liveShariahChip");
     dom.workspaceNoteId = document.getElementById("workspaceNoteId");
     dom.workspacePackageChip = document.getElementById("workspacePackageChip");
     dom.workspaceSaveState = document.getElementById("workspaceSaveState");
     dom.workspaceAudienceState = document.getElementById("workspaceAudienceState");
     dom.workspacePackagingSummary = document.getElementById("workspacePackagingSummary");
+    dom.selectedComponentCard = document.getElementById("selectedComponentCard");
     dom.metadataCoverageSummary = document.getElementById("metadataCoverageSummary");
     dom.metadataAuthorSummary = document.getElementById("metadataAuthorSummary");
     dom.metadataPackageSummary = document.getElementById("metadataPackageSummary");
@@ -1316,6 +1717,7 @@ document.addEventListener("DOMContentLoaded", () => {
     dom.componentRegistryList = document.getElementById("componentRegistryList");
     dom.componentTokenList = document.getElementById("componentTokenList");
     dom.figureTokenQuickList = document.getElementById("figureTokenQuickList");
+    dom.shariahComplianceSummary = document.getElementById("shariahComplianceSummary");
     dom.complianceReviewMirror = document.getElementById("complianceReviewMirror");
     dom.compliancePolicyChecklist = document.getElementById("compliancePolicyChecklist");
     dom.distributionChannelSummary = document.getElementById("distributionChannelSummary");
@@ -1366,7 +1768,8 @@ document.addEventListener("DOMContentLoaded", () => {
       ["workflowStage", "Workflow stage updated"],
       ["editorialApprovalStatus", "Editorial approval updated"],
       ["complianceApprovalStatus", "Compliance approval updated"],
-      ["distributionPublicationState", "Distribution state updated"]
+      ["distributionPublicationState", "Distribution state updated"],
+      ["shariahComplianceStatus", "Shariah status updated"]
     ].forEach(([id, title]) => {
       const input = document.getElementById(id);
       if (!input || input.dataset.workflowLogged === "true") return;
@@ -1399,11 +1802,14 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   function openSectionFromNav(sectionId) {
-    const target = document.getElementById(sectionId);
-    if (!target) return;
     const tabKey = SECTION_TAB_MAP[sectionId] || "editor";
     switchWorkspaceTab(tabKey, { suppressLog: true, record: false });
     window.setTimeout(() => {
+      let target = document.getElementById(sectionId);
+      if (sectionId === "section-note") target = document.querySelector("[data-live-component-id='frontmatter']") || target;
+      if (sectionId === "section-body") target = document.getElementById("liveBodyComponentHost") || target;
+      if (sectionId === "section-exhibits") target = document.getElementById("componentsFigureHost") || target;
+      if (!target) return;
       target.scrollIntoView({ behavior: "smooth", block: "start" });
     }, 40);
   }
@@ -1442,25 +1848,23 @@ document.addEventListener("DOMContentLoaded", () => {
 
   function insertComponentFromLibrary(componentKey) {
     switchWorkspaceTab(componentKey === "financials" ? "financials" : "editor", { suppressLog: true, record: false });
+    const selectedBodyCard = getSelectedBodySectionCard();
 
     if (componentKey === "custom-section") {
-      const section = addCustomBodySection({ label: "Custom Section", content: "" });
-      section?.querySelector("[data-custom-field='heading']")?.focus();
-      recordWorkflowEvent("component", "Custom component inserted", "Custom editorial block");
+      const section = addCustomBodySection({ label: "Custom Section", content: "" }, { afterCard: selectedBodyCard });
+      finalizeInsertedBodySection(section, ".body-section-heading input");
       return;
     }
 
     if (componentKey === "risks") {
-      const section = addCustomBodySection({ label: "Risks", content: "" });
-      section?.querySelector("[data-custom-field='content']")?.focus();
-      recordWorkflowEvent("component", "House component inserted", "Risks");
+      const section = addCustomBodySection({ label: "Risks", content: "" }, { afterCard: selectedBodyCard });
+      finalizeInsertedBodySection(section, ".rich-editor-surface, textarea[data-custom-field='content']");
       return;
     }
 
     if (componentKey === "catalysts") {
-      const section = addCustomBodySection({ label: "Catalysts", content: "" });
-      section?.querySelector("[data-custom-field='content']")?.focus();
-      recordWorkflowEvent("component", "House component inserted", "Catalysts");
+      const section = addCustomBodySection({ label: "Catalysts", content: "" }, { afterCard: selectedBodyCard });
+      finalizeInsertedBodySection(section, ".rich-editor-surface, textarea[data-custom-field='content']");
       return;
     }
 
@@ -1468,9 +1872,8 @@ document.addEventListener("DOMContentLoaded", () => {
       const section = addCustomBodySection({
         label: "Disclosure",
         content: "This section captures the house disclosure, caveat set, or regulatory note relevant to the draft."
-      });
-      section?.querySelector("[data-custom-field='content']")?.focus();
-      recordWorkflowEvent("component", "House component inserted", "Disclosure");
+      }, { afterCard: selectedBodyCard });
+      finalizeInsertedBodySection(section, ".rich-editor-surface, textarea[data-custom-field='content']");
       return;
     }
 
@@ -1503,6 +1906,23 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   }
 
+  function getSelectedBodySectionCard() {
+    if (!dom.bodySections || !String(state.activeEditorComponentId || "").startsWith("section-")) return null;
+    const sectionKey = String(state.activeEditorComponentId || "").replace(/^section-/, "");
+    return dom.bodySections.querySelector(`.body-section-card[data-section-key='${CSS.escape(sectionKey)}']`);
+  }
+
+  function finalizeInsertedBodySection(section, focusSelector = "") {
+    if (!section) return;
+    decorateLiveNarrativeComponents();
+    syncFigurePlacementControls();
+    updateAllUI();
+    queueDraftSave();
+    const target = focusSelector ? section.querySelector(focusSelector) : null;
+    if (target instanceof HTMLElement) target.focus();
+    if (section.dataset.sectionKey) setActiveEditorComponent(`section-${section.dataset.sectionKey}`);
+  }
+
   function ensureInstitutionalDefaults() {
     hydrateInstitutionalDomRefs();
     if (dom.workflowStage && !dom.workflowStage.value) dom.workflowStage.value = "authoring";
@@ -1526,6 +1946,7 @@ document.addEventListener("DOMContentLoaded", () => {
     if (dom.accessClassification && !dom.accessClassification.value) dom.accessClassification.value = "Internal";
     if (dom.editorialApprovalStatus && !dom.editorialApprovalStatus.value) dom.editorialApprovalStatus.value = "Pending";
     if (dom.complianceApprovalStatus && !dom.complianceApprovalStatus.value) dom.complianceApprovalStatus.value = "Pending";
+    if (dom.shariahComplianceStatus && !dom.shariahComplianceStatus.value) dom.shariahComplianceStatus.value = "Auto";
   }
 
   function defaultRixmlContentType(noteType) {
@@ -2629,8 +3050,12 @@ document.addEventListener("DOMContentLoaded", () => {
     syncBodySectionVisibility();
   }
 
-  function addCustomBodySection(seed = {}, shouldAppend = true) {
+  function addCustomBodySection(seed = {}, appendOrOptions = true) {
     if (!dom.customBodySectionTemplate || !dom.bodySections) return null;
+    const options = typeof appendOrOptions === "object" && appendOrOptions !== null
+      ? appendOrOptions
+      : { append: appendOrOptions };
+    const shouldAppend = options.append !== false;
 
     state.customSectionCount += 1;
     const fragment = dom.customBodySectionTemplate.content.cloneNode(true);
@@ -2644,8 +3069,12 @@ document.addEventListener("DOMContentLoaded", () => {
     if (contentInput) contentInput.value = seed.content || "";
 
     if (shouldAppend) {
-      dom.bodySections.appendChild(fragment);
-      const cardElement = dom.bodySections.querySelector(`[data-section-key='${key}']`);
+      if (options.afterCard instanceof HTMLElement && options.afterCard.parentElement === dom.bodySections) {
+        options.afterCard.insertAdjacentElement("afterend", card);
+      } else {
+        dom.bodySections.appendChild(card);
+      }
+      const cardElement = dom.bodySections.querySelector(`[data-section-key='${CSS.escape(key)}']`);
       const customTextarea = cardElement?.querySelector("textarea[data-custom-field='content']");
       if (customTextarea) enhanceRichTextField(customTextarea);
       recordWorkflowEvent("component", "Custom section added", String(seed.label || "Custom Section"), { silentSave: true });
@@ -4058,6 +4487,19 @@ document.addEventListener("DOMContentLoaded", () => {
       );
     }
 
+    const shariah = getShariahStatusModel(data);
+    if (shariah.tone === "flag") {
+      findings.push(
+        buildFinding(
+          "warning",
+          "Shariah compliance flag",
+          "The covered company or sector matches the non-compliant screening flag. Review before publication.",
+          "Compliance",
+          { focusId: "shariahComplianceStatus" }
+        )
+      );
+    }
+
     findings.sort((left, right) => left.sortOrder - right.sortOrder);
 
     const criticalCount = findings.filter((finding) => finding.severity === "critical").length;
@@ -4437,6 +4879,16 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   function renderComplianceDashboards(data, validation, review) {
+    const shariah = getShariahStatusModel(data);
+    if (dom.shariahComplianceSummary) {
+      dom.shariahComplianceSummary.innerHTML = `
+        <article class="component-registry-item">
+          <strong>${escapeHtml(shariah.label)}</strong>
+          <span>${escapeHtml(shariah.detail)}</span>
+        </article>
+      `;
+    }
+
     if (dom.complianceReviewMirror) {
       dom.complianceReviewMirror.innerHTML = review.findings.length
         ? review.findings.slice(0, 8).map((finding) => `
@@ -4541,11 +4993,11 @@ document.addEventListener("DOMContentLoaded", () => {
 
   function renderInstitutionalUI(data, validation, review) {
     renderInstitutionalHeader(data, validation, review);
+    renderLiveNotePresentation(data);
     renderMetadataDashboards(data);
     renderComponentRegistry(data);
     renderComplianceDashboards(data, validation, review);
     renderDistributionDashboards();
-    renderAnalyticsDashboard(data);
     renderHistoryTimeline();
     renderFinancialsCoveragePanel(data);
   }
@@ -7172,6 +7624,7 @@ document.addEventListener("DOMContentLoaded", () => {
       distributionEntitlement: "Internal Working Draft",
       distributionPublicationState: "Draft",
       distributionPackagingNotes: "",
+      shariahComplianceStatus: "Auto",
       generatedAt: new Date()
     };
   }
@@ -7279,6 +7732,7 @@ document.addEventListener("DOMContentLoaded", () => {
       distributionEntitlement: dom.distributionEntitlement?.value.trim() || "",
       distributionPublicationState: dom.distributionPublicationState?.value.trim() || "",
       distributionPackagingNotes: dom.distributionPackagingNotes?.value.trim() || "",
+      shariahComplianceStatus: dom.shariahComplianceStatus?.value.trim() || "Auto",
       generatedAt: new Date()
     };
   }
