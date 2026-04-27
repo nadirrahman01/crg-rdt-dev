@@ -4,6 +4,7 @@
   "private": true,
   "description": "Cordoba Research Production Console",
   "scripts": {
+    "reset-auth": "node scripts/reset-auth.js",
     "start": "node server.js",
     "dev": "node server.js"
   },
