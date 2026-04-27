@@ -59,6 +59,11 @@ app.use(session({
   }
 }));
 
+app.get("/assets/cordoba-logo", (_req, res) => {
+  res.type("image/png");
+  res.sendFile(path.join(ROOT_DIR, "assets", "cordoba-logo"));
+});
+
 app.use("/assets", express.static(path.join(ROOT_DIR, "assets")));
 
 app.get("/api/health", (_req, res) => {
