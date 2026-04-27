@@ -4,6 +4,7 @@
   const authRoot = document.getElementById("authRoot");
   const platformRoot = document.getElementById("platformRoot");
   const legacyHost = document.getElementById("legacyAppHost");
+  const API_BASE = window.location.protocol === "file:" ? "http://localhost:3000" : "";
 
   const NAV_ITEMS = [
     { route: "dashboard", label: "Dashboard", icon: "dashboard" },
@@ -194,7 +195,7 @@
       renderShell();
     } catch (_error) {
       state.authChecked = true;
-      renderAuth("Unable to connect to the secure session service.");
+      renderAuth(authUnavailableMessage());
     }
   }
 
@@ -251,7 +252,7 @@
       <section class="rpc-login">
         <div class="rpc-login-panel">
           <div class="rpc-login-brand">
-            <img src="assets/cordoba-logo.png" alt="Cordoba Research Group">
+            <img src="${assetUrl("assets/cordoba-logo")}" alt="Cordoba Research Group">
             <h1>Research Production Console</h1>
             <p>Research documentation, analysis, and compliance in one secure platform.</p>
           </div>
@@ -269,7 +270,7 @@
                 <div class="rpc-input-wrap has-leading has-trailing">
                   ${icon("lock")}
                   <input id="rpcLoginPassword" name="password" type="${state.showPassword ? "text" : "password"}" autocomplete="current-password" placeholder="Enter your password" required>
-                  <button type="button" class="rpc-kebab rpc-input-trailing" data-toggle-password aria-label="Toggle password visibility">
+                  <button type="button" class="rpc-password-toggle rpc-input-trailing" data-toggle-password aria-label="Toggle password visibility">
                     ${state.showPassword ? icon("eye-off") : icon("eye")}
                   </button>
                 </div>
@@ -283,10 +284,10 @@
               </div>
               <button type="submit" class="rpc-primary-btn">Sign In</button>
               <div class="rpc-login-divider">or</div>
-              <button type="button" class="rpc-secondary-btn" data-sso-button>
-                <span style="display:inline-flex;align-items:center;gap:12px;justify-content:center;">
-                  ${icon("microsoft")}
-                  <span>Continue with Microsoft</span>
+              <button type="button" class="rpc-secondary-btn rpc-ms-btn" data-sso-button>
+                <span class="rpc-ms-btn-content">
+                  <span class="rpc-ms-mark">${icon("microsoft")}</span>
+                  <span class="rpc-ms-label">Continue with Microsoft</span>
                 </span>
               </button>
               ${errorMessage ? `<div class="rpc-login-error">${escapeHtml(errorMessage)}</div>` : ""}
@@ -1413,7 +1414,7 @@
       ensureSelectedSection();
       renderShell();
     } catch (error) {
-      renderAuth(error.message || "Unable to sign in.");
+      renderAuth(friendlyAuthError(error));
     }
   }
 
@@ -2169,21 +2170,45 @@
   }
 
   async function fetchJson(url, options = {}) {
-    const response = await fetch(url, {
-      method: options.method || "GET",
-      credentials: "same-origin",
-      headers: {
-        "Content-Type": "application/json",
-        ...(options.headers || {})
-      },
-      body: options.body
-    });
+    let response;
+    try {
+      response = await fetch(`${API_BASE}${url}`, {
+        method: options.method || "GET",
+        credentials: "same-origin",
+        headers: {
+          "Content-Type": "application/json",
+          ...(options.headers || {})
+        },
+        body: options.body
+      });
+    } catch (error) {
+      if (error instanceof TypeError) {
+        throw new Error(authUnavailableMessage());
+      }
+      throw error;
+    }
 
     const payload = await response.json().catch(() => ({}));
     if (!response.ok) {
       throw new Error(payload.error || "Request failed.");
     }
     return payload;
+  }
+
+  function assetUrl(assetPath) {
+    return window.location.protocol === "file:" ? assetPath : `/${assetPath.replace(/^\/+/, "")}`;
+  }
+
+  function authUnavailableMessage() {
+    return "Authentication service unavailable. Start the RDT server with `npm start` and open http://localhost:3000.";
+  }
+
+  function friendlyAuthError(error) {
+    const message = error?.message || "Unable to sign in.";
+    if (/authentication service unavailable/i.test(message) || /failed to fetch/i.test(message)) {
+      return authUnavailableMessage();
+    }
+    return message;
   }
 
   async function waitForLegacyApi() {
