@@ -4,7 +4,6 @@
   const authRoot = document.getElementById("authRoot");
   const platformRoot = document.getElementById("platformRoot");
   const legacyHost = document.getElementById("legacyAppHost");
-  const API_BASE = window.location.protocol === "file:" ? "http://localhost:3000" : "";
 
   const NAV_ITEMS = [
     { route: "dashboard", label: "Dashboard", icon: "dashboard" },
@@ -109,6 +108,8 @@
 
   const state = {
     api: null,
+    apiBase: null,
+    apiBasePromise: null,
     authChecked: false,
     user: null,
     security: null,
@@ -252,7 +253,7 @@
       <section class="rpc-login">
         <div class="rpc-login-panel">
           <div class="rpc-login-brand">
-            <img src="${assetUrl("assets/cordoba-logo")}" alt="Cordoba Research Group">
+            <img src="assets/cordoba-logo" alt="Cordoba Research Group" onerror="this.onerror=null;this.src='assets/cordoba-logo.png';">
             <h1>Research Production Console</h1>
             <p>Research documentation, analysis, and compliance in one secure platform.</p>
           </div>
@@ -2170,11 +2171,12 @@
   }
 
   async function fetchJson(url, options = {}) {
+    const apiBase = await getApiBase();
     let response;
     try {
-      response = await fetch(`${API_BASE}${url}`, {
+      response = await fetch(`${apiBase}${url}`, {
         method: options.method || "GET",
-        credentials: "same-origin",
+        credentials: "include",
         headers: {
           "Content-Type": "application/json",
           ...(options.headers || {})
@@ -2190,13 +2192,70 @@
 
     const payload = await response.json().catch(() => ({}));
     if (!response.ok) {
-      throw new Error(payload.error || "Request failed.");
+      throw new Error(payload.error || buildHttpErrorMessage(response, url));
     }
     return payload;
   }
 
-  function assetUrl(assetPath) {
-    return window.location.protocol === "file:" ? assetPath : `/${assetPath.replace(/^\/+/, "")}`;
+  async function getApiBase() {
+    if (state.apiBase != null) return state.apiBase;
+    if (state.apiBasePromise) return state.apiBasePromise;
+    state.apiBasePromise = detectApiBase();
+    state.apiBase = await state.apiBasePromise;
+    state.apiBasePromise = null;
+    return state.apiBase;
+  }
+
+  async function detectApiBase() {
+    const candidates = buildApiBaseCandidates();
+    for (const candidate of candidates) {
+      if (await probeApiBase(candidate)) return candidate;
+    }
+    throw new Error(authUnavailableMessage());
+  }
+
+  function buildApiBaseCandidates() {
+    const candidates = [];
+    const explicit = typeof window !== "undefined" ? window.__RDT_API_BASE__ : "";
+    if (explicit) candidates.push(String(explicit).replace(/\/+$/, ""));
+
+    if (window.location.protocol === "file:") {
+      candidates.push("http://localhost:3000", "http://127.0.0.1:3000");
+      return unique(candidates);
+    }
+
+    candidates.push("");
+    if (window.location.port !== "3000") {
+      candidates.push(`${window.location.protocol}//${window.location.hostname}:3000`);
+    }
+    if (window.location.hostname === "localhost") {
+      candidates.push("http://127.0.0.1:3000");
+    }
+    if (window.location.hostname === "127.0.0.1") {
+      candidates.push("http://localhost:3000");
+    }
+    return unique(candidates);
+  }
+
+  async function probeApiBase(apiBase) {
+    try {
+      const response = await fetch(`${apiBase}/api/health`, {
+        method: "GET",
+        credentials: "include"
+      });
+      if (!response.ok) return false;
+      const payload = await response.json().catch(() => null);
+      return Boolean(payload?.ok);
+    } catch (_error) {
+      return false;
+    }
+  }
+
+  function buildHttpErrorMessage(response, url) {
+    if (response.status === 401) return "Invalid email or password.";
+    if (response.status === 404) return `Authentication endpoint unavailable for ${url}.`;
+    if (response.status >= 500) return "Authentication service error. Check the backend server and try again.";
+    return `Request failed (${response.status}).`;
   }
 
   function authUnavailableMessage() {
@@ -2209,6 +2268,10 @@
       return authUnavailableMessage();
     }
     return message;
+  }
+
+  function unique(values) {
+    return [...new Set(values.filter((value) => typeof value === "string"))];
   }
 
   async function waitForLegacyApi() {
