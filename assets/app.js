@@ -1,6 +1,6 @@
 console.log("CRG Research Production Console loaded");
 
-document.addEventListener("DOMContentLoaded", () => {
+function bootResearchProductionConsole() {
   const STORAGE_KEY = "crg-rdt-draft-v2";
   const NOTE_SEQUENCE_STORAGE_KEY = "crg-rdt-note-seq-v1";
   const COUNTRY_CODES = [
@@ -12079,4 +12079,10 @@ document.addEventListener("DOMContentLoaded", () => {
     };
     dispatchPlatformStateChange();
   }
-});
+}
+
+if (document.readyState === "loading") {
+  document.addEventListener("DOMContentLoaded", bootResearchProductionConsole, { once: true });
+} else {
+  bootResearchProductionConsole();
+}
