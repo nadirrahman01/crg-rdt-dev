@@ -4,6 +4,14 @@
   const authRoot = document.getElementById("authRoot");
   const platformRoot = document.getElementById("platformRoot");
   const legacyHost = document.getElementById("legacyAppHost");
+  const LEGACY_RUNTIME_SCRIPTS = [
+    "https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js",
+    "https://unpkg.com/docx@7.8.2/build/index.js",
+    "https://unpkg.com/file-saver@2.0.5/dist/FileSaver.min.js",
+    "https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js",
+    "assets/app.js"
+  ];
+  const runtimeScriptPromises = new Map();
 
   const NAV_ITEMS = [
     { route: "dashboard", label: "Dashboard", icon: "dashboard" },
@@ -111,6 +119,8 @@
     apiBase: null,
     apiBasePromise: null,
     authChecked: false,
+    legacyReadyPromise: null,
+    legacySubscription: null,
     user: null,
     security: null,
     settings: clone(DEFAULT_SETTINGS),
@@ -148,15 +158,9 @@
     if (legacyHost) legacyHost.hidden = true;
 
     bindGlobalEvents();
-    state.api = await waitForLegacyApi();
-    state.snapshot = state.api.getSnapshot();
-    state.api.subscribe((snapshot) => {
-      state.snapshot = snapshot;
-      ensureSelectedSection();
-      if (state.user) renderShell();
-    });
-
-    await hydrateSession();
+    renderAuth();
+    warmAuthBackend();
+    void hydrateSession({ silent: true });
   }
 
   function bindGlobalEvents() {
@@ -178,25 +182,25 @@
     });
   }
 
-  async function hydrateSession() {
+  async function hydrateSession({ silent = false } = {}) {
     try {
       const session = await fetchJson("/api/auth/session");
       state.authChecked = true;
       if (!session.authenticated) {
         state.user = null;
         state.security = null;
-        renderAuth();
+        if (!silent) renderAuth();
         return;
       }
 
       state.user = session.user;
       state.security = session.security;
-      await hydrateSettings();
+      await Promise.all([ensurePlatformReady(), hydrateSettings()]);
       ensureSelectedSection();
       renderShell();
-    } catch (_error) {
+    } catch (error) {
       state.authChecked = true;
-      renderAuth(authUnavailableMessage());
+      if (!silent) renderAuth(friendlyAuthError(error));
     }
   }
 
@@ -222,6 +226,7 @@
     platformRoot.hidden = true;
     authRoot.hidden = false;
     authRoot.innerHTML = `${buildAuthMarkup(errorMessage)}${state.toast ? `<div class="rpc-toast ${state.toast.tone === "error" ? "is-error" : ""}">${escapeHtml(state.toast.message)}</div>` : ""}`;
+    bindAuthVisuals();
   }
 
   function renderShell() {
@@ -249,13 +254,14 @@
   }
 
   function buildAuthMarkup(errorMessage) {
+    const logoSrc = resolveAssetPath("assets/cordoba-logo");
+    const logoFallbackSrc = resolveAssetPath("assets/cordoba-logo.png");
     return `
       <section class="rpc-login">
         <div class="rpc-login-panel">
           <div class="rpc-login-brand">
-            <img src="assets/cordoba-logo" alt="Cordoba Research Group" onerror="this.onerror=null;this.src='assets/cordoba-logo.png';">
+            <img src="${escapeAttr(logoSrc)}" data-auth-logo data-fallback-src="${escapeAttr(logoFallbackSrc)}" alt="Cordoba Research Group" width="500" height="200" decoding="async" fetchpriority="high">
             <h1>Research Production Console</h1>
-            <p>Research documentation, analysis, and compliance in one secure platform.</p>
           </div>
           <div class="rpc-login-card">
             <form class="rpc-login-form" data-auth-form>
@@ -1411,7 +1417,7 @@
       });
       state.user = session.user;
       state.security = session.security;
-      await hydrateSettings();
+      await Promise.all([ensurePlatformReady(), hydrateSettings()]);
       ensureSelectedSection();
       renderShell();
     } catch (error) {
@@ -2174,7 +2180,7 @@
     const apiBase = await getApiBase();
     let response;
     try {
-      response = await fetch(`${apiBase}${url}`, {
+      response = await fetchWithTimeout(`${apiBase}${url}`, {
         method: options.method || "GET",
         credentials: "include",
         headers: {
@@ -2182,9 +2188,9 @@
           ...(options.headers || {})
         },
         body: options.body
-      });
+      }, options.timeoutMs || 8000);
     } catch (error) {
-      if (error instanceof TypeError) {
+      if (error?.name === "AbortError" || error instanceof TypeError) {
         throw new Error(authUnavailableMessage());
       }
       throw error;
@@ -2199,11 +2205,15 @@
 
   async function getApiBase() {
     if (state.apiBase != null) return state.apiBase;
-    if (state.apiBasePromise) return state.apiBasePromise;
-    state.apiBasePromise = detectApiBase();
-    state.apiBase = await state.apiBasePromise;
-    state.apiBasePromise = null;
-    return state.apiBase;
+    if (!state.apiBasePromise) {
+      state.apiBasePromise = detectApiBase();
+    }
+    try {
+      state.apiBase = await state.apiBasePromise;
+      return state.apiBase;
+    } finally {
+      state.apiBasePromise = null;
+    }
   }
 
   async function detectApiBase() {
@@ -2219,15 +2229,14 @@
     const explicit = typeof window !== "undefined" ? window.__RDT_API_BASE__ : "";
     if (explicit) candidates.push(String(explicit).replace(/\/+$/, ""));
 
-    if (window.location.protocol === "file:") {
-      candidates.push("http://localhost:3000", "http://127.0.0.1:3000");
-      return unique(candidates);
+    if (window.location.protocol !== "file:") {
+      candidates.push("");
+      if (window.location.port !== "3000") {
+        candidates.push(`${window.location.protocol}//${window.location.hostname}:3000`);
+      }
     }
 
-    candidates.push("");
-    if (window.location.port !== "3000") {
-      candidates.push(`${window.location.protocol}//${window.location.hostname}:3000`);
-    }
+    candidates.push("http://localhost:3000", "http://127.0.0.1:3000");
     if (window.location.hostname === "localhost") {
       candidates.push("http://127.0.0.1:3000");
     }
@@ -2239,10 +2248,10 @@
 
   async function probeApiBase(apiBase) {
     try {
-      const response = await fetch(`${apiBase}/api/health`, {
+      const response = await fetchWithTimeout(`${apiBase}/api/health`, {
         method: "GET",
         credentials: "include"
-      });
+      }, 1200);
       if (!response.ok) return false;
       const payload = await response.json().catch(() => null);
       return Boolean(payload?.ok);
@@ -2259,7 +2268,7 @@
   }
 
   function authUnavailableMessage() {
-    return "Authentication service unavailable. Start the RDT server with `npm start` and open http://localhost:3000.";
+    return "Authentication backend is unreachable from this page. Open the Research Production Console through the active RDT server URL and try again.";
   }
 
   function friendlyAuthError(error) {
@@ -2272,6 +2281,120 @@
 
   function unique(values) {
     return [...new Set(values.filter((value) => typeof value === "string"))];
+  }
+
+  function warmAuthBackend() {
+    const schedule = typeof window.requestIdleCallback === "function"
+      ? window.requestIdleCallback.bind(window)
+      : (callback) => window.setTimeout(callback, 120);
+    schedule(() => {
+      void getApiBase().catch(() => undefined);
+    });
+  }
+
+  async function ensurePlatformReady() {
+    if (state.api && state.snapshot) return state.api;
+    if (state.legacyReadyPromise) return state.legacyReadyPromise;
+
+    state.legacyReadyPromise = (async () => {
+      await loadLegacyRuntime();
+      const api = await waitForLegacyApi();
+      state.api = api;
+      state.snapshot = api.getSnapshot();
+
+      if (!state.legacySubscription) {
+        state.legacySubscription = api.subscribe((snapshot) => {
+          state.snapshot = snapshot;
+          ensureSelectedSection();
+          if (state.user) renderShell();
+        });
+      }
+
+      return api;
+    })();
+
+    try {
+      return await state.legacyReadyPromise;
+    } finally {
+      state.legacyReadyPromise = null;
+    }
+  }
+
+  async function loadLegacyRuntime() {
+    for (const source of LEGACY_RUNTIME_SCRIPTS) {
+      await loadScriptOnce(source.startsWith("http") ? source : resolveAssetPath(source));
+    }
+  }
+
+  function loadScriptOnce(source) {
+    if (runtimeScriptPromises.has(source)) {
+      return runtimeScriptPromises.get(source);
+    }
+
+    const existing = Array.from(document.scripts).find((script) => script.dataset.rdtSrc === source || script.src === source);
+    if (existing && existing.dataset.loaded === "true") {
+      return Promise.resolve();
+    }
+
+    const promise = new Promise((resolve, reject) => {
+      const script = existing || document.createElement("script");
+      script.dataset.rdtSrc = source;
+      script.async = false;
+
+      const cleanup = () => {
+        script.onload = null;
+        script.onerror = null;
+      };
+
+      script.onload = () => {
+        script.dataset.loaded = "true";
+        cleanup();
+        resolve();
+      };
+      script.onerror = () => {
+        cleanup();
+        runtimeScriptPromises.delete(source);
+        reject(new Error(`Unable to load runtime asset: ${source}`));
+      };
+
+      if (!existing) {
+        script.src = source;
+        document.body.appendChild(script);
+      }
+    });
+
+    runtimeScriptPromises.set(source, promise);
+    return promise;
+  }
+
+  function bindAuthVisuals() {
+    const logo = authRoot.querySelector("[data-auth-logo]");
+    if (!logo) return;
+    logo.addEventListener("error", () => {
+      const fallback = logo.getAttribute("data-fallback-src");
+      if (!fallback || logo.dataset.fallbackApplied === "true") return;
+      logo.dataset.fallbackApplied = "true";
+      logo.src = fallback;
+    }, { once: true });
+  }
+
+  function resolveAssetPath(assetPath) {
+    const normalized = String(assetPath || "").replace(/^\/+/, "");
+    if (window.location.protocol === "file:") return normalized;
+    return `/${normalized}`;
+  }
+
+  async function fetchWithTimeout(resource, options, timeoutMs) {
+    const controller = new AbortController();
+    const timer = window.setTimeout(() => controller.abort(), timeoutMs);
+    try {
+      return await fetch(resource, {
+        ...options,
+        signal: controller.signal
+      });
+    } finally {
+      window.clearTimeout(timer);
+    }
   }
 
   async function waitForLegacyApi() {
