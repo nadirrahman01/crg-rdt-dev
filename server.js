@@ -37,7 +37,7 @@ app.disable("x-powered-by");
 app.set("trust proxy", 1);
 app.use((req, res, next) => {
   const origin = req.headers.origin;
-  if (isAllowedOrigin(origin)) {
+  if (origin && isAllowedOrigin(origin)) {
     res.header("Access-Control-Allow-Origin", origin);
     res.header("Access-Control-Allow-Credentials", "true");
     res.header("Access-Control-Allow-Headers", "Content-Type");
@@ -427,5 +427,6 @@ function countSessionsForUser(userId) {
 function isAllowedOrigin(origin) {
   if (!origin) return true;
   if (origin === "null") return true;
+  if (process.env.NODE_ENV !== "production") return true;
   return /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/i.test(origin);
 }
